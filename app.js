@@ -144,6 +144,7 @@ function home(X) {
   const alerts = D.insights.filter((r) => r.level === 'bad' || r.level === 'warn').sort((a, b) => ORDER[a.level] - ORDER[b.level] || a.sort - b.sort).slice(0, 4).map((r) => insCard(r, true, OW)).join('');
   return `
   <div class="between"><div class="col"><span class="s13 muted">מעודכן ${esc(D.asof)}</span><h1>הון משפחת עטר</h1></div>${curSeg()}</div>
+  <div class="dgrid"><div class="dmain">
   <section class="hero"><span class="s13" style="color:#A9D9CB;font-weight:600">הון נטו · כל המשפחה והחברות</span>
     <b class="num big" style="font-size:42px">${money(fam.net)}</b>
     <div class="row" style="gap:8px;flex-wrap:wrap">
@@ -155,10 +156,11 @@ function home(X) {
     <div class="between" style="width:100%"><span class="small" style="font-weight:800;color:#4BE3B8">הניתוח של היום</span><span class="num s13" style="font-weight:800;color:${tone(fam.day)}">${signed(fam.day)} · ${pct((fam.day / (fam.net - fam.day)) * 100)}</span></div>
     <b style="font-size:16px;line-height:1.4">${esc(D.analysis.headline)}</b>${spark(hist, '#4BE3B8')}
     <span class="small muted">${esc(histLabel(hist))} · לניתוח המלא ›</span></button>
-  <div class="between"><h2>בני המשפחה</h2><span class="small muted">הקישו לפירוט</span></div>
-  <div class="col gap10">${owners}</div>
+  </div><div class="dside">
   <div class="between"><h2>דורש תשומת לב</h2><button class="linkbtn" data-a="tab" data-v="ins">כל התובנות</button></div>
-  <div class="col gap10">${alerts}</div>`;
+  <div class="col gap10">${alerts}</div></div></div>
+  <div class="between"><h2>בני המשפחה</h2><span class="small muted">הקישו לפירוט</span></div>
+  <div class="col gap10 owners">${owners}</div>`;
 }
 
 function person(X) {
@@ -205,7 +207,7 @@ function person(X) {
   <div class="row" style="gap:14px"><div class="avatar" style="width:56px;height:56px;border-radius:18px;font-size:${o.initial.length > 1 ? 18 : 24}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="col"><h1 style="font-size:26px">${esc(o.name)}</h1><span class="s13 muted">${esc(o.role_label)} · ${Math.round((a.net / fam.net) * 100)}% מההון המשפחתי</span></div></div>
   <div class="panel"><span class="s13 muted" style="font-weight:600">הון נטו</span><b class="num big" style="font-size:38px;font-weight:800">${money(a.net)}</b><span class="s13 muted">${esc(subline)}</span>${segs(a.cats, a.gross || 1)}</div>
   <div class="chips">${subs.map((t) => `<button class="chip ${t[0] === cur ? 'on' : ''}" data-a="sub" data-v="${t[0]}">${t[1]} <span style="opacity:.7;font-weight:500">${t[2]}</span></button>`).join('')}</div>
-  <div class="col gap10">${body}</div>`;
+  <div class="col gap10 ${cur === 'ins' ? 'insgrid' : 'pbody'}">${body}</div>`;
 }
 
 function cryptoTab(X) {
@@ -233,12 +235,13 @@ function marketTab(X) {
   const list = D.prices.map((p) => { const ip = +p.price_usd * D.fx; return `<div class="li"><div class="badge" style="width:36px;height:36px;border-radius:12px;font-size:10px;background:${esc(p.color)}">${esc(p.symbol)}</div><div class="grow col"><b class="t15">${esc(p.name_he)}</b><span class="num small muted">₪${ip >= 100 ? Math.round(ip).toLocaleString('en-US') : ip >= 1 ? ip.toFixed(2) : ip.toFixed(4)}</span></div><div class="end"><b class="num t15">${uprice(p.price_usd)}</b><span class="num small" style="font-weight:700;color:${p.chg_24h == null ? '#93A1B2' : tone(+p.chg_24h)}">${p.chg_24h == null ? 'אין נתון' : pct(+p.chg_24h)}</span></div></div>`; }).join('');
   return `
   <div class="between"><div class="col"><h1>שוק וניתוח</h1><span class="s13 muted">מעודכן ${esc(D.asof)} · מתעדכן אוטומטית כל בוקר</span></div>${curSeg()}</div>
+  <div class="dgrid"><div class="dmain">
   <div class="panel"><span class="s13 muted" style="font-weight:600">השינוי ב-24 שעות · קריפטו ומתכות</span>
     <div class="row" style="gap:10px;align-items:baseline;flex-wrap:wrap"><b class="num big" style="font-size:32px;font-weight:800;color:${tone(fam.day)}">${signed(fam.day)}</b><span class="num t14" style="color:${tone(fam.day)}">${pct((fam.day / (fam.net - fam.day)) * 100)} מההון</span></div>
     ${spark(hist, '#4BE3B8')}<span class="small muted">${esc(histLabel(hist))}</span><div class="row" style="flex-wrap:wrap;gap:8px">${ownersDay}</div></div>
   <h2>${esc(D.analysis.headline)}</h2>${points}<span class="muted" style="font-size:11.5px">מידע וניתוח בלבד, לא ייעוץ השקעות.</span>
-  <h2>שערים</h2><div class="tiles">${macro.map((m) => `<div class="tile"><span class="small muted">${m[0]}</span><b class="num" style="font-size:16px;font-weight:800">${m[1]}</b><span class="num small" style="font-weight:700;color:${m[3]}">${m[2]}</span></div>`).join('')}</div>
-  <div class="card list">${list}</div>`;
+  </div><div class="dside"><h2>שערים</h2><div class="tiles">${macro.map((m) => `<div class="tile"><span class="small muted">${m[0]}</span><b class="num" style="font-size:16px;font-weight:800">${m[1]}</b><span class="num small" style="font-weight:700;color:${m[3]}">${m[2]}</span></div>`).join('')}</div>
+  <div class="card list">${list}</div></div></div>`;
 }
 
 function insTab(X) {
@@ -248,7 +251,7 @@ function insTab(X) {
   const nb = D.insights.filter((r) => r.level === 'bad').length, nw = D.insights.filter((r) => r.level === 'warn').length;
   return `<div class="col"><h1>תובנות</h1><span class="s13 muted">${nb} דחופים · ${nw} לבדוק · ${D.insights.length} בסך הכל</span></div>
   <div class="chips">${chips.map((c) => `<button class="chip ${ui.inf === c[0] ? 'on' : ''}" data-a="inf" data-v="${esc(c[0])}">${esc(c[1])}</button>`).join('')}</div>
-  <div class="col gap10">${list.map((r) => insCard(r, true, OW)).join('')}</div>`;
+  <div class="col gap10 insgrid">${list.map((r) => insCard(r, true, OW)).join('')}</div>`;
 }
 
 let members = null;
@@ -270,7 +273,7 @@ function meTab() {
 
 function nav() {
   const it = [['home', 'בית', 'home'], ['crypto', 'קריפטו', 'coin'], ['market', 'שוק', 'market'], ['ins', 'תובנות', 'bulb'], ['me', 'חשבון', 'user']];
-  return `<nav class="nav" aria-label="ניווט">${it.map((t) => `<button data-a="tab" data-v="${t[0]}" class="${!ui.owner && ui.tab === t[0] ? 'on' : ''}" aria-label="${t[1]}">${ic(t[2])}${t[1]}</button>`).join('')}</nav>`;
+  return `<nav class="nav" aria-label="ניווט"><div class="nav-brand"><img src="icon-192.png" alt=""><b>הון משפחתי</b></div>${it.map((t) => `<button data-a="tab" data-v="${t[0]}" class="${!ui.owner && ui.tab === t[0] ? 'on' : ''}" aria-label="${t[1]}">${ic(t[2])}${t[1]}</button>`).join('')}</nav>`;
 }
 
 function installSheet() {
@@ -281,25 +284,27 @@ function installSheet() {
 }
 
 /* ---------- auth screens ---------- */
+const EYE_OPEN = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF = '<path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.3 2 12 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>';
+const EYE = `<button type="button" class="eye" data-a="eye" aria-label="הצגת הסיסמה" aria-pressed="false"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">${EYE_OPEN}</svg></button>`;
 function authView() {
   const m = ui.authMode;
   const title = { login: 'כניסה', signup: 'הרשמה ראשונה', forgot: 'איפוס סיסמה', newpass: 'סיסמה חדשה' }[m];
   const fields = m === 'newpass'
-    ? `<div class="field"><label for="pw">סיסמה חדשה (לפחות 10 תווים)</label><input id="pw" type="password" autocomplete="new-password" minlength="10" required></div>`
+    ? `<div class="field"><label for="pw">סיסמה חדשה (לפחות 10 תווים)</label><div class="pw"><input id="pw" type="password" autocomplete="new-password" minlength="10" required>${EYE}</div></div>`
     : `<div class="field"><label for="em">אימייל</label><input id="em" type="email" autocomplete="email" inputmode="email" required></div>` +
-      (m === 'forgot' ? '' : `<div class="field"><label for="pw">סיסמה${m === 'signup' ? ' (לפחות 10 תווים)' : ''}</label><input id="pw" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" ${m === 'signup' ? 'minlength="10"' : ''} required></div>`);
-  return `<div class="auth">
-    <img class="brand" src="splash.jpg" alt="GoldChain Wealth">
+      (m === 'forgot' ? '' : `<div class="field"><label for="pw">סיסמה${m === 'signup' ? ' (לפחות 10 תווים)' : ''}</label><div class="pw"><input id="pw" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" ${m === 'signup' ? 'minlength="10"' : ''} required>${EYE}</div></div>`);
+  return `<div class="auth"><div class="auth-art"><img class="brand" src="splash.jpg" alt="GoldChain Wealth"></div><div class="auth-form">
     <div class="col" style="gap:2px"><h1 style="font-size:28px">הון משפחתי</h1><span class="muted">${title} · לבני המשפחה בלבד</span></div>
     <form class="col gap14" data-form="auth" onsubmit="return false">${fields}
       <button class="primary" data-a="auth-submit" ${ui.busy ? 'disabled' : ''}>${{ login: 'כניסה', signup: 'יצירת חשבון', forgot: 'שליחת קישור לאיפוס', newpass: 'שמירת הסיסמה' }[m]}</button></form>
     ${ui.msg ? `<div class="msg ${ui.msg.ok ? 'ok' : 'err'}">${esc(ui.msg.t)}</div>` : ''}
     ${m === 'newpass' ? '' : `<div class="between">${m !== 'login' ? '<button class="ghost" data-a="mode" data-v="login">יש לי חשבון</button>' : '<button class="ghost" data-a="mode" data-v="signup">הרשמה ראשונה</button>'}${m !== 'forgot' ? '<button class="ghost" style="color:#4BE3B8" data-a="mode" data-v="forgot">שכחתי סיסמה</button>' : ''}</div>`}
-  </div>`;
+  </div></div>`;
 }
 
 function denied() {
-  return `<div class="auth"><img class="brand" src="splash.jpg" alt="GoldChain Wealth"><h1>אין גישה</h1><p class="muted" style="line-height:1.6">החשבון מחובר, אבל עדיין אין לו הרשאה לנתונים. אם זה עתה נרשמת — אשר/י את מייל האימות ונסה/י שוב. אחרת, פנו לקרין.</p><button class="primary" data-a="reload">ניסיון נוסף</button><button class="ghost" data-a="logout">התנתקות</button></div>`;
+  return `<div class="auth"><div class="auth-art"><img class="brand" src="splash.jpg" alt="GoldChain Wealth"></div><div class="auth-form"><h1>אין גישה</h1><p class="muted" style="line-height:1.6">החשבון מחובר, אבל עדיין אין לו הרשאה לנתונים. אם זה עתה נרשמת — אשר/י את מייל האימות ונסה/י שוב. אחרת, פנו לקרין.</p><button class="primary" data-a="reload">ניסיון נוסף</button><button class="ghost" data-a="logout">התנתקות</button></div></div>`;
 }
 
 /* ---------- render ---------- */
@@ -344,6 +349,7 @@ $app.addEventListener('click', async (e) => {
   if (a === 'reload') return refreshAll();
   if (a === 'dismiss-install') { try { localStorage.setItem('hon-install', '1'); } catch (er) {} return go(true); }
   if (a === 'logout') { await sb.auth.signOut(); session = null; D = null; ME = null; ui.authMode = 'login'; ui.tab = 'home'; return go(); }
+  if (a === 'eye') { const i = document.getElementById('pw'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.setAttribute('aria-pressed', String(show)); b.setAttribute('aria-label', show ? 'הסתרת הסיסמה' : 'הצגת הסיסמה'); b.querySelector('svg').innerHTML = show ? EYE_OFF : EYE_OPEN; i.focus(); return; }
   if (a === 'auth-submit') return submitAuth();
   if (a === 'addmember') return addMember();
 });

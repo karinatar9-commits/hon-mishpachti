@@ -86,3 +86,34 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;strok
 .brand{width:100%;aspect-ratio:600/390;object-fit:cover;border-radius:24px;border:1px solid #3a3226;box-shadow:0 12px 40px rgba(0,0,0,.45);display:block}
 .boot{padding:24px}.boot .brand{max-width:420px;animation:fade .6s ease}
 @keyframes fade{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
+.pw{position:relative}
+.pw input{width:100%;padding-left:52px}
+.eye{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:44px;height:44px;border:0;background:none;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:12px}
+.eye:hover,.eye[aria-pressed=true]{color:var(--accent)}
+.nav-brand{display:none}
+.dgrid,.dmain,.dside{display:flex;flex-direction:column;gap:18px}
+.auth-form{display:flex;flex-direction:column;gap:14px}
+/* ---------- desktop ---------- */
+@media (min-width:900px){
+  html,body{background:var(--bg)}
+  .app{max-width:none;margin:0}
+  .app:has(> .nav){padding-right:232px}
+  .scroll{width:100%;max-width:1240px;margin:0 auto;padding:36px 40px 56px;gap:22px}
+  .nav{top:0;bottom:0;right:0;left:auto;transform:none;width:232px;max-width:none;height:100vh;padding:24px 14px;border-top:0;border-left:1px solid var(--row);background:#0D131A;display:flex;flex-direction:column;gap:4px}
+  .nav-brand{display:flex;align-items:center;gap:10px;padding:4px 10px 22px;font-size:17px}
+  .nav-brand img{width:36px;height:36px;border-radius:10px}
+  .nav button{flex-direction:row;justify-content:flex-start;gap:12px;height:48px;padding:0 14px;border-radius:14px;font-size:15px}
+  .nav button:hover{background:var(--card);color:var(--ink)}
+  .nav button.on{background:rgba(75,227,184,.10)}
+  h1{font-size:30px}
+  .dgrid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:22px;align-items:start}
+  .owners{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .insgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+  .chips{margin:0;padding:0;flex-wrap:wrap;overflow:visible}
+  .ownercard:hover,.chip:hover{border-color:#3A4A5C}
+  .hero .big{font-size:52px!important}
+  .auth{flex-direction:row;align-items:center;justify-content:center;gap:56px;padding:48px;max-width:1100px;margin:0 auto;width:100%}
+  .auth-art{flex:1.2;max-width:600px}
+  .auth-form{flex:1;max-width:400px}
+}
+@media (min-width:1300px){.owners{grid-template-columns:repeat(3,minmax(0,1fr))}}
