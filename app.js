@@ -81,16 +81,17 @@ async function loadData() {
     sb.from('insights').select('*').order('sort'),
     sb.from('analysis').select('*').eq('id', 1),
     sb.from('price_history').select('*').order('day'),
-    sb.from('expenses').select('*').eq('id', 1)
+    sb.from('expenses').select('*').eq('id', 1),
+    sb.from('owner_expenses').select('*')
   ]);
   const err = res.find((r) => r.error);
   if (err) throw err.error;
-  const [owners, settings, prices, holdings, metals, secs, secp, funds, assets, insights, analysis, hist, exp] = res.map((r) => r.data || []);
+  const [owners, settings, prices, holdings, metals, secs, secp, funds, assets, insights, analysis, hist, exp, oexp] = res.map((r) => r.data || []);
   const S = Object.fromEntries(settings.map((r) => [r.key, r.value]));
   return {
     owners, prices, holdings, metals, secs, funds, assets, insights,
     secp: Object.fromEntries(secp.map((r) => [r.price_key, r])),
-    analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null,
+    analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null, oexp: Object.fromEntries(oexp.map((r) => [r.owner, r.data])),
     fx: +(S.fx || 3.1), gold: S.gold || { price: 0, chg: 0 }, silver: S.silver || { price: 0, chg: 0 }, asof: S.asof || ''
   };
 }
@@ -132,6 +133,22 @@ function insCard(r, withOwner, OW) {
 const spark = (hist, accent) => `<div class="spark">${hist.map((x, i, a) => { const vs = a.map((y) => y.v); const mn = Math.min(...vs), mx = Math.max(...vs); const h = a.length < 2 || mx === mn ? 60 : 12 + (88 * (x.v - mn)) / (mx - mn); return `<i style="height:${h.toFixed(1)}%;background:${i === a.length - 1 ? accent : '#2C3B4D'}"></i>`; }).join('')}</div>`;
 function histLabel(hist) { if (hist.length < 2) return 'הגרף יתמלא מיום ליום — עדכון אוטומטי כל בוקר'; const d = hist[hist.length - 1].v - hist[0].v; const f = (s) => s.split('-').reverse().slice(0, 2).join('.'); return `${hist.length} ימים · ${signed(d)} מאז ${f(hist[0].d)}`; }
 
+function expGeneric(x, OW) {
+  const mx = Math.max(1, ...(x.monthly || []).map((m) => m.v));
+  const d = x.avg3 ? ((x.spent - x.avg3) / x.avg3) * 100 : null;
+  const pace = x.pace ? ` · בקצב הזה ${money(x.pace)} לחודש` : '';
+  return `<div class="panel"><div class="between"><span class="s13 muted" style="font-weight:600">הוצאות בכרטיסים · ${esc(x.month)} · עד ${esc(x.asof)}</span>${d == null ? '' : `<span class="num small" style="font-weight:700;color:${tone(-d)}">${pct(d)} מהממוצע</span>`}</div>
+    <b class="num big" style="font-size:34px">${money(x.spent)}</b>
+    <span class="s13 soft" style="line-height:1.5">ממוצע 3 חודשים ${money(x.avg3)}${pace}</span>
+    ${(x.monthly || []).length ? `<div class="spark" style="height:56px">${x.monthly.map((m, i, a) => `<i title="${esc(m.m)}" style="height:${(12 + (88 * m.v) / mx).toFixed(1)}%;background:${i === a.length - 1 ? '#4BE3B8' : '#2C3B4D'}"></i>`).join('')}</div><span class="small muted">${x.monthly.map((m) => esc(m.m)).join(' · ')}</span>` : ''}
+    ${x.cash ? `<div class="between" style="padding-top:10px;border-top:1px solid var(--line)"><span class="s13 muted">${esc(x.cash.label)}</span><b class="num t15">${money(x.cash.v)}</b></div>` : ''}</div>
+  ${(x.alerts || []).length ? `<span class="s13 muted" style="font-weight:800">התראות</span>${x.alerts.map((r) => insCard({ level: r[0], title: r[1], body: r[2] }, false, OW)).join('')}` : `<div class="ins">${pill(LEVEL.ok)}<b class="t15">אין חיובים חריגים</b><p>הבדיקה האחרונה לא מצאה חיוב כפול, חיוב גבוה מהרגיל או חיוב חדש גדול.</p></div>`}
+  ${(x.cards || []).length ? `<span class="s13 muted" style="font-weight:800">חיובי כרטיסים קרובים</span><div class="card list">${x.cards.map((r) => `<div class="li"><div class="date">${esc(r[1])}</div><div class="grow col"><b class="t14">${esc(r[0])}</b><span class="small muted">${esc(r[3] || '')}</span></div><b class="num t15">${money(r[2])}</b></div>`).join('')}</div>` : ''}
+  ${(x.big || []).length ? `<span class="s13 muted" style="font-weight:800">חיובים גדולים החודש</span><div class="card list">${x.big.map((r) => `<div class="li"><div class="grow col"><b class="t14">${esc(r[0])}</b><span class="small muted">${esc(r[1])}</span></div><b class="num t15">${money(r[2])}</b></div>`).join('')}</div>` : ''}
+  ${(x.top || []).length ? `<span class="s13 muted" style="font-weight:800">איפה הולך הכסף · 3 חודשים</span><div class="card list">${x.top.map((r) => `<div class="li"><div class="grow col"><b class="t14">${esc(r[0])}</b><span class="small muted">${esc(r[2] || '')}</span></div><b class="num t15">${money(r[1])}</b></div>`).join('')}</div>` : ''}
+  ${(x.recurring || []).length ? `<span class="s13 muted" style="font-weight:800">חיובים קבועים</span><div class="card list">${x.recurring.map((r) => `<div class="li"><div class="date">${esc(r[2])}</div><div class="grow col"><b class="t14">${esc(r[0])}</b><span class="small muted">${esc(r[3] || '')}</span></div><b class="num t15">${money(r[1])}</b></div>`).join('')}</div>` : ''}`;
+}
+
 /* ---------- screens ---------- */
 function home(X) {
   const { fam, OW, agg, hist } = X;
@@ -141,7 +158,8 @@ function home(X) {
     const sub = [o.role_label]; if (a.warn) sub.push(a.warn + ' לבדוק'); if (a.missing) sub.push(a.missing + ' בלי שווי');
     return `<button class="ownercard" data-a="owner" data-v="${esc(o.id)}"><div class="row" style="width:100%"><div class="avatar" style="width:44px;height:44px;font-size:${o.initial.length > 1 ? 15 : 19}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="grow col"><b style="font-size:16px">${esc(o.name)}</b><span class="small muted">${esc(sub.join(' · '))}</span></div><div class="end"><b class="num" style="font-size:16px;font-weight:800">${short(a.net)}</b><span class="num small" style="font-weight:600;color:${a.cVal ? tone(plp) : '#93A1B2'}">${a.cVal ? 'קריפטו ' + pct(plp) : 'אין קריפטו'}</span></div></div><div class="thin"><i style="width:${Math.max(2, (a.net / maxNet) * 100).toFixed(1)}%;background:${esc(o.color)}"></i></div></button>`;
   }).join('');
-  const alerts = D.insights.filter((r) => r.level === 'bad' || r.level === 'warn').sort((a, b) => ORDER[a.level] - ORDER[b.level] || a.sort - b.sort).slice(0, 4).map((r) => insCard(r, true, OW)).join('');
+  const expAlerts = Object.entries(D.oexp || {}).flatMap(([ow, x]) => (x.alerts || []).filter((r) => r[0] === 'bad' || r[0] === 'warn').map((r, i) => ({ owner: ow, level: r[0], title: r[1], body: r[2], sort: -100 + i })));
+  const alerts = expAlerts.concat(D.insights).filter((r) => r.level === 'bad' || r.level === 'warn').sort((a, b) => ORDER[a.level] - ORDER[b.level] || a.sort - b.sort).slice(0, 4).map((r) => insCard(r, true, OW)).join('');
   return `
   <div class="between"><div class="col"><span class="s13 muted">מעודכן ${esc(D.asof)}</span><h1>הון משפחת עטר</h1></div>${curSeg()}</div>
   <div class="dgrid"><div class="dmain">
@@ -172,13 +190,16 @@ function person(X) {
   const se = SEC.filter((s) => s.owner === o.id);
   const ins = D.insights.filter((r) => r.owner === o.id).sort((x, y) => ORDER[x.level] - ORDER[y.level] || x.sort - y.sort);
   const ex = o.id === 'karin' && ME && ME.admin && D.exp ? D.exp : null;
-  const subs = [['crypto', 'קריפטו', cr.length], ['exp', 'הוצאות', ex ? (ex.alerts || []).length : 0], ['assets', 'נכסים', as.length], ['funds', 'קופות', fu.length], ['sec', 'ניירות ערך', se.length], ['ins', 'תובנות', ins.length]].filter((t) => t[2] > 0);
+  const ox = !ex && D.oexp[o.id] ? D.oexp[o.id] : null;
+  const subs = [['crypto', 'קריפטו', cr.length], ['exp', 'הוצאות', ex || ox ? Math.max(1, ((ex || ox).alerts || []).length) : 0], ['assets', 'נכסים', as.length], ['funds', 'קופות', fu.length], ['sec', 'ניירות ערך', se.length], ['ins', 'תובנות', ins.length]].filter((t) => t[2] > 0);
   const cur = subs.some((t) => t[0] === ui.sub) ? ui.sub : subs[0] && subs[0][0];
   let body = '';
   if (cur === 'crypto') {
     const plp = a.cCost ? ((a.cVal - a.cCost) / a.cCost) * 100 : 0;
     body = `<div class="tiles"><div class="tile"><span class="small muted">שווי</span><b class="num t15">${short(a.cVal)}</b></div><div class="tile"><span class="small muted">עלות</span><b class="num t15">${short(a.cCost)}</b></div><div class="tile"><span class="small muted">רווח/הפסד</span><b class="num t15" style="color:${tone(plp)}">${pct(plp)}</b><span class="num" style="font-size:11px;color:${tone(plp)}">${money(a.cVal - a.cCost)}</span></div></div>
     <div class="card list">${cr.map((h) => { const m = META[h.symbol] || {}; const pp = +h.cost_ils ? ((h.value - h.cost_ils) / h.cost_ils) * 100 : null; return `<div class="li"><div class="badge" style="background:${esc(m.color || '#A6B3C2')}">${esc(h.symbol)}</div><div class="grow col"><b class="t15">${esc(m.name_he || h.symbol)}</b><span class="num small muted">${qty(h.qty)} ${esc(h.symbol)} · ${uprice(PRICE[h.symbol] || 0)}</span></div><div class="end"><b class="num t15">${money(h.value)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)} · ${money(h.value - h.cost_ils)}</span></div></div>`; }).join('')}</div>`;
+  } else if (cur === 'exp' && ox) {
+    body = expGeneric(ox, OW);
   } else if (cur === 'exp') {
     const sp = (ex.spent / ex.salary) * 100; const bc = sp > 100 ? '#FF8A7A' : sp > 85 ? '#E9C46A' : '#4BE3B8';
     body = `<div class="panel"><div class="between"><span class="s13 muted" style="font-weight:600">הוצאות ${esc(ex.month)} · עד ${esc(ex.asof)}</span><span class="num small muted">${Math.round(sp)}% מהמשכורת</span></div>
