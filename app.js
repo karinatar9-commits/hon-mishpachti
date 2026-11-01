@@ -177,6 +177,7 @@ function home(X) {
   </div><div class="dside">
   <div class="between"><h2>דורש תשומת לב</h2><button class="linkbtn" data-a="tab" data-v="ins">כל התובנות</button></div>
   <div class="col gap10">${alerts}</div></div></div>
+  ${pushState === 'off' || pushState === 'ios-install' ? pushCard() : ''}
   <div class="between"><h2>בני המשפחה</h2><span class="small muted">הקישו לפירוט</span></div>
   <div class="col gap10 owners">${owners}</div>`;
 }
@@ -280,6 +281,7 @@ function meTab() {
   const admin = ME && ME.admin;
   const mem = admin && members ? members.map((m) => `<div class="li"><div class="grow col"><b class="t14">${esc(m.display_name || '')}</b><span class="small muted" style="direction:ltr;text-align:right">${esc(m.email)}</span></div><span class="pill" style="background:${m.role === 'admin' ? 'rgba(75,227,184,.14)' : 'rgba(255,255,255,.07)'};color:${m.role === 'admin' ? '#6FEBC6' : '#C9D3DE'}">${m.role === 'admin' ? 'מנהלת' : 'צפייה'}</span></div>`).join('') : '';
   return `<div class="col"><h1>החשבון שלי</h1><span class="s13 muted">${esc(ME?.name || '')}</span></div>
+  ${pushCard()}
   ${admin ? `<div class="col gap10"><h2>ניהול גישה</h2><span class="s13 muted" style="line-height:1.5">רק מי שברשימה יכול להירשם. מוסיפים כל אחד רק כשהוא מוכן להירשם מיד.</span>
     <div class="card list">${mem || '<div class="li"><span class="muted s13">טוען…</span></div>'}</div>
     <form class="card pad col gap10" data-form="add" onsubmit="return false">
@@ -347,6 +349,43 @@ function render() {
 }
 const go = (keepScroll) => { const y = window.scrollY; render(); window.scrollTo(0, keepScroll ? y : 0); };
 
+/* ---------- push notifications ---------- */
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const b64u = (s) => { const p = '='.repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); return Uint8Array.from(r, (c) => c.charCodeAt(0)); };
+let pushState = 'unknown';
+async function checkPush() {
+  if (!pushSupported()) { pushState = /iPhone|iPad/.test(navigator.userAgent) && !isStandalone() ? 'ios-install' : 'unsupported'; return; }
+  if (Notification.permission === 'denied') { pushState = 'denied'; return; }
+  const reg = await navigator.serviceWorker.ready; const sub = await reg.pushManager.getSubscription();
+  pushState = sub && Notification.permission === 'granted' ? 'on' : 'off';
+  if (sub && pushState === 'on') { const j = sub.toJSON(); sb.rpc('save_push_sub', { _endpoint: j.endpoint, _p256dh: j.keys.p256dh, _auth: j.keys.auth }); }
+}
+async function enablePush() {
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { pushState = 'denied'; return go(true); }
+    const { data: key } = await sb.rpc('vapid_public');
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(key) }));
+    const j = sub.toJSON();
+    const { error } = await sb.rpc('save_push_sub', { _endpoint: j.endpoint, _p256dh: j.keys.p256dh, _auth: j.keys.auth });
+    pushState = error ? 'off' : 'on';
+  } catch (e) { console.error(e); pushState = 'off'; }
+  go(true);
+}
+function pushCard() {
+  const t = {
+    on: ['התראות פעילות בטלפון הזה', 'תקבלו התראה כשיש חיוב חריג או משהו שדורש טיפול.', ''],
+    off: ['התראות לטלפון', 'קבלו התראה מיד כשיש חיוב חריג, חיוב כפול או חריגה ממסגרת.', '<button class="primary" data-a="push-on">הפעלת התראות</button>'],
+    denied: ['ההתראות חסומות', 'כדי לקבל התראות צריך לאשר אותן בהגדרות הדפדפן/הטלפון לאתר הזה.', ''],
+    'ios-install': ['התראות באייפון', 'באייפון התראות עובדות רק מהאפליקציה שבמסך הבית: ספארי ← שיתוף ← ״הוספה למסך הבית״, ואז לפתוח משם ולהפעיל.', ''],
+    unsupported: ['התראות', 'הדפדפן הזה לא תומך בהתראות. נסו מכרום (אנדרואיד) או מהאפליקציה במסך הבית (אייפון).', ''],
+    unknown: ['התראות לטלפון', 'בודק…', '']
+  }[pushState];
+  return `<div class="card pad col gap6"><b class="t15">${t[0]}</b><span class="s13 muted" style="line-height:1.5">${t[1]}</span>${t[2]}</div>`;
+}
+
 /* ---------- actions ---------- */
 let session = null;
 async function refreshAll() {
@@ -354,6 +393,7 @@ async function refreshAll() {
   ME = data || { family: false };
   if (ME.family) { try { D = await loadData(); } catch (e) { console.error(e); } }
   go();
+  if (ME.family) checkPush().then(() => go(true)).catch(() => {});
 }
 
 $app.addEventListener('click', async (e) => {
@@ -373,6 +413,7 @@ $app.addEventListener('click', async (e) => {
   if (a === 'eye') { const i = document.getElementById('pw'); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.setAttribute('aria-pressed', String(show)); b.setAttribute('aria-label', show ? 'הסתרת הסיסמה' : 'הצגת הסיסמה'); b.querySelector('svg').innerHTML = show ? EYE_OFF : EYE_OPEN; i.focus(); return; }
   if (a === 'auth-submit') return submitAuth();
   if (a === 'addmember') return addMember();
+  if (a === 'push-on') return enablePush();
 });
 
 async function submitAuth() {
