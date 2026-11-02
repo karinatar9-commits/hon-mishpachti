@@ -83,16 +83,17 @@ async function loadData() {
     sb.from('price_history').select('*').order('day'),
     sb.from('expenses').select('*').eq('id', 1),
     sb.from('owner_expenses').select('*'),
-    sb.from('crypto_trades').select('*').order('trade_date', { ascending: false }).order('id', { ascending: false })
+    sb.from('crypto_trades').select('*').order('trade_date', { ascending: false }).order('id', { ascending: false }),
+    sb.from('documents').select('*').order('doc_date', { ascending: false, nullsFirst: false }).order('id', { ascending: false })
   ]);
   const err = res.find((r) => r.error);
   if (err) throw err.error;
-  const [owners, settings, prices, holdings, metals, secs, secp, funds, assets, insights, analysis, hist, exp, oexp, trades] = res.map((r) => r.data || []);
+  const [owners, settings, prices, holdings, metals, secs, secp, funds, assets, insights, analysis, hist, exp, oexp, trades, docs] = res.map((r) => r.data || []);
   const S = Object.fromEntries(settings.map((r) => [r.key, r.value]));
   return {
     owners, prices, holdings, metals, secs, funds, assets, insights,
     secp: Object.fromEntries(secp.map((r) => [r.price_key, r])),
-    analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null, oexp: Object.fromEntries(oexp.map((r) => [r.owner, r.data])), trades,
+    analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null, oexp: Object.fromEntries(oexp.map((r) => [r.owner, r.data])), trades, docs,
     fx: +(S.fx || 3.1), gold: S.gold || { price: 0, chg: 0 }, silver: S.silver || { price: 0, chg: 0 }, asof: S.asof || ''
   };
 }
@@ -193,7 +194,8 @@ function person(X) {
   const ins = D.insights.filter((r) => r.owner === o.id).sort((x, y) => ORDER[x.level] - ORDER[y.level] || x.sort - y.sort);
   const ex = o.id === 'karin' && ME && ME.admin && D.exp ? D.exp : null;
   const ox = !ex && D.oexp[o.id] ? D.oexp[o.id] : null;
-  const subs = [['crypto', 'קריפטו', cr.length], ['exp', 'הוצאות', ex || ox ? Math.max(1, ((ex || ox).alerts || []).length) : 0], ['assets', 'נכסים', as.length], ['funds', 'קופות', fu.length], ['sec', 'ניירות ערך', se.length], ['ins', 'תובנות', ins.length]].filter((t) => t[2] > 0);
+  const dc = (D.docs || []).filter((d) => d.owner === o.id);
+  const subs = [['crypto', 'קריפטו', cr.length], ['exp', 'הוצאות', ex || ox ? Math.max(1, ((ex || ox).alerts || []).length) : 0], ['assets', 'נכסים', as.length], ['funds', 'קופות', fu.length], ['sec', 'ניירות ערך', se.length], ['ins', 'תובנות', ins.length], ['docs', 'מסמכים', dc.length]].filter((t) => t[2] > 0 || (t[0] === 'docs' && ME && ME.admin));
   const cur = subs.some((t) => t[0] === ui.sub) ? ui.sub : subs[0] && subs[0][0];
   let body = '';
   if (cur === 'crypto') {
@@ -221,6 +223,14 @@ function person(X) {
     body = `<div class="card list">${fu.map((f) => `<div class="li"><div class="badge" style="background:#1E2A44;color:#7EA6FF">${ic('bank', 20)}</div><div class="grow col"><b class="t15">${esc(f.provider)}</b><span class="small muted">${esc(f.kind)} · נכון ל-${esc(f.as_of)}</span></div><b class="num t15">${money(+f.balance_ils)}</b></div>`).join('')}</div>`;
   } else if (cur === 'sec') {
     body = `<span class="s13 muted">המחירים מתעדכנים כל בוקר מהבורסה</span><div class="card list">${se.map((s) => { const pp = ((s.value - s.cost_ils) / s.cost_ils) * 100; return `<div class="li"><div class="grow col"><b class="t14">${esc(s.name)}</b><span class="small muted">${esc(s.type_label)} · מחיר ${esc(s.as_of)} · עלות ${money(+s.cost_ils)}</span></div><div class="end"><b class="num t15">${money(s.value)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)} · ${money(s.value - s.cost_ils)}</span></div></div>`; }).join('')}</div>`;
+  } else if (cur === 'docs') {
+    const up = ME && ME.admin ? `<div class="card pad col gap6"><b class="t15">הוספת מסמך ל${esc(o.name)}</b>
+      <div class="field"><label for="dt-title">שם המסמך</label><input id="dt-title" placeholder="למשל: אישור יתרות Bits of Gold"></div>
+      <div class="field"><label for="dt-date">תאריך המסמך</label><input id="dt-date" type="date"></div>
+      <div class="field"><label for="dt-file">קובץ (PDF, תמונה, CSV, Excel)</label><input id="dt-file" type="file" accept=".pdf,.png,.jpg,.jpeg,.csv,.xlsx"></div>
+      ${ui.dmsg ? `<div class="msg ${ui.dmsg.ok ? 'ok' : ''}">${esc(ui.dmsg.t)}</div>` : ''}
+      <button class="primary" data-a="doc-up" data-v="${esc(o.id)}" ${ui.busy ? 'disabled' : ''}>${ui.busy ? 'מעלה…' : 'העלאה'}</button></div>` : '';
+    body = up + (dc.length ? `<div class="card list">${dc.map((d) => `<button class="li coinrow" data-a="doc-open" data-v="${d.id}" aria-label="פתיחת ${esc(d.title)}"><div class="badge" style="background:#1E2A44;color:#7EA6FF;font-size:10px">${esc((d.kind || 'קובץ').toUpperCase())}</div><div class="grow col"><b class="t14">${esc(d.title)}</b><span class="small muted">${d.doc_date ? esc(dmy(d.doc_date)) + ' · ' : ''}${d.size_bytes ? Math.max(1, Math.round(d.size_bytes / 1024)) + ' KB' : ''}${d.note ? ' · ' + esc(d.note) : ''}</span></div>${CHEV}</button>`).join('')}</div><span class="small muted" style="text-align:center">המסמכים פרטיים — רק מי שרואה את החשבון הזה יכול לפתוח אותם</span>` : '<div class="card pad"><span class="s13 muted">עוד אין מסמכים.</span></div>');
   } else if (cur === 'ins') {
     body = ins.map((r) => insCard(r, false, OW)).join('');
   }
@@ -459,7 +469,7 @@ $app.addEventListener('click', async (e) => {
   if (a === 'tab') { ui.tab = v; ui.owner = null; ui.coin = null; ui.msg = null; if (v === 'me' && ME && ME.admin) loadMembers(); return go(); }
   if (a === 'owner') { ui.owner = v; ui.sub = null; return go(); }
   if (a === 'back') { ui.owner = null; return go(); }
-  if (a === 'sub') { ui.sub = v; return go(true); }
+  if (a === 'sub') { ui.sub = v; ui.dmsg = null; return go(true); }
   if (a === 'cf') { ui.cf = v; return go(true); }
   if (a === 'inf') { ui.inf = v; return go(true); }
   if (a === 'mode') { ui.authMode = v; ui.msg = null; return go(); }
@@ -470,7 +480,33 @@ $app.addEventListener('click', async (e) => {
   if (a === 'auth-submit') return submitAuth();
   if (a === 'addmember') return addMember();
   if (a === 'push-on') return enablePush();
+  if (a === 'doc-up') return uploadDoc(v);
+  if (a === 'doc-open') return openDoc(+v);
 });
+
+async function uploadDoc(owner) {
+  const f = document.getElementById('dt-file')?.files[0], title = document.getElementById('dt-title')?.value.trim(), date = document.getElementById('dt-date')?.value || null;
+  if (!f || !title) { ui.dmsg = { ok: false, t: 'צריך לבחור קובץ ולתת לו שם.' }; return go(true); }
+  ui.busy = true; ui.dmsg = null; go(true);
+  try {
+    const ext = (f.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `${owner}/${Date.now()}.${ext}`;
+    const { error: e1 } = await sb.storage.from('docs').upload(path, f, { contentType: f.type || undefined, upsert: false });
+    if (e1) throw e1;
+    const { error: e2 } = await sb.from('documents').insert({ owner, title, doc_date: date, path, size_bytes: f.size, kind: ext });
+    if (e2) throw e2;
+    D.docs = (await sb.from('documents').select('*').order('doc_date', { ascending: false, nullsFirst: false }).order('id', { ascending: false })).data || D.docs;
+    ui.dmsg = { ok: true, t: 'המסמך נשמר.' };
+  } catch (err) { console.error(err); ui.dmsg = { ok: false, t: 'ההעלאה נכשלה. נסי שוב.' }; }
+  ui.busy = false; go(true);
+}
+async function openDoc(id) {
+  const d = (D.docs || []).find((x) => x.id === id); if (!d) return;
+  const w = window.open('', '_blank');
+  const { data, error } = await sb.storage.from('docs').createSignedUrl(d.path, 300);
+  if (error || !data) { if (w) w.close(); return; }
+  if (w) w.location.href = data.signedUrl; else location.href = data.signedUrl;
+}
 
 async function submitAuth() {
   const em = document.getElementById('em')?.value.trim(), pw = document.getElementById('pw')?.value || '';
