@@ -82,16 +82,17 @@ async function loadData() {
     sb.from('analysis').select('*').eq('id', 1),
     sb.from('price_history').select('*').order('day'),
     sb.from('expenses').select('*').eq('id', 1),
-    sb.from('owner_expenses').select('*')
+    sb.from('owner_expenses').select('*'),
+    sb.from('crypto_trades').select('*').order('trade_date', { ascending: false }).order('id', { ascending: false })
   ]);
   const err = res.find((r) => r.error);
   if (err) throw err.error;
-  const [owners, settings, prices, holdings, metals, secs, secp, funds, assets, insights, analysis, hist, exp, oexp] = res.map((r) => r.data || []);
+  const [owners, settings, prices, holdings, metals, secs, secp, funds, assets, insights, analysis, hist, exp, oexp, trades] = res.map((r) => r.data || []);
   const S = Object.fromEntries(settings.map((r) => [r.key, r.value]));
   return {
     owners, prices, holdings, metals, secs, funds, assets, insights,
     secp: Object.fromEntries(secp.map((r) => [r.price_key, r])),
-    analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null, oexp: Object.fromEntries(oexp.map((r) => [r.owner, r.data])),
+    analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null, oexp: Object.fromEntries(oexp.map((r) => [r.owner, r.data])), trades,
     fx: +(S.fx || 3.1), gold: S.gold || { price: 0, chg: 0 }, silver: S.silver || { price: 0, chg: 0 }, asof: S.asof || ''
   };
 }
@@ -198,7 +199,7 @@ function person(X) {
   if (cur === 'crypto') {
     const plp = a.cCost ? ((a.cVal - a.cCost) / a.cCost) * 100 : 0;
     body = `<div class="tiles"><div class="tile"><span class="small muted">שווי</span><b class="num t15">${short(a.cVal)}</b></div><div class="tile"><span class="small muted">עלות</span><b class="num t15">${short(a.cCost)}</b></div><div class="tile"><span class="small muted">רווח/הפסד</span><b class="num t15" style="color:${tone(plp)}">${pct(plp)}</b><span class="num" style="font-size:11px;color:${tone(plp)}">${money(a.cVal - a.cCost)}</span></div></div>
-    <div class="card list">${cr.map((h) => { const m = META[h.symbol] || {}; const pp = +h.cost_ils ? ((h.value - h.cost_ils) / h.cost_ils) * 100 : null; return `<div class="li"><div class="badge" style="background:${esc(m.color || '#A6B3C2')}">${esc(h.symbol)}</div><div class="grow col"><b class="t15">${esc(m.name_he || h.symbol)}</b><span class="num small muted">${qty(h.qty)} ${esc(h.symbol)} · ${uprice(PRICE[h.symbol] || 0)}</span><span class="num small muted">עלות ${money(+h.cost_ils)}</span></div><div class="end"><b class="num t15">${money(h.value)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)}</span><span class="num small" style="font-weight:700;color:${tone(pp)}">${+h.cost_ils ? (h.value - h.cost_ils >= 0 ? 'רווח לא ממומש ' : 'הפסד לא ממומש ') + money(Math.abs(h.value - h.cost_ils)) : 'אין עלות'}</span></div></div>`; }).join('')}</div>`;
+    <div class="card list">${cr.map((h) => { const m = META[h.symbol] || {}; const pp = +h.cost_ils ? ((h.value - h.cost_ils) / h.cost_ils) * 100 : null; return `<button class="li coinrow" data-a="coin" data-v="${esc(h.symbol)}" data-o="${esc(o.id)}" aria-label="היסטוריית ${esc(m.name_he || h.symbol)}"><div class="badge" style="background:${esc(m.color || '#A6B3C2')}">${esc(h.symbol)}</div><div class="grow col"><b class="t15">${esc(m.name_he || h.symbol)}</b><span class="num small muted">${qty(h.qty)} ${esc(h.symbol)} · ${uprice(PRICE[h.symbol] || 0)}</span><span class="num small muted">עלות ${money(+h.cost_ils)}</span></div><div class="end"><b class="num t15">${money(h.value)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)}</span><span class="num small" style="font-weight:700;color:${tone(pp)}">${+h.cost_ils ? (h.value - h.cost_ils >= 0 ? 'רווח לא ממומש ' : 'הפסד לא ממומש ') + money(Math.abs(h.value - h.cost_ils)) : 'אין עלות'}</span></div>${CHEV}</button>`; }).join('')}</div><span class="small muted" style="text-align:center">לחיצה על מטבע פותחת את כל היסטוריית הקניות שלו</span>`;
   } else if (cur === 'exp' && ox) {
     body = expGeneric(ox, OW);
   } else if (cur === 'exp') {
@@ -239,13 +240,65 @@ function cryptoTab(X) {
   const by = {}; let tv = 0, tc = 0;
   C.forEach((h) => { if (ui.cf !== 'all' && h.owner !== ui.cf) return; const b = by[h.symbol] || (by[h.symbol] = { q: 0, v: 0, c: 0, who: [] }); b.q += +h.qty; b.v += h.value; b.c += +h.cost_ils; if (!b.who.includes(OW[h.owner].name)) b.who.push(OW[h.owner].name); tv += h.value; tc += +h.cost_ils; });
   const tp = tc ? ((tv - tc) / tc) * 100 : 0;
-  const rows = Object.keys(by).sort((x, y) => by[y].v - by[x].v).map((k) => { const b = by[k]; const m = META[k] || {}; const pp = b.c ? ((b.v - b.c) / b.c) * 100 : null; return `<div class="li"><div class="badge" style="background:${esc(m.color || '#A6B3C2')}">${esc(k)}</div><div class="grow col"><b class="t15">${esc(m.name_he || k)}</b><span class="num small muted">${qty(b.q)} ${esc(k)} · ${esc(b.who.length > 2 ? b.who.length + ' בעלים' : b.who.join(', '))}</span><span class="num small muted">עלות ${money(b.c)}</span></div><div class="end"><b class="num t15">${money(b.v)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)}</span><span class="num small" style="font-weight:700;color:${tone(pp)}">${b.c ? (b.v - b.c >= 0 ? 'רווח לא ממומש ' : 'הפסד לא ממומש ') + money(Math.abs(b.v - b.c)) : 'אין עלות'}</span></div></div>`; }).join('');
+  const rows = Object.keys(by).sort((x, y) => by[y].v - by[x].v).map((k) => { const b = by[k]; const m = META[k] || {}; const pp = b.c ? ((b.v - b.c) / b.c) * 100 : null; return `<button class="li coinrow" data-a="coin" data-v="${esc(k)}" data-o="${esc(ui.cf)}" aria-label="היסטוריית ${esc(m.name_he || k)}"><div class="badge" style="background:${esc(m.color || '#A6B3C2')}">${esc(k)}</div><div class="grow col"><b class="t15">${esc(m.name_he || k)}</b><span class="num small muted">${qty(b.q)} ${esc(k)} · ${esc(b.who.length > 2 ? b.who.length + ' בעלים' : b.who.join(', '))}</span><span class="num small muted">עלות ${money(b.c)}</span></div><div class="end"><b class="num t15">${money(b.v)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)}</span><span class="num small" style="font-weight:700;color:${tone(pp)}">${b.c ? (b.v - b.c >= 0 ? 'רווח לא ממומש ' : 'הפסד לא ממומש ') + money(Math.abs(b.v - b.c)) : 'אין עלות'}</span></div>${CHEV}</button>`; }).join('');
   return `
   <div class="between"><h1>קריפטו</h1>${curSeg()}</div>
   <div class="panel"><span class="s13 muted" style="font-weight:600">${ui.cf === 'all' ? 'כל הקריפטו של המשפחה' : 'הקריפטו של ' + esc(OW[ui.cf].name)}</span><b class="num big" style="font-size:38px;font-weight:800">${money(tv)}</b>
     <div class="row" style="gap:8px;flex-wrap:wrap"><span class="pill num" style="font-size:13px;background:${tp >= 0 ? 'rgba(75,227,184,.14)' : 'rgba(255,138,122,.14)'};color:${tone(tp)}">${pct(tp)} · ${money(tv - tc)}</span><span class="num small muted">עלות ${money(tc)}</span></div></div>
   <div class="chips">${chips.map((c) => `<button class="chip ${ui.cf === c[0] ? 'on' : ''}" data-a="cf" data-v="${esc(c[0])}">${esc(c[1])}</button>`).join('')}</div>
-  <div class="card list">${rows}</div>`;
+  <div class="card list">${rows}</div><span class="small muted" style="text-align:center">לחיצה על מטבע פותחת את כל היסטוריית הקניות שלו</span>`;
+}
+
+/* ---------- coin history ---------- */
+const CHEV = '<svg class="ic chev" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>';
+const qs = (q, sym) => iso(qty(q) + ' ' + sym);
+const dmy = (d) => { const [y, m, dd] = String(d).split('-'); return `${+dd}.${+m}.${y}`; };
+const usd = (v) => iso('$' + (+v).toLocaleString('en-US', { minimumFractionDigits: v < 100 ? 2 : 0, maximumFractionDigits: 2 }));
+const SIDE = { buy: ['קנייה', 'rgba(75,227,184,.14)', '#6FEBC6'], sell: ['מכירה', 'rgba(255,138,122,.16)', '#FF9C8E'], out: ['יצא מההחזקה', '#1B2531', '#A7B6C4'] };
+function coinView(X) {
+  const { C, OW, META, PRICE } = X;
+  const sym = ui.coin.sym, only = ui.coin.owner || 'all';
+  const hs = C.filter((h) => h.symbol === sym && (only === 'all' || h.owner === only));
+  const owners = D.owners.map((o) => o.id).filter((id) => hs.some((h) => h.owner === id));
+  const tr = (D.trades || []).filter((t) => t.symbol === sym && owners.includes(t.owner));
+  const m = META[sym] || {}, px = PRICE[sym] || 0, many = owners.length > 1;
+  const q = hs.reduce((s, h) => s + +h.qty, 0), v = hs.reduce((s, h) => s + h.value, 0), c = hs.reduce((s, h) => s + +h.cost_ils, 0);
+  const pl = v - c, plp = c ? (pl / c) * 100 : null;
+  const buys = tr.filter((t) => t.side === 'buy' && t.price_usd != null);
+  const bq = buys.reduce((s, t) => s + +t.qty, 0), avg = bq ? buys.reduce((s, t) => s + +t.qty * +t.price_usd, 0) / bq : null;
+  const fees = tr.reduce((s, t) => s + (+t.fee_usd || 0), 0);
+  const gaps = owners.map((id) => { const h = hs.find((x) => x.owner === id); const doc = tr.filter((t) => t.owner === id).reduce((s, t) => s + (t.side === 'buy' ? +t.qty : -t.qty), 0); const d = +h.qty - doc; return Math.abs(d) > Math.max(1e-4, +h.qty * 1e-4) ? { id, held: +h.qty, doc, d } : null; }).filter(Boolean);
+  const seen = {}; const dup = {};
+  tr.slice().reverse().forEach((t) => { if (t.side !== 'buy') return; const k = [t.owner, +t.qty, +t.price_usd].join('|'); if (seen[k] && seen[k] !== t.trade_date) dup[t.id] = seen[k]; else seen[k] = t.trade_date; });
+  const rows = tr.map((t) => {
+    const S = SIDE[t.side] || SIDE.out; const isBuy = t.side === 'buy';
+    const now = +t.qty * px * D.fx, cost = t.cost_ils == null ? null : +t.cost_ils, lp = isBuy && cost ? now - cost : null;
+    const chg = isBuy && t.price_usd ? (px / +t.price_usd - 1) * 100 : null;
+    const paid = t.usd_total != null ? `${t.side === 'sell' ? 'התקבלו' : 'שולמו'} ${usd(+t.usd_total)}${t.fee_usd ? ` (כולל עמלה ${usd(+t.fee_usd)})` : ''}` : '';
+    const right = isBuy
+      ? `<div class="end"><span class="small muted">שווה היום</span><b class="num t15">${money(now)}</b>${lp == null ? '' : `<span class="num small" style="font-weight:700;color:${tone(chg)}">${lp >= 0 ? 'רווח ' : 'הפסד '}${money(Math.abs(lp))} · ${pct(chg)}</span>`}</div>`
+      : t.side === 'sell' && cost != null ? `<div class="end"><span class="small muted">תמורה</span><b class="num t15">${money(cost)}</b></div>` : '';
+    return `<div class="li top trow"><div class="date">${esc(dmy(t.trade_date))}</div><div class="grow col" style="gap:3px;min-width:0">
+      <div class="row" style="gap:6px;flex-wrap:wrap"><span class="pill" style="background:${S[1]};color:${S[2]}">${S[0]}</span>${many ? `<span class="small muted">${esc(OW[t.owner].name)}</span>` : ''}</div>
+      <b class="num t14">${qs(t.qty, esc(sym))}${t.price_usd != null ? ` · במחיר ${uprice(t.price_usd)}` : ''}</b>
+      <span class="small soft">${esc(t.venue || 'פלטפורמה לא מתועדת')}</span>
+      ${paid || (isBuy && cost != null) ? `<span class="num small muted">${[paid, isBuy && cost != null ? 'עלות ' + money(cost) : ''].filter(Boolean).join(' · ')}</span>` : ''}
+      ${t.note ? `<span class="small muted" style="line-height:1.45">${esc(t.note)}</span>` : ''}
+      ${dup[t.id] ? `<span class="pill" style="background:rgba(233,196,106,.16);color:#F0CF7E">זהה לקנייה מ-${esc(dmy(dup[t.id]))} — לבדוק שאין כפילות</span>` : ''}
+      <span class="small muted" style="opacity:.7">מקור: ${esc(t.source || '—')}</span></div>${right}</div>`;
+  }).join('');
+  const gapCards = gaps.map((g) => `<div class="ins">${pill(LEVEL.warn)}<b class="t15">${many ? esc(OW[g.id].name) + ': ' : ''}${g.d > 0 ? 'חלק מהכמות בלי היסטוריה' : 'בהיסטוריה יותר ממה שמוחזק'}</b><p>בהחזקה ${qs(g.held, esc(sym))}, וההיסטוריה מתעדת ${qs(g.doc, esc(sym))}. ${g.d > 0 ? `${qs(g.d, esc(sym))} הגיעו בלי קנייה מתועדת — כנראה קנייה בארנק או בבורסה אחרים, או העברה. כדאי להביא את הדוח שלהם.` : `${qs(-g.d, esc(sym))} יצאו בלי שתועדה מכירה או העברה.`}</p></div>`).join('');
+  const who = only === 'all' ? (many ? owners.map((id) => OW[id].name).join(', ') : OW[owners[0]]?.name || '') : OW[only].name;
+  return `
+  <div class="between"><button class="back" data-a="coin-back" aria-label="חזרה">${ic('back', 18)} חזרה</button>${curSeg()}</div>
+  <div class="row" style="gap:14px"><div class="badge" style="width:56px;height:56px;border-radius:18px;font-size:14px;background:${esc(m.color || '#A6B3C2')}">${esc(sym)}</div><div class="col"><h1 style="font-size:26px">${esc(m.name_he || sym)}</h1><span class="s13 muted">${esc(who)} · מחיר היום ${uprice(px)}</span></div></div>
+  <div class="panel"><span class="s13 muted" style="font-weight:600">שווי היום</span><b class="num big" style="font-size:38px;font-weight:800">${money(v)}</b>
+    <span class="num s13 muted">${qs(q, esc(sym))}</span>
+    <div class="tiles"><div class="tile"><span class="small muted">עלות</span><b class="num t15">${money(c)}</b></div><div class="tile"><span class="small muted">${pl >= 0 ? 'רווח לא ממומש' : 'הפסד לא ממומש'}</span><b class="num t15" style="color:${tone(plp)}">${money(Math.abs(pl))}</b><span class="num" style="font-size:11px;color:${tone(plp)}">${pct(plp)}</span></div><div class="tile"><span class="small muted">מחיר קנייה ממוצע</span><b class="num t15">${avg == null ? '—' : uprice(avg)}</b><span class="num" style="font-size:11px;color:${avg ? tone((px / avg - 1) * 100) : '#93A1B2'}">${avg ? 'היום ' + pct((px / avg - 1) * 100) : ''}</span></div></div></div>
+  ${gapCards}
+  <div class="between"><h2>היסטוריית עסקאות · ${tr.length}</h2>${fees ? `<span class="num small muted">עמלות ${usd(fees)}</span>` : ''}</div>
+  ${tr.length ? `<div class="card list">${rows}</div>` : '<div class="card pad"><span class="s13 muted">אין עסקאות מתועדות למטבע הזה.</span></div>'}
+  <span class="small muted" style="line-height:1.6">העלות בשקלים היא כפי שנרשמה בדוח (בפנקס לפי שער של 2.968 ₪ לדולר). ״שווה היום״ = הכמות של אותה קנייה × מחיר היום (${uprice(px)}) × שער ${D.fx.toFixed(3)}.</span>`;
 }
 
 function marketTab(X) {
@@ -338,7 +391,8 @@ function render() {
   if (!D) { $app.innerHTML = `<div class="scroll"><div class="skel" style="height:60px"></div><div class="skel" style="height:240px"></div><div class="skel" style="height:140px"></div><div class="skel" style="height:300px"></div></div>${nav()}`; return; }
   const X = compute();
   let html;
-  if (ui.owner) html = person(X);
+  if (ui.coin) html = coinView(X);
+  else if (ui.owner) html = person(X);
   else if (ui.tab === 'crypto') html = cryptoTab(X);
   else if (ui.tab === 'market') html = marketTab(X);
   else if (ui.tab === 'ins') html = insTab(X);
@@ -400,7 +454,9 @@ $app.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v;
   if (a === 'cur') { ui.cur = v; return go(true); }
-  if (a === 'tab') { ui.tab = v; ui.owner = null; ui.msg = null; if (v === 'me' && ME && ME.admin) loadMembers(); return go(); }
+  if (a === 'coin') { ui.coin = { sym: v, owner: b.dataset.o || 'all' }; return go(); }
+  if (a === 'coin-back') { ui.coin = null; return go(); }
+  if (a === 'tab') { ui.tab = v; ui.owner = null; ui.coin = null; ui.msg = null; if (v === 'me' && ME && ME.admin) loadMembers(); return go(); }
   if (a === 'owner') { ui.owner = v; ui.sub = null; return go(); }
   if (a === 'back') { ui.owner = null; return go(); }
   if (a === 'sub') { ui.sub = v; return go(true); }
