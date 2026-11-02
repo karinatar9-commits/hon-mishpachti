@@ -93,6 +93,12 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;strok
 .nav-brand{display:none}
 .dgrid,.dmain,.dside{display:flex;flex-direction:column;gap:18px}
 .auth-form{display:flex;flex-direction:column;gap:14px}
+.coinrow{width:100%;border:0;border-bottom:1px solid var(--row);background:none;color:inherit;font:inherit;text-align:inherit;padding:12px 0}
+.coinrow:last-child{border-bottom:0}
+.coinrow:hover .badge{filter:brightness(1.1)}
+.chev{color:#5C6B7C;flex:none}
+.trow .date{width:auto;min-width:74px;padding:0 6px}
+@media (max-width:640px){.trow{flex-wrap:wrap;row-gap:6px}.trow>.end{flex-basis:100%;flex-direction:row;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-inline-start:86px;text-align:start}}
 /* ---------- desktop ---------- */
 @media (min-width:900px){
   html,body{background:var(--bg)}
