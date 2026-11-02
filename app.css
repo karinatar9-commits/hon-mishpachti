@@ -97,6 +97,15 @@ svg.ic{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;strok
 .coinrow:last-child{border-bottom:0}
 .coinrow:hover .badge{filter:brightness(1.1)}
 .chev{color:#5C6B7C;flex:none}
+.picker{display:flex;gap:8px;overflow-x:auto;margin:0 -16px;padding:2px 16px 4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.picker::-webkit-scrollbar{display:none}
+.pick{flex:none;display:flex;align-items:center;gap:8px;min-height:52px;padding:6px 14px 6px 8px;border-radius:18px;border:1px solid var(--line);background:var(--card);color:var(--ink);text-align:start}
+.pick .avatar{width:36px;height:36px;border-radius:12px;font-style:normal;flex:none}
+.pick b{font-size:14px;line-height:1.2;white-space:nowrap}
+.pick .num{font-size:12px;color:var(--muted);font-weight:700}
+.pick.on{border-color:var(--accent);background:rgba(75,227,184,.10)}
+.pick:hover{border-color:#3A4A5C}
+@media (min-width:900px){.picker{margin:0;padding:0;flex-wrap:wrap;overflow:visible}}
 #dt-title{direction:rtl}
 .field input[type=file]{height:auto;padding:12px 14px;font-size:14px}
 .trow .date{width:auto;min-width:74px;padding:0 6px}

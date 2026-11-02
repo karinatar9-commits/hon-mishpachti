@@ -152,6 +152,11 @@ function expGeneric(x, OW) {
 }
 
 /* ---------- screens ---------- */
+function picker(X, cur) {
+  const { agg } = X;
+  return `<nav class="picker" aria-label="בחירת בן משפחה">${D.owners.map((o) => `<button class="pick ${cur === o.id ? 'on' : ''}" data-a="owner" data-v="${esc(o.id)}" aria-current="${cur === o.id ? 'page' : 'false'}"><i class="avatar" style="background:${esc(o.color)};font-size:${o.initial.length > 1 ? 12 : 15}px">${esc(o.initial)}</i><span class="col"><b>${esc(o.name)}</b><span class="num">${short(agg[o.id].net)}</span></span></button>`).join('')}</nav>`;
+}
+
 function home(X) {
   const { fam, OW, agg, hist } = X;
   const maxNet = Math.max(...D.owners.map((o) => agg[o.id].net));
@@ -164,6 +169,7 @@ function home(X) {
   const alerts = expAlerts.concat(D.insights).filter((r) => r.level === 'bad' || r.level === 'warn').sort((a, b) => ORDER[a.level] - ORDER[b.level] || a.sort - b.sort).slice(0, 4).map((r) => insCard(r, true, OW)).join('');
   return `
   <div class="between"><div class="col"><span class="s13 muted">מעודכן ${esc(D.asof)}</span><h1>הון משפחת עטר</h1></div>${curSeg()}</div>
+  ${picker(X, null)}
   <div class="dgrid"><div class="dmain">
   <section class="hero"><span class="s13" style="color:#A9D9CB;font-weight:600">הון נטו · כל המשפחה והחברות</span>
     <b class="num big" style="font-size:42px">${money(fam.net)}</b>
@@ -237,6 +243,7 @@ function person(X) {
   let subline = 'ברוטו ' + short(a.gross); if (a.debt) subline += ' · משכנתא ' + short(a.debt); if (a.missing) subline += ' · ' + a.missing + ' נכס בלי שווי';
   return `
   <div class="between"><button class="back" data-a="back" aria-label="חזרה למשפחה">${ic('back', 18)} משפחה</button>${curSeg()}</div>
+  ${picker(X, o.id)}
   <div class="row" style="gap:14px"><div class="avatar" style="width:56px;height:56px;border-radius:18px;font-size:${o.initial.length > 1 ? 18 : 24}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="col"><h1 style="font-size:26px">${esc(o.name)}</h1><span class="s13 muted">${esc(o.role_label)} · ${Math.round((a.net / fam.net) * 100)}% מההון המשפחתי</span></div></div>
   <div class="panel"><span class="s13 muted" style="font-weight:600">הון נטו</span><b class="num big" style="font-size:38px;font-weight:800">${money(a.net)}</b><span class="s13 muted">${esc(subline)}</span>${segs(a.cats, a.gross || 1)}</div>
   <div class="chips">${subs.map((t) => `<button class="chip ${t[0] === cur ? 'on' : ''}" data-a="sub" data-v="${t[0]}">${t[1]} <span style="opacity:.7;font-weight:500">${t[2]}</span></button>`).join('')}</div>
