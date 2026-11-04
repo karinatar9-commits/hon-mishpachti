@@ -1,0 +1,97 @@
+<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8">
+
+<style>
+@font-face{font-family:Heebo;font-weight:400;src:url(node_modules/@fontsource/heebo/files/heebo-hebrew-400-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:400;src:url(node_modules/@fontsource/heebo/files/heebo-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Heebo;font-weight:600;src:url(node_modules/@fontsource/heebo/files/heebo-hebrew-600-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:600;src:url(node_modules/@fontsource/heebo/files/heebo-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Heebo;font-weight:800;src:url(node_modules/@fontsource/heebo/files/heebo-hebrew-800-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:800;src:url(node_modules/@fontsource/heebo/files/heebo-latin-800-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:Heebo;font-weight:900;src:url(node_modules/@fontsource/heebo/files/heebo-hebrew-900-normal.woff2) format('woff2');unicode-range:U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:Heebo;font-weight:900;src:url(node_modules/@fontsource/heebo/files/heebo-latin-900-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:var(--H,1920px);overflow:hidden;font-family:Heebo,'Noto Color Emoji',sans-serif;background:transparent}
+#stage{position:absolute;inset:0;overflow:hidden;color:var(--text)}
+#bg{position:absolute;inset:0;background:linear-gradient(160deg,var(--bg1),var(--bg2))}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55}
+#grain{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.06) 1px,transparent 1px);background-size:6px 6px;opacity:.5}
+#bar{position:absolute;top:70px;right:80px;left:80px;height:10px;border-radius:10px;background:rgba(255,255,255,.18)}
+#bar i{display:block;height:100%;border-radius:10px;background:var(--accent);width:0}
+#brand{direction:ltr;unicode-bidi:plaintext;position:absolute;bottom:90px;right:0;left:0;text-align:center;font-weight:600;font-size:38px;opacity:.75;letter-spacing:.5px}
+.scene{position:absolute;inset:0;padding:250px 96px 260px;display:flex;flex-direction:column;justify-content:center;gap:44px}
+.kicker{align-self:flex-start;background:var(--accent);color:var(--bg2);font-weight:800;font-size:40px;padding:14px 34px;border-radius:999px}
+.h{font-weight:900;font-size:108px;line-height:1.08;letter-spacing:-1px}
+.h.s{font-size:88px}
+.b{font-weight:400;font-size:56px;line-height:1.35;opacity:.92}
+.emo{font-size:190px;line-height:1}
+.num{display:inline-flex;align-items:center;justify-content:center;width:120px;height:120px;border-radius:32px;background:var(--accent);color:var(--bg2);font-weight:900;font-size:68px}
+.stat{font-weight:900;font-size:260px;line-height:1;color:var(--accent);direction:ltr;unicode-bidi:isolate;text-align:right;font-variant-numeric:tabular-nums}
+.items{display:flex;flex-direction:column;gap:30px}
+.it{display:flex;gap:30px;align-items:center;font-size:60px;font-weight:600;background:rgba(255,255,255,.1);border-radius:32px;padding:30px 36px}
+.it b{flex:none;width:76px;height:76px;border-radius:50%;background:var(--accent);color:var(--bg2);display:flex;align-items:center;justify-content:center;font-size:44px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.col{background:rgba(255,255,255,.1);border-radius:36px;padding:40px 34px;display:flex;flex-direction:column;gap:24px}
+.col h4{font-size:54px;font-weight:900}
+.col.r h4{color:var(--accent)}
+.col p{font-size:46px;line-height:1.3}
+.q{font-weight:800;font-size:92px;line-height:1.2}
+.q:before{content:"״";display:block;font-size:220px;line-height:.6;color:var(--accent)}
+.btn{align-self:center;background:var(--accent);color:var(--bg2);font-weight:900;font-size:64px;padding:34px 70px;border-radius:999px}
+.handle{direction:ltr;unicode-bidi:isolate;text-align:center;font-size:58px;font-weight:800}
+body.car .scene{padding:150px 90px 170px;gap:36px}body.car #bar{display:none}body.car #brand{bottom:60px}
+#pg{display:none;position:absolute;top:56px;left:70px;font-weight:800;font-size:36px;background:rgba(255,255,255,.16);padding:8px 22px;border-radius:99px;direction:ltr}body.car #pg{display:block}
+body.overlay #bg,body.overlay #grain,body.overlay .blob{display:none}
+.ov{position:absolute;right:0;left:0;bottom:0;padding:0 90px 280px;background:linear-gradient(transparent,rgba(0,0,0,.78) 55%);height:900px;display:flex;flex-direction:column;justify-content:flex-end;gap:26px}
+.ov .h{font-size:96px;color:#fff;text-shadow:0 6px 30px rgba(0,0,0,.5)}
+.ov .kicker{color:#111}
+</style></head><body>
+<div id="stage"><div id="bg"></div><div class="blob" id="b1"></div><div class="blob" id="b2"></div><div id="grain"></div>
+<div id="bar"><i></i></div><div id="scenes"></div><div id="brand"></div><div id="pg"></div></div>
+<script>
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S, starts=[], total=0;
+function sceneHTML(x,i,n){
+  const a=(d,html)=>`<div data-a="${d}">${html}</div>`;
+  const k=x.kicker?`<div class="kicker" data-a="0">${esc(x.kicker)}</div>`:'';
+  switch(x.type){
+    case 'title': return `${x.emoji?a(0,`<div class="emo">${esc(x.emoji)}</div>`):''}${k}${a(.15,`<div class="h">${esc(x.headline)}</div>`)}${x.body?a(.45,`<div class="b">${esc(x.body)}</div>`):''}`;
+    case 'stat': return `${k}${a(.05,`<div class="stat" data-count="${esc(x.value)}">${esc(x.value)}</div>`)}${a(.35,`<div class="h s">${esc(x.headline)}</div>`)}${x.body?a(.6,`<div class="b">${esc(x.body)}</div>`):''}`;
+    case 'list': return `${k}${a(0,`<div class="h s">${esc(x.headline)}</div>`)}<div class="items">${(x.items||[]).slice(0,4).map((t,j)=>a(.35+j*.35,`<div class="it"><b>✓</b><span>${esc(t)}</span></div>`)).join('')}</div>`;
+    case 'compare': return `${k}${a(0,`<div class="h s">${esc(x.headline)}</div>`)}<div class="cmp">${a(.3,`<div class="col"><h4>${esc(x.right_title)}</h4>${(x.right||[]).map(t=>`<p>${esc(t)}</p>`).join('')}</div>`)}${a(.7,`<div class="col r"><h4>${esc(x.left_title)}</h4>${(x.left||[]).map(t=>`<p>${esc(t)}</p>`).join('')}</div>`)}</div>`;
+    case 'quote': return `${a(0,`<div class="q">${esc(x.headline)}</div>`)}${x.body?a(.5,`<div class="b">${esc(x.body)}</div>`):''}`;
+    case 'cta': return `${x.emoji?a(0,`<div class="emo" style="text-align:center">${esc(x.emoji)}</div>`):''}${a(.1,`<div class="h" style="text-align:center">${esc(x.headline)}</div>`)}${x.body?a(.35,`<div class="b" style="text-align:center">${esc(x.body)}</div>`):''}${a(.6,`<div class="btn">${esc(x.kicker||S.cta||'שמרי את הפוסט')}</div>`)}${S.handle?a(.8,`<div class="handle">${esc(S.handle)}</div>`):''}`;
+    case 'ai': return `<div class="ov">${k}${a(.2,`<div class="h">${esc(x.headline)}</div>`)}</div>`;
+    default: return `${x.emoji?a(0,`<div class="emo">${esc(x.emoji)}</div>`):''}<div data-a="0" style="display:flex;gap:30px;align-items:center"><span class="num">${i}</span>${x.kicker?`<span class="kicker" style="align-self:center">${esc(x.kicker)}</span>`:''}</div>${a(.15,`<div class="h s">${esc(x.headline)}</div>`)}${x.body?a(.45,`<div class="b">${esc(x.body)}</div>`):''}`;
+  }
+}
+window.__fonts=()=>Promise.all([...document.fonts].map(f=>f.load().catch(()=>0))).then(()=>document.fonts.ready);
+window.__init=function(job){
+  S=job; const p=job.script.palette||{}; const r=document.documentElement.style;
+  const car=job.format==='carousel'; document.body.classList.toggle('car',car); r.setProperty('--H',(car?1350:1920)+'px');
+  r.setProperty('--bg1',p.bg1||'#1a1033'); r.setProperty('--bg2',p.bg2||'#0b0717'); r.setProperty('--accent',p.accent||'#f5c26b'); r.setProperty('--text',p.text||'#ffffff');
+  const sc=job.script.scenes; let t=0; starts=sc.map(x=>{const s=t;t+=+x.dur;return s}); total=t;
+  document.getElementById('scenes').innerHTML=sc.map((x,i)=>`<div class="scene" id="s${i}" style="display:none">${sceneHTML(x,i,sc.length)}</div>`).join('');
+  document.getElementById('brand').textContent=job.handle||job.brand||'';
+  const b1=document.getElementById('b1'),b2=document.getElementById('b2');
+  Object.assign(b1.style,{width:'900px',height:'900px',background:p.accent||'#f5c26b'}); Object.assign(b2.style,{width:'800px',height:'800px',background:p.bg1||'#6b3fd6'});
+  return {total, durs:sc.map(x=>+x.dur), types:sc.map(x=>x.type)};
+};
+const ease=x=>x<=0?0:x>=1?1:1-Math.pow(1-x,3);
+window.__seek=function(i,local,overlay){
+  document.body.classList.toggle('overlay',!!overlay);
+  const sc=S.script.scenes;
+  sc.forEach((_,j)=>document.getElementById('s'+j).style.display=j===i?'flex':'none');
+  const T=starts[i]+local, dur=+sc[i].dur;
+  document.querySelector('#bar i').style.width=(T/total*100).toFixed(2)+'%';
+  document.getElementById('pg').textContent=(i+1)+'/'+sc.length;
+  const b1=document.getElementById('b1'),b2=document.getElementById('b2');
+  b1.style.transform=`translate(${-200+Math.sin(T*.5)*160}px,${100+Math.cos(T*.4)*140}px)`;
+  b2.style.transform=`translate(${400+Math.cos(T*.35)*180}px,${1200+Math.sin(T*.45)*160}px)`;
+  const el=document.getElementById('s'+i);
+  const out=ease((dur-local)/0.35);
+  el.style.opacity=(i===sc.length-1||document.body.classList.contains('car'))?1:out;
+  el.querySelectorAll('[data-a]').forEach(n=>{const k=ease((local-(+n.dataset.a))/0.55);n.style.opacity=k;n.style.transform=`translateY(${(1-k)*60}px) scale(${0.96+0.04*k})`;});
+  el.querySelectorAll('[data-count]').forEach(n=>{const v=n.dataset.count;const m=v.match(/[\d.,]+/);if(!m)return;const num=parseFloat(m[0].replace(/,/g,''));const k=ease(local/1.2);const cur=num*k;const dec=(m[0].split('.')[1]||'').length;n.textContent=v.replace(m[0],cur.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}));});
+  const em=el.querySelector('.emo'); if(em) em.style.transform=`translateY(${Math.sin(T*2)*14}px) rotate(${Math.sin(T*1.3)*4}deg)`;
+};
+</script></body></html>
