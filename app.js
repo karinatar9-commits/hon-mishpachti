@@ -94,7 +94,7 @@ async function loadData() {
     owners, prices, holdings, metals, secs, funds, assets, insights,
     secp: Object.fromEntries(secp.map((r) => [r.price_key, r])),
     analysis: analysis[0] || { headline: '', points: [] }, hist, exp: exp[0] ? exp[0].data : null, oexp: Object.fromEntries(oexp.map((r) => [r.owner, r.data])), trades, docs,
-    fx: +(S.fx || 3.1), gold: S.gold || { price: 0, chg: 0 }, silver: S.silver || { price: 0, chg: 0 }, asof: S.asof || ''
+    fx: +(S.fx || 3.1), fxx: { CHF: +(S.fx_CHF || 0), EUR: +(S.fx_EUR || 0) }, gold: S.gold || { price: 0, chg: 0 }, silver: S.silver || { price: 0, chg: 0 }, asof: S.asof || ''
   };
 }
 
@@ -106,13 +106,13 @@ function compute() {
   D.owners.forEach((o) => { agg[o.id] = { cats: Object.fromEntries(CATS.map((c) => [c.k, 0])), debt: 0, missing: 0, warn: 0, cVal: 0, cCost: 0 }; day[o.id] = 0; });
   const C = D.holdings.map((h) => { const v = +h.qty * (PRICE[h.symbol] || 0) * D.fx; const a = agg[h.owner]; if (a) { a.cats.crypto += v; a.cVal += v; a.cCost += +h.cost_ils; day[h.owner] += dayPart(v, CHG[h.symbol]); } return { ...h, value: v }; });
   const MT = D.metals.map((m) => { const px = m.metal === 'XAU' ? D.gold : D.silver; const v = +m.oz * +px.price * D.fx; const a = agg[m.owner]; if (a) { a.cats.metals += v; if (m.status !== 'ok') a.warn++; day[m.owner] += dayPart(v, +px.chg); } return { ...m, value: v }; });
-  const SEC = D.secs.map((s) => { const p = D.secp[s.price_key] || { price: 0, as_of: '—' }; const v = s.currency === 'USD' ? +s.units * +p.price * D.fx : (+s.units * +p.price) / 100; const a = agg[s.owner]; if (a) a.cats.securities += v; return { ...s, value: v, as_of: p.as_of }; });
+  const SEC = D.secs.map((s) => { const p = D.secp[s.price_key] || { price: 0, as_of: '—' }; const v = s.currency === 'USD' ? +s.units * +p.price * D.fx : s.currency === 'ILA' ? (+s.units * +p.price) / 100 : +s.units * +p.price * (D.fxx[s.currency] || 0); const ch = p.chg == null ? null : +p.chg; const a = agg[s.owner]; if (a) { a.cats.securities += v; day[s.owner] += dayPart(v, ch); } return { ...s, value: v, as_of: p.as_of, chg: ch }; });
   D.funds.forEach((f) => { if (agg[f.owner]) agg[f.owner].cats.funds += +f.balance_ils; });
   D.assets.forEach((r) => { const a = agg[r.owner]; if (!a) return; if (r.status !== 'ok') a.warn++; if (r.value_ils == null) { a.missing++; return; } if (r.category === 'debt') a.debt += +r.value_ils; else a.cats[r.category] += +r.value_ils; });
   const fam = { cats: Object.fromEntries(CATS.map((c) => [c.k, 0])), debt: 0, personal: 0, companies: 0, gross: 0 };
-  D.owners.forEach((o) => { const a = agg[o.id]; a.gross = CATS.reduce((s, c) => s + a.cats[c.k], 0); a.net = a.gross + a.debt; CATS.forEach((c) => (fam.cats[c.k] += a.cats[c.k])); fam.debt += a.debt; if (o.is_company) fam.companies += a.net; else fam.personal += a.net; });
+  D.owners.forEach((o) => { const a = agg[o.id]; a.gross = CATS.reduce((s, c) => s + a.cats[c.k], 0); a.net = a.gross + a.debt; if (o.separate) return; CATS.forEach((c) => (fam.cats[c.k] += a.cats[c.k])); fam.debt += a.debt; if (o.is_company) fam.companies += a.net; else fam.personal += a.net; });
   fam.gross = CATS.reduce((s, c) => s + fam.cats[c.k], 0); fam.net = fam.gross + fam.debt;
-  fam.day = Object.values(day).reduce((s, v) => s + v, 0);
+  fam.day = D.owners.filter((o) => !o.separate).reduce((s, o) => s + day[o.id], 0);
   const partAt = (fxv, g, s, cr) => { let t = 0; D.holdings.forEach((h) => (t += +h.qty * ((cr && cr[h.symbol]) || PRICE[h.symbol] || 0) * fxv)); D.metals.forEach((m) => (t += +m.oz * (m.metal === 'XAU' ? g : s) * fxv)); return t; };
   const nowPart = partAt(D.fx, +D.gold.price, +D.silver.price, PRICE);
   const hist = D.hist.slice(-30).map((h) => ({ d: h.day, v: fam.net - nowPart + partAt(+h.fx, +h.gold, +h.silver, h.crypto) }));
@@ -159,11 +159,11 @@ function picker(X, cur) {
 
 function home(X) {
   const { fam, OW, agg, hist } = X;
-  const maxNet = Math.max(...D.owners.map((o) => agg[o.id].net));
+  const maxNet = Math.max(...D.owners.filter((o) => !o.separate).map((o) => agg[o.id].net));
   const owners = D.owners.map((o) => {
     const a = agg[o.id]; const plp = a.cCost ? ((a.cVal - a.cCost) / a.cCost) * 100 : null;
-    const sub = [o.role_label]; if (a.warn) sub.push(a.warn + ' לבדוק'); if (a.missing) sub.push(a.missing + ' בלי שווי');
-    return `<button class="ownercard" data-a="owner" data-v="${esc(o.id)}"><div class="row" style="width:100%"><div class="avatar" style="width:44px;height:44px;font-size:${o.initial.length > 1 ? 15 : 19}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="grow col"><b style="font-size:16px">${esc(o.name)}</b><span class="small muted">${esc(sub.join(' · '))}</span></div><div class="end"><b class="num" style="font-size:16px;font-weight:800">${short(a.net)}</b><span class="num small" style="font-weight:600;color:${a.cVal ? tone(plp) : '#93A1B2'}">${a.cVal ? 'קריפטו ' + pct(plp) : 'אין קריפטו'}</span></div></div><div class="thin"><i style="width:${Math.max(2, (a.net / maxNet) * 100).toFixed(1)}%;background:${esc(o.color)}"></i></div></button>`;
+    const sub = [o.role_label]; if (o.separate) sub.push('לא נכלל בהון המשפחתי'); if (a.warn) sub.push(a.warn + ' לבדוק'); if (a.missing) sub.push(a.missing + ' בלי שווי');
+    return `<button class="ownercard" data-a="owner" data-v="${esc(o.id)}"><div class="row" style="width:100%"><div class="avatar" style="width:44px;height:44px;font-size:${o.initial.length > 1 ? 15 : 19}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="grow col"><b style="font-size:16px">${esc(o.name)}</b><span class="small muted">${esc(sub.join(' · '))}</span></div><div class="end"><b class="num" style="font-size:16px;font-weight:800">${short(a.net)}</b><span class="num small" style="font-weight:600;color:${a.cVal ? tone(plp) : '#93A1B2'}">${a.cVal ? 'קריפטו ' + pct(plp) : 'אין קריפטו'}</span></div></div><div class="thin"><i style="width:${Math.min(100, Math.max(2, (a.net / maxNet) * 100)).toFixed(1)}%;background:${esc(o.color)}"></i></div></button>`;
   }).join('');
   const expAlerts = Object.entries(D.oexp || {}).flatMap(([ow, x]) => (x.alerts || []).filter((r) => r[0] === 'bad' || r[0] === 'warn').map((r, i) => ({ owner: ow, level: r[0], title: r[1], body: r[2], sort: -100 + i })));
   const alerts = expAlerts.concat(D.insights).filter((r) => r.level === 'bad' || r.level === 'warn').sort((a, b) => ORDER[a.level] - ORDER[b.level] || a.sort - b.sort).slice(0, 4).map((r) => insCard(r, true, OW)).join('');
@@ -228,7 +228,15 @@ function person(X) {
   } else if (cur === 'funds') {
     body = `<div class="card list">${fu.map((f) => `<div class="li"><div class="badge" style="background:#1E2A44;color:#7EA6FF">${ic('bank', 20)}</div><div class="grow col"><b class="t15">${esc(f.provider)}</b><span class="small muted">${esc(f.kind)} · נכון ל-${esc(f.as_of)}</span></div><b class="num t15">${money(+f.balance_ils)}</b></div>`).join('')}</div>`;
   } else if (cur === 'sec') {
-    body = `<span class="s13 muted">המחירים מתעדכנים כל בוקר מהבורסה</span><div class="card list">${se.map((s) => { const pp = ((s.value - s.cost_ils) / s.cost_ils) * 100; return `<div class="li"><div class="grow col"><b class="t14">${esc(s.name)}</b><span class="small muted">${esc(s.type_label)} · מחיר ${esc(s.as_of)} · עלות ${money(+s.cost_ils)}</span></div><div class="end"><b class="num t15">${money(s.value)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pct(pp)} · ${money(s.value - s.cost_ils)}</span></div></div>`; }).join('')}</div>`;
+    const row = (s) => { const pp = +s.cost_ils ? ((s.value - s.cost_ils) / s.cost_ils) * 100 : null; return `<div class="li"><div class="grow col"><b class="t14">${esc(s.name)}</b><span class="small muted">${esc(s.type_label)} · מחיר ${esc(s.as_of)}${s.chg != null && s.chg !== 0 ? ` · <span class="num" style="color:${tone(s.chg)}">היום ${pct(s.chg)}</span>` : ''} · עלות ${+s.cost_ils ? money(+s.cost_ils) : '—'}</span></div><div class="end"><b class="num t15">${money(s.value)}</b><span class="num small" style="font-weight:700;color:${tone(pp)}">${pp == null ? 'אין עלות' : pct(pp) + ' · ' + money(s.value - s.cost_ils)}</span></div></div>`; };
+    const grp = (s) => (s.type_label || '').split(' · ')[1] || 'אחר';
+    if (se.length > 12) {
+      const gs = {}; se.forEach((s) => (gs[grp(s)] = gs[grp(s)] || []).push(s));
+      const list = Object.entries(gs).map(([g, xs]) => ({ g, xs: xs.sort((x, y) => y.value - x.value), v: xs.reduce((t, x) => t + x.value, 0), c: xs.reduce((t, x) => t + (+x.cost_ils || 0), 0) })).sort((x, y) => y.v - x.v);
+      body = `<span class="s13 muted">${se.length} ניירות · המחירים מתעדכנים מהבורסה</span>` + list.map((G) => { const gp = G.c ? ((G.v - G.c) / G.c) * 100 : null; return `<div class="between" style="padding:6px 2px 0"><b class="t14">${esc(G.g)} <span class="small muted" style="font-weight:500">${G.xs.length}</span></b><span class="num small" style="font-weight:700">${money(G.v)}${gp == null ? '' : ` · <span style="color:${tone(gp)}">${pct(gp)}</span>`}</span></div><div class="card list">${G.xs.map(row).join('')}</div>`; }).join('');
+    } else {
+      body = `<span class="s13 muted">המחירים מתעדכנים כל בוקר מהבורסה</span><div class="card list">${se.map(row).join('')}</div>`;
+    }
   } else if (cur === 'docs') {
     const up = ME && ME.admin ? `<div class="card pad col gap6"><b class="t15">הוספת מסמך ל${esc(o.name)}</b>
       <div class="field"><label for="dt-title">שם המסמך</label><input id="dt-title" placeholder="למשל: אישור יתרות Bits of Gold"></div>
@@ -244,7 +252,7 @@ function person(X) {
   return `
   <div class="between"><button class="back" data-a="back" aria-label="חזרה למשפחה">${ic('back', 18)} משפחה</button>${curSeg()}</div>
   ${picker(X, o.id)}
-  <div class="row" style="gap:14px"><div class="avatar" style="width:56px;height:56px;border-radius:18px;font-size:${o.initial.length > 1 ? 18 : 24}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="col"><h1 style="font-size:26px">${esc(o.name)}</h1><span class="s13 muted">${esc(o.role_label)} · ${Math.round((a.net / fam.net) * 100)}% מההון המשפחתי</span></div></div>
+  <div class="row" style="gap:14px"><div class="avatar" style="width:56px;height:56px;border-radius:18px;font-size:${o.initial.length > 1 ? 18 : 24}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="col"><h1 style="font-size:26px">${esc(o.name)}</h1><span class="s13 muted">${esc(o.role_label)} · ${o.separate ? 'מוצג בנפרד, לא נכלל בהון המשפחתי' : Math.round((a.net / fam.net) * 100) + '% מההון המשפחתי'}</span></div></div>
   <div class="panel"><span class="s13 muted" style="font-weight:600">הון נטו</span><b class="num big" style="font-size:38px;font-weight:800">${money(a.net)}</b><span class="s13 muted">${esc(subline)}</span>${segs(a.cats, a.gross || 1)}</div>
   <div class="chips">${subs.map((t) => `<button class="chip ${t[0] === cur ? 'on' : ''}" data-a="sub" data-v="${t[0]}">${t[1]} <span style="opacity:.7;font-weight:500">${t[2]}</span></button>`).join('')}</div>
   <div class="col gap10 ${cur === 'ins' ? 'insgrid' : 'pbody'}">${body}</div>`;
