@@ -162,7 +162,7 @@ function home(X) {
   const maxNet = Math.max(...D.owners.filter((o) => !o.separate).map((o) => agg[o.id].net));
   const owners = D.owners.map((o) => {
     const a = agg[o.id]; const plp = a.cCost ? ((a.cVal - a.cCost) / a.cCost) * 100 : null;
-    const sub = [o.role_label]; if (o.separate) sub.push('לא נכלל בהון המשפחתי'); if (a.warn) sub.push(a.warn + ' לבדוק'); if (a.missing) sub.push(a.missing + ' בלי שווי');
+    const sub = [o.role_label]; if (o.separate) sub.push('לא נכלל בהון המשפחתי'); if (a.warn) sub.push(a.warn + ' לבדוק — לחצו לפירוט'); if (a.missing) sub.push(a.missing + ' בלי שווי');
     return `<button class="ownercard" data-a="owner" data-v="${esc(o.id)}"><div class="row" style="width:100%"><div class="avatar" style="width:44px;height:44px;font-size:${o.initial.length > 1 ? 15 : 19}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="grow col"><b style="font-size:16px">${esc(o.name)}</b><span class="small muted">${esc(sub.join(' · '))}</span></div><div class="end"><b class="num" style="font-size:16px;font-weight:800">${short(a.net)}</b><span class="num small" style="font-weight:600;color:${a.cVal ? tone(plp) : '#93A1B2'}">${a.cVal ? 'קריפטו ' + pct(plp) : 'אין קריפטו'}</span></div></div><div class="thin"><i style="width:${Math.min(100, Math.max(2, (a.net / maxNet) * 100)).toFixed(1)}%;background:${esc(o.color)}"></i></div></button>`;
   }).join('');
   const expAlerts = Object.entries(D.oexp || {}).flatMap(([ow, x]) => (x.alerts || []).filter((r) => r[0] === 'bad' || r[0] === 'warn').map((r, i) => ({ owner: ow, level: r[0], title: r[1], body: r[2], sort: -100 + i })));
@@ -197,6 +197,7 @@ function person(X) {
   const fu = D.funds.filter((f) => f.owner === o.id);
   const as = D.assets.filter((r) => r.owner === o.id).map((r) => ({ ...r, cat: r.category })).concat(MT.filter((m) => m.owner === o.id).map((m) => { const pl = ((m.value - m.cost_ils) / m.cost_ils) * 100; return { item: m.item, note: `${m.note} · נקנו ב-₪${Math.round(m.cost_ils).toLocaleString('en-US')} · ${pl >= 0 ? '+' : '−'}${Math.abs(pl).toFixed(1)}% מהקנייה`, value_ils: m.value, status: m.status, as_of: m.as_of, cat: 'metals' }; }));
   const se = SEC.filter((s) => s.owner === o.id);
+  const chk = D.assets.filter((r) => r.owner === o.id && ((r.status && r.status !== 'ok') || r.value_ils == null)).concat(D.metals.filter((m) => m.owner === o.id && m.status && m.status !== 'ok'));
   const ins = D.insights.filter((r) => r.owner === o.id).sort((x, y) => ORDER[x.level] - ORDER[y.level] || x.sort - y.sort);
   const ex = o.id === 'karin' && ME && ME.admin && D.exp ? D.exp : null;
   const ox = !ex && D.oexp[o.id] ? D.oexp[o.id] : null;
@@ -254,6 +255,7 @@ function person(X) {
   ${picker(X, o.id)}
   <div class="row" style="gap:14px"><div class="avatar" style="width:56px;height:56px;border-radius:18px;font-size:${o.initial.length > 1 ? 18 : 24}px;background:${esc(o.color)}">${esc(o.initial)}</div><div class="col"><h1 style="font-size:26px">${esc(o.name)}</h1><span class="s13 muted">${esc(o.role_label)} · ${o.separate ? 'מוצג בנפרד, לא נכלל בהון המשפחתי' : Math.round((a.net / fam.net) * 100) + '% מההון המשפחתי'}</span></div></div>
   <div class="panel"><span class="s13 muted" style="font-weight:600">הון נטו</span><b class="num big" style="font-size:38px;font-weight:800">${money(a.net)}</b><span class="s13 muted">${esc(subline)}</span>${segs(a.cats, a.gross || 1)}</div>
+  ${chk.length ? `<div class="card pad col" style="gap:10px;border-color:rgba(233,196,106,.4)"><b class="t15" style="color:#F0CF7E">⚠ לבדיקה · ${chk.length}</b>${chk.map((r) => `<div class="col" style="gap:3px"><b class="t14">${esc(r.item)}${r.value_ils == null && r.oz == null ? ' · בלי שווי' : ''}</b><span class="small muted" style="line-height:1.5">${esc(r.note || '')}${r.as_of ? ' · נכון ל-' + esc(r.as_of) : ''}</span></div>`).join('')}</div>` : ''}
   <div class="chips">${subs.map((t) => `<button class="chip ${t[0] === cur ? 'on' : ''}" data-a="sub" data-v="${t[0]}">${t[1]} <span style="opacity:.7;font-weight:500">${t[2]}</span></button>`).join('')}</div>
   <div class="col gap10 ${cur === 'ins' ? 'insgrid' : 'pbody'}">${body}</div>`;
 }
@@ -392,7 +394,7 @@ function authView() {
   const m = ui.authMode;
   const title = { login: 'כניסה', signup: 'הרשמה ראשונה', forgot: 'איפוס סיסמה', newpass: 'סיסמה חדשה', mfa: 'אימות דו־שלבי' }[m];
   const fields = m === 'mfa'
-    ? `<div class="field"><label for="otp">הקוד בן 6 הספרות מאפליקציית האימות</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required></div>`
+    ? `<div class="field"><label for="otp">הקוד בן 6 הספרות מאפליקציית האימות</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></div>`
     : m === 'newpass'
     ? `<div class="field"><label for="pw">סיסמה חדשה (לפחות 10 תווים)</label><div class="pw"><input id="pw" type="password" autocomplete="new-password" minlength="10" required>${EYE}</div></div>`
     : `<div class="field"><label for="em">אימייל</label><input id="em" type="email" autocomplete="email" inputmode="email" required></div>` +
@@ -531,13 +533,11 @@ async function openDoc(id) {
 }
 
 async function submitAuth() {
-  // Read every field BEFORE go(true): the re-render replaces the inputs with empty ones
   const em = document.getElementById('em')?.value.trim(), pw = document.getElementById('pw')?.value || '';
-  const otp = (document.getElementById('otp')?.value || '').replace(/\D/g, '');
   ui.busy = true; ui.msg = null; go(true);
   try {
     if (ui.authMode === 'mfa') {
-      const code = otp;
+      const code = (document.getElementById('otp')?.value || '').replace(/\D/g, '');
       if (code.length !== 6) throw new Error('צריך 6 ספרות.');
       const { data: f } = await sb.auth.mfa.listFactors();
       const t = (f?.totp || []).find((x) => x.status === 'verified');
