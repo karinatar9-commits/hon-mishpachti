@@ -392,7 +392,7 @@ function authView() {
   const m = ui.authMode;
   const title = { login: 'כניסה', signup: 'הרשמה ראשונה', forgot: 'איפוס סיסמה', newpass: 'סיסמה חדשה', mfa: 'אימות דו־שלבי' }[m];
   const fields = m === 'mfa'
-    ? `<div class="field"><label for="otp">הקוד בן 6 הספרות מאפליקציית האימות</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></div>`
+    ? `<div class="field"><label for="otp">הקוד בן 6 הספרות מאפליקציית האימות</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required></div>`
     : m === 'newpass'
     ? `<div class="field"><label for="pw">סיסמה חדשה (לפחות 10 תווים)</label><div class="pw"><input id="pw" type="password" autocomplete="new-password" minlength="10" required>${EYE}</div></div>`
     : `<div class="field"><label for="em">אימייל</label><input id="em" type="email" autocomplete="email" inputmode="email" required></div>` +
@@ -531,11 +531,13 @@ async function openDoc(id) {
 }
 
 async function submitAuth() {
+  // Read every field BEFORE go(true): the re-render replaces the inputs with empty ones
   const em = document.getElementById('em')?.value.trim(), pw = document.getElementById('pw')?.value || '';
+  const otp = (document.getElementById('otp')?.value || '').replace(/\D/g, '');
   ui.busy = true; ui.msg = null; go(true);
   try {
     if (ui.authMode === 'mfa') {
-      const code = (document.getElementById('otp')?.value || '').replace(/\D/g, '');
+      const code = otp;
       if (code.length !== 6) throw new Error('צריך 6 ספרות.');
       const { data: f } = await sb.auth.mfa.listFactors();
       const t = (f?.totp || []).find((x) => x.status === 'verified');
