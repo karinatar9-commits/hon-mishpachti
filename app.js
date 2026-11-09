@@ -382,17 +382,19 @@ const EYE_OFF = '<path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6
 const EYE = `<button type="button" class="eye" data-a="eye" aria-label="הצגת הסיסמה" aria-pressed="false"><svg class="ic" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">${EYE_OPEN}</svg></button>`;
 function authView() {
   const m = ui.authMode;
-  const title = { login: 'כניסה', signup: 'הרשמה ראשונה', forgot: 'איפוס סיסמה', newpass: 'סיסמה חדשה' }[m];
-  const fields = m === 'newpass'
+  const title = { login: 'כניסה', signup: 'הרשמה ראשונה', forgot: 'איפוס סיסמה', newpass: 'סיסמה חדשה', mfa: 'אימות דו־שלבי' }[m];
+  const fields = m === 'mfa'
+    ? `<div class="field"><label for="otp">הקוד בן 6 הספרות מאפליקציית האימות</label><input id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required></div>`
+    : m === 'newpass'
     ? `<div class="field"><label for="pw">סיסמה חדשה (לפחות 10 תווים)</label><div class="pw"><input id="pw" type="password" autocomplete="new-password" minlength="10" required>${EYE}</div></div>`
     : `<div class="field"><label for="em">אימייל</label><input id="em" type="email" autocomplete="email" inputmode="email" required></div>` +
       (m === 'forgot' ? '' : `<div class="field"><label for="pw">סיסמה${m === 'signup' ? ' (לפחות 10 תווים)' : ''}</label><div class="pw"><input id="pw" type="password" autocomplete="${m === 'signup' ? 'new-password' : 'current-password'}" ${m === 'signup' ? 'minlength="10"' : ''} required>${EYE}</div></div>`);
   return `<div class="auth"><div class="auth-art"><img class="brand" src="splash.jpg" alt="GoldChain Wealth"></div><div class="auth-form">
     <div class="col" style="gap:2px"><h1 style="font-size:28px">הון משפחתי</h1><span class="muted">${title} · לבני המשפחה בלבד</span></div>
     <form class="col gap14" data-form="auth" onsubmit="return false">${fields}
-      <button class="primary" data-a="auth-submit" ${ui.busy ? 'disabled' : ''}>${{ login: 'כניסה', signup: 'יצירת חשבון', forgot: 'שליחת קישור לאיפוס', newpass: 'שמירת הסיסמה' }[m]}</button></form>
+      <button class="primary" data-a="auth-submit" ${ui.busy ? 'disabled' : ''}>${{ login: 'כניסה', signup: 'יצירת חשבון', forgot: 'שליחת קישור לאיפוס', newpass: 'שמירת הסיסמה', mfa: 'אימות' }[m]}</button></form>
     ${ui.msg ? `<div class="msg ${ui.msg.ok ? 'ok' : 'err'}">${esc(ui.msg.t)}</div>` : ''}
-    ${m === 'newpass' ? '' : `<div class="between">${m !== 'login' ? '<button class="ghost" data-a="mode" data-v="login">יש לי חשבון</button>' : '<button class="ghost" data-a="mode" data-v="signup">הרשמה ראשונה</button>'}${m !== 'forgot' ? '<button class="ghost" style="color:#4BE3B8" data-a="mode" data-v="forgot">שכחתי סיסמה</button>' : ''}</div>`}
+    ${m === 'mfa' ? '<button class="ghost" data-a="logout">התנתקות</button>' : m === 'newpass' ? '' : `<div class="between">${m !== 'login' ? '<button class="ghost" data-a="mode" data-v="login">יש לי חשבון</button>' : '<button class="ghost" data-a="mode" data-v="signup">הרשמה ראשונה</button>'}${m !== 'forgot' ? '<button class="ghost" style="color:#4BE3B8" data-a="mode" data-v="forgot">שכחתי סיסמה</button>' : ''}</div>`}
   </div></div>`;
 }
 
@@ -403,7 +405,7 @@ function denied() {
 /* ---------- render ---------- */
 function render() {
   const scrollY = window.scrollY;
-  if (ui.authMode === 'newpass' || !session) { $app.innerHTML = authView(); return; }
+  if (ui.authMode === 'newpass' || ui.authMode === 'mfa' || !session) { $app.innerHTML = authView(); return; }
   if (!ME || !ME.family) { $app.innerHTML = denied(); return; }
   if (!D) { $app.innerHTML = `<div class="scroll"><div class="skel" style="height:60px"></div><div class="skel" style="height:240px"></div><div class="skel" style="height:140px"></div><div class="skel" style="height:300px"></div></div>${nav()}`; return; }
   const X = compute();
@@ -460,6 +462,11 @@ function pushCard() {
 /* ---------- actions ---------- */
 let session = null;
 async function refreshAll() {
+  try {
+    const { data: al } = await sb.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (al && al.nextLevel === 'aal2' && al.currentLevel !== 'aal2') { if (ui.authMode !== 'mfa') { ui.after = ui.authMode === 'newpass' ? 'newpass' : null; ui.authMode = 'mfa'; } return go(); }
+  } catch (e) { console.error(e); }
+  if (ui.authMode === 'mfa') ui.authMode = ui.after === 'newpass' ? 'newpass' : 'login';
   const { data } = await sb.rpc('whoami');
   ME = data || { family: false };
   if (ME.family) { try { D = await loadData(); } catch (e) { console.error(e); } }
@@ -519,7 +526,17 @@ async function submitAuth() {
   const em = document.getElementById('em')?.value.trim(), pw = document.getElementById('pw')?.value || '';
   ui.busy = true; ui.msg = null; go(true);
   try {
-    if (ui.authMode === 'login') {
+    if (ui.authMode === 'mfa') {
+      const code = (document.getElementById('otp')?.value || '').replace(/\D/g, '');
+      if (code.length !== 6) throw new Error('צריך 6 ספרות.');
+      const { data: f } = await sb.auth.mfa.listFactors();
+      const t = (f?.totp || []).find((x) => x.status === 'verified');
+      if (!t) throw new Error('לא נמצא אימות דו־שלבי פעיל.');
+      const { error } = await sb.auth.mfa.challengeAndVerify({ factorId: t.id, code });
+      if (error) throw new Error('הקוד שגוי או שפג תוקפו. נסו שוב.');
+      ui.authMode = ui.after === 'newpass' ? 'newpass' : 'login'; ui.after = null;
+      ui.busy = false; if (ui.authMode === 'newpass') return go(true); return refreshAll();
+    } else if (ui.authMode === 'login') {
       const { error } = await sb.auth.signInWithPassword({ email: em, password: pw });
       if (error) throw new Error(/confirm/i.test(error.message) ? 'צריך קודם לאשר את מייל האימות.' : 'אימייל או סיסמה שגויים.');
     } else if (ui.authMode === 'signup') {
@@ -533,6 +550,7 @@ async function submitAuth() {
     } else if (ui.authMode === 'newpass') {
       if (pw.length < 10) throw new Error('הסיסמה צריכה להיות לפחות 10 תווים.');
       const { error } = await sb.auth.updateUser({ password: pw });
+      if (error && /aal2|aal 2|mfa|assurance/i.test(error.message)) { ui.after = 'newpass'; ui.authMode = 'mfa'; throw new Error('קודם קוד מאפליקציית האימות, ואז שומרים את הסיסמה.'); }
       if (error) throw new Error('לא הצלחנו לשמור. נסו שוב.');
       ui.authMode = 'login'; ui.msg = null;
     }
@@ -554,7 +572,7 @@ async function addMember() {
 
 sb.auth.onAuthStateChange((evt, s) => {
   session = s;
-  if (evt === 'PASSWORD_RECOVERY') { ui.authMode = 'newpass'; return go(); }
+  if (evt === 'PASSWORD_RECOVERY') { ui.authMode = 'newpass'; return refreshAll(); }
   if (evt === 'SIGNED_IN' || evt === 'INITIAL_SESSION') { if (s) refreshAll(); else go(); }
   if (evt === 'SIGNED_OUT') go();
 });
