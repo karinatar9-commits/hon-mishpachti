@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0B0F1A">
+<title>3 אוטומציות קטנות לעסק עם Claude · קרין עטר</title>
+<meta property="og:title" content="3 אוטומציות קטנות לעסק עם Claude">
+<meta property="og:description" content="פורמטים מוכנים להעתקה: תדריך בוקר, הצעת מחיר ב-2 דקות ואקסל של העסק.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;background:#0B0F1A;color:#fff;font-family:Heebo,system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:680px;margin:0 auto;padding:28px 20px 60px}
+.top{display:flex;align-items:center;gap:10px;color:#A8B0C2;font-size:14px;font-weight:500}
+.dot{width:10px;height:10px;border-radius:5px;background:#A78BFA}
+.k{color:#A78BFA;font-weight:700;font-size:15px;margin:34px 0 8px}
+h1{font-size:38px;line-height:1.1;font-weight:900;margin:0 0 14px}
+h2{font-size:28px;line-height:1.15;font-weight:900;margin:0}
+p{font-size:17px;line-height:1.65;color:#D5D9E3;margin:10px 0}
+b{color:#fff}
+.toc{display:flex;flex-direction:column;gap:8px;margin:20px 0 0}
+.toc a{display:flex;gap:12px;align-items:center;background:#141A2B;border:1px solid #262E45;border-radius:14px;padding:14px 16px;color:#fff;text-decoration:none;font-weight:500}
+.toc a span{width:30px;height:30px;border-radius:15px;background:#A78BFA;color:#0B0F1A;display:flex;align-items:center;justify-content:center;font-weight:900;flex:none}
+section{margin-top:44px;padding-top:30px;border-top:1px solid #1E2433}
+.hd{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+.num{width:48px;height:48px;border-radius:24px;background:#A78BFA;color:#0B0F1A;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;flex:none}
+.pr{background:#141A2B;border:1.5px dashed #A78BFA;border-radius:16px;padding:16px;margin:16px 0}
+.prh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.prh span{color:#A78BFA;font-size:13px;font-weight:700}
+.cp{background:#A78BFA;color:#0B0F1A;border:0;border-radius:10px;padding:8px 14px;font:700 14px Heebo,sans-serif;cursor:pointer}
+.cp.ok{background:#34D399}
+pre{margin:0;white-space:pre-wrap;font:16px/1.65 Heebo,sans-serif;color:#fff}
+pre i{font-style:normal;color:#C4B5FD;background:#2A2342;border-radius:5px;padding:0 4px}
+ol{padding:0;margin:14px 0;list-style:none;counter-reset:s}
+ol li{counter-increment:s;display:flex;gap:12px;font-size:16.5px;line-height:1.6;color:#E5E8EF;margin-bottom:10px}
+ol li:before{content:counter(s);flex:none;width:28px;height:28px;border-radius:14px;border:1.5px solid #A78BFA;color:#A78BFA;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;margin-top:1px}
+.path{background:#1A2136;border-radius:7px;padding:1px 8px;color:#fff;white-space:nowrap}
+.tip{border-right:4px solid #A78BFA;padding:4px 14px 4px 0;font-size:16px;line-height:1.6;color:#D5D9E3;margin:14px 0}
+.cta{display:block;background:#A78BFA;color:#0B0F1A;border-radius:18px;padding:22px;text-decoration:none;margin-top:18px}
+.cta strong{display:block;font-size:22px;font-weight:900;line-height:1.25}
+.cta small{display:block;font-size:15px;font-weight:700;margin-top:6px}
+ul{padding:0;margin:12px 0;list-style:none}
+ul li{display:flex;gap:10px;font-size:16.5px;line-height:1.6;margin-bottom:6px}
+ul li:before{content:"";flex:none;width:8px;height:8px;border-radius:4px;background:#A78BFA;margin-top:10px}
+.foot{margin-top:40px;color:#A8B0C2;font-size:14px;display:flex;justify-content:space-between}
+.foot a{color:#C4B5FD}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="top"><div class="dot"></div>קרין עטר · סוכני AI לעסקים</div>
+
+<div class="k">המדריך שביקשת · פורמטים מוכנים ל-Claude</div>
+<h1>3 אוטומציות קטנות לעסק עם Claude</h1>
+<p>מעתיקים פורמט, מדביקים ב-Claude, והוא עושה את העבודה. בלי קוד ובלי הגדרות מסובכות, דברים קטנים שחוזרים כל שבוע בעסק.</p>
+<p>איך משתמשים: נכנסים ל-<b>claude.ai</b> (יש גרסה חינמית), פותחים צ׳אט חדש, לוחצים <b>העתקה</b> על הפורמט ומדביקים. מה שמסומן <b style="color:#C4B5FD">[כך]</b> מחליפים בפרטים שלכם.</p>
+<div class="toc">
+<a href="#a1"><span>1</span>תדריך בוקר בדקה</a>
+<a href="#a2"><span>2</span>הצעת מחיר ב-2 דקות</a>
+<a href="#a3"><span>3</span>Claude בונה לכם אקסל של העסק</a>
+<a href="#bonus"><span>+</span>5 פורמטים קטנים לעסק</a>
+</div>
+
+<section id="a1">
+<div class="hd"><div class="num">1</div><h2>תדריך בוקר</h2></div>
+<p>במקום לפתוח 40 מיילים ואת היומן ולנסות להבין מה דחוף, מבקשים מ-Claude לעבור על הכל ולהגיד לכם במה להתחיל.</p>
+<p><b>פעם אחת:</b> ב-Claude נכנסים ל<span class="path">הגדרות ← Connectors</span> ומחברים את <b>Gmail</b> ו-<b>Google Calendar</b>.</p>
+<div class="pr"><div class="prh"><span>הפורמט · להעתיק</span><button class="cp">העתקה</button></div><pre>תדריך בוקר:
+1. מה יש לי היום ביומן, לפי שעות.
+2. מהמיילים של 24 השעות האחרונות — רק מה שדורש ממני תשובה או פעולה, לפי דחיפות.
+3. לכל אחד כזה: טיוטת תשובה קצרה.
+4. משפט אחד בסוף: מה הדבר הכי חשוב לעשות היום.
+קצר וברור, בלי חפירות.</pre></div>
+<div class="tip"><b>שיהיה בלחיצה:</b> באייפון: <b>הגדרות ← כללי ← מקלדת ← החלפת טקסט</b>. מדביקים את הפורמט ובקיצור כותבים <b>בוקר</b>. מעכשיו מקלידים "בוקר" ב-Claude והכל מופיע.</div>
+</section>
+
+<section id="a2">
+<div class="hd"><div class="num">2</div><h2>הצעת מחיר ב-2 דקות</h2></div>
+<p>לקוח ביקש הצעת מחיר ואתם דוחים? נותנים ל-Claude את הפרטים כמו שהם, ומקבלים מסמך מקצועי לשליחה.</p>
+<div class="pr"><div class="prh"><span>הפורמט · להעתיק</span><button class="cp">העתקה</button></div><pre>תכין לי הצעת מחיר מקצועית כקובץ PDF.
+העסק שלי: <i>[שם העסק, טלפון, מייל]</i>.
+הלקוח: <i>[שם הלקוח / החברה]</i>.
+מה כלול: <i>[שירות או מוצר – מחיר, שירות – מחיר]</i>.
+תנאים: <i>[מקדמה, זמן אספקה, תוקף ההצעה]</i>.
+תוסיף: פסקת פתיחה קצרה ללקוח, טבלה עם סכום ביניים, מע״מ וסה״כ, ושורה לחתימה.
+עיצוב נקי, בעברית.</pre></div>
+<ol><li><span>מדביקים, ממלאים את הסוגריים (גם בקיצור, בלי לנסח יפה) ולוחצים <b>הורדה</b> על הקובץ.</span></li>
+<li><span>רוצים לשנות? <b>"תוריד 10% הנחה"</b> או <b>"תוסיף את הלוגו"</b> (מצרפים תמונה), וזה מתעדכן.</span></li></ol>
+<div class="tip">כדאי לשמור את הפורמט עם פרטי העסק כבר ממולאים, ולשנות כל פעם רק לקוח ושירותים.</div>
+</section>
+
+<section id="a3">
+<div class="hd"><div class="num">3</div><h2>Claude בונה לכם אקסל</h2></div>
+<p>לא צריך לדעת נוסחאות. מתארים מה רוצים לעקוב אחריו, ו-Claude מחזיר קובץ אקסל מוכן להורדה, עם חישובים וסיכום.</p>
+<div class="pr"><div class="prh"><span>הפורמט · להעתיק</span><button class="cp">העתקה</button></div><pre>תבנה לי קובץ אקסל למעקב הוצאות והכנסות של העסק, לפי חודשים.
+עמודות: תאריך | הכנסה/הוצאה | לקוח או ספק | קטגוריה | סכום.
+קטגוריות: <i>[חומרים, שיווק, רכב, תוכנות, אחר]</i>.
+גיליון שני: רווח לכל חודש, סיכום לפי קטגוריה וגרף.
+שיהיה מוכן למילוי, עם 3 שורות לדוגמה.</pre></div>
+<ol><li><span>מדביקים, מחכים כמה שניות ולוחצים <b>הורדה</b> על הקובץ שמופיע.</span></li>
+<li><span>פותחים באקסל או מעלים ל-Google Sheets. הסיכום והגרף מתעדכנים לבד כשממלאים.</span></li></ol>
+<div class="tip"><b>אותו פורמט, דברים אחרים:</b> רשימת לקוחות ומי עוד לא שילם, מלאי, תורים לפי חודש, מעקב לידים. רק משנים את השורה הראשונה והעמודות.</div>
+</section>
+
+<section id="bonus">
+<div class="k" style="margin-top:0">בונוס</div><h2>5 פורמטים קטנים לעסק</h2>
+<div class="pr"><div class="prh"><span>ביקורת</span><button class="cp">העתקה</button></div><pre>קיבלתי ביקורת: <i>[הדבקה]</i>. תכתוב תגובה מכבדת, קצרה ולא מתגוננת.</pre></div>
+<div class="pr"><div class="prh"><span>רעיונות לפוסטים</span><button class="cp">העתקה</button></div><pre>תכתוב לי 3 רעיונות לפוסט על <i>[שירות]</i> לאינסטגרם, עם כותרת שעוצרת גלילה.</pre></div>
+<div class="pr"><div class="prh"><span>סיכום פגישה</span><button class="cp">העתקה</button></div><pre>אלה הסיכומים שלי מהפגישה עם <i>[לקוח]</i>: <i>[הדבקה]</i>. תהפוך למייל סיכום עם משימות ותאריכים.</pre></div>
+<div class="pr"><div class="prh"><span>תזכורת תשלום</span><button class="cp">העתקה</button></div><pre>לקוח לא שילם כבר <i>[X]</i> ימים. תנסח תזכורת נעימה אבל ברורה.</pre></div>
+<div class="pr"><div class="prh"><span>חוזה מספק</span><button class="cp">העתקה</button></div><pre>מצרף חוזה מ<i>[ספק]</i>. תסביר בשפה פשוטה ומה כדאי לבדוק לפני שאני חותם/ת.</pre></div>
+<div class="tip">כשהתשובה לא בדיוק מה שרציתם, לא מתחילים מחדש. כותבים לו מה לשנות: "קצר יותר", "פחות רשמי", "תוסיף טבלה".</div>
+</section>
+
+<section>
+<h2>ומה כשרוצים שזה יקרה בלי ללחוץ?</h2>
+<p>הפורמטים האלה חוסכים זמן, אבל עדיין צריך אתכם. <b>סוכן AI</b> עושה את העבודה לבד בעסק: עונה ללקוחות, קובע תורים, שולח הצעות מחיר ורושם כל ליד, ומעדכן אתכם רק כשצריך החלטה.</p>
+<ul><li>כשאותן שאלות של לקוחות חוזרות עשרות פעמים בשבוע</li><li>כשלידים הולכים לאיבוד כי לא עניתם בזמן</li><li>כשאתם מעבירים מידע ידנית בין וואטסאפ, יומן ואקסל</li></ul>
+<a class="cta" href="https://wa.me/972586362953?text=%D7%94%D7%99%D7%99%20%D7%A7%D7%A8%D7%99%D7%9F%2C%20%D7%A7%D7%A8%D7%90%D7%AA%D7%99%20%D7%90%D7%AA%20%D7%94%D7%9E%D7%93%D7%A8%D7%99%D7%9A%20%D7%95%D7%90%D7%A9%D7%9E%D7%97%20%D7%9C%D7%A9%D7%99%D7%97%D7%AA%20%D7%90%D7%91%D7%97%D7%95%D7%9F"><strong>רוצים לבדוק מה סוכן AI יכול לעשות בעסק שלכם?</strong><small>שיחת אבחון של 20 דקות, בלי התחייבות · לחצו לוואטסאפ</small></a>
+</section>
+
+<div class="foot"><a href="https://instagram.com/goldchain_ai">@goldchain_ai</a><a href="https://wa.me/972586362953">וואטסאפ</a></div>
+</div>
+<script>
+document.querySelectorAll('.cp').forEach(b=>b.addEventListener('click',async()=>{
+  const t=b.closest('.pr').querySelector('pre').innerText;
+  try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}
+  b.textContent='הועתק ✓';b.classList.add('ok');setTimeout(()=>{b.textContent='העתקה';b.classList.remove('ok')},1800);
+}));
+</script>
+</body>
+</html>
