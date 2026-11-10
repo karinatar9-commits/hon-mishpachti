@@ -131,5 +131,10 @@ document.querySelectorAll('.cp').forEach(b=>b.addEventListener('click',async()=>
   b.textContent='הועתק ✓';b.classList.add('ok');setTimeout(()=>{b.textContent='העתקה';b.classList.remove('ok')},1800);
 }));
 </script>
+<script>
+(function(){try{var q=new URLSearchParams(location.search),u=(q.get('u')||'').trim();
+if(u&&u.indexOf('{')<0){fetch('https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/os-lead',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({u:u,src:q.get('src')||'guide'}),keepalive:true}).catch(function(){});
+history.replaceState(null,'',location.pathname+location.hash);}}catch(e){}})();
+</script>
 </body>
 </html>
