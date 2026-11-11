@@ -182,3 +182,6 @@ td.num,th.num{text-align:left;direction:ltr;font-variant-numeric:tabular-nums;wh
 .crm-dl{font-size:13px;font-variant-numeric:tabular-nums}
 .crm-st select{width:100%;padding:5px 8px;font-size:12.5px}
 @media (max-width:900px){.crm-head{display:none}.crm-row{grid-template-columns:1fr 120px;gap:8px}.crm-next{grid-column:1/-1;order:3}.crm-dl{order:2}.crm-st{order:1}.crm-stages{grid-template-columns:repeat(3,1fr)}}
+
+.tq{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--line,#232838);flex-wrap:wrap}.tq:last-of-type{border-bottom:0}.tq-t{flex:1 1 240px;min-width:0}.tq-b{display:flex;gap:6px;flex:none}
+@media(max-width:700px){.grid.g4{grid-template-columns:1fr 1fr!important}.tq-b .btn{padding:6px 10px}}
