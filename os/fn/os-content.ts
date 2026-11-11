@@ -9,6 +9,7 @@ const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const db = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const AKEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
 const HF_KEY = Deno.env.get("HF_KEY") || "";            // "keyId:keySecret"
+const EL_KEY = Deno.env.get("ELEVEN_KEY") || "";       // ElevenLabs: narration in Karin's cloned voice
 const META = Deno.env.get("META_TOKEN") || "";
 const META_GLOW = Deno.env.get("META_TOKEN_GLOW") || "";
 const G = "https://graph.facebook.com/v23.0";
@@ -44,11 +45,11 @@ const BRAND: Record<string, (s: any) => string> = {
 
 const SCHEMA = `החזר/י JSON בלבד (בלי טקסט מסביב) במבנה:
 {"title":"...","palette":{"bg1":"#hex","bg2":"#hex","accent":"#hex","text":"#hex"},"handle":"@...",
- "scenes":[{"type":"title|point|stat|list|compare|quote|cta|ai","dur":3.5,"kicker":"","headline":"","body":"","emoji":"","value":"","items":[""],"left_title":"","right_title":"","left":[""],"right":[""],"prompt":""}],
+ "scenes":[{"type":"title|point|stat|list|compare|quote|cta|ai|image","dur":3.5,"kicker":"","headline":"","body":"","emoji":"","value":"","items":[""],"left_title":"","right_title":"","left":[""],"right":[""],"prompt":""}],
  "caption":"כיתוב לאינסטגרם עם שורת הוק, ערך וקריאה לפעולה","hashtags":["#..."]}
 כללים: עברית תקנית. סצנה ראשונה type=title עם הוק שעוצר גלילה (עד 7 מילים). אחרונה type=cta. כותרת עד 8 מילים, body עד 18 מילים, items עד 4 פריטים קצרים. dur בין 2.5 ל-6 שניות לפי כמות הטקסט (קריאה נוחה). סכום dur קרוב ל-LEN שניות. stat: value מספר קצר (למשל "73%" או "₪1,200"). compare: שני טורים קצרים. emoji אחד לכל סצנה.`;
 
-async function claudeJSON(prompt: string, model: string, search = 0) {
+async function claudeJSON(prompt: string | any[], model: string, search = 0) {
   // thinking counts against max_tokens on the 5.5 models, so keep effort low and leave room for the JSON
   const req: any = { model, max_tokens: 16000, output_config: { effort: "low" }, messages: [{ role: "user", content: prompt }] };
   if (search) req.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: search }];
@@ -81,7 +82,9 @@ ${mixed && !car ? `שלב/י 1-3 סצנות type=ai: קטע וידאו AI קול
 ${v.voice && !car ? `קריינות: לכל סצנה הוסף/י שדה "vo" — משפט או שניים בעברית מדוברת וטבעית שהקריינית אומרת בזמן הסצנה (לא לקרוא את הכותרת מילה במילה; להסביר אותה). בלי אימוג'י, בלי סימנים מיוחדים, מספרים במילים, מונחים באנגלית לכתוב באותיות לטיניות. עד 22 מילים לסצנה. dur של כל סצנה = זמן הדיבור של ה-vo (בערך 2.6 מילים לשנייה) ועוד חצי שנייה.` : ""}
 ${SCHEMA.replace("LEN", String(v.length_s))}`;
     if (feedback) p += `\n\nזה התסריט הקודם:\n${JSON.stringify({ ...v.script, caption: v.caption })}\n\nההערות של קרין עליו (חובה ליישם את כולן, ולשמור את מה שלא העירה עליו):\n${feedback}\n\nבנוסף הוסף/י ל-JSON שדה "lessons": 0-3 כללים קצרים וכלליים שאפשר ללמוד מההערות האלה לכל הסרטונים הבאים (למשל "הוק בצורת שאלה", "לא יותר מ-12 מילים בשקף"). רק כללים שחלים גם על נושאים אחרים.`;
-    const sc = await claudeJSON(p, s.model);
+    if (v.ref_url) p += `\n\nקרין צירפה תמונה (שרטוט, צילום מסך או סקיצה עם הסבר). קרא/י אותה בעיון: מה שכתוב ומצויר בה הוא ההנחיה — המבנה, הסדר, המסרים והטקסטים שהיא רוצה. פתח/י את זה לסרטון מלא. אפשר לשלב עד 2 סצנות type=image שמציגות את התמונה שלה עצמה על המסך (רק אם היא ראויה להצגה לצופים, למשל צילום מסך או תרשים נקי; סקיצה בכתב יד — לא להציג).`;
+    const sc = await claudeJSON(v.ref_url ? [{ type: "image", source: { type: "url", url: v.ref_url } }, { type: "text", text: p }] : p, s.model);
+    if (!v.ref_url) (sc.scenes || []).forEach((x: any) => { if (x.type === "image") x.type = "point"; });
     sc.scenes = (sc.scenes || []).slice(0, 14).map((x: any) => ({ ...x, dur: Math.min(8, Math.max(2, +x.dur || 3.5)) }));
     if (car) sc.scenes.forEach((x: any) => { if (x.type === "ai") x.type = "point"; });
     // narration asked for but the writer skipped it on a scene: read the on-screen text instead of leaving silence
@@ -221,7 +224,20 @@ async function renderApi(body: any) {
     await db.from("os_videos").update({ status: "rendering", claimed_at: now(), version, updated_at: now() }).eq("id", v.id);
     const kit = (s.main.brandKit || {})[v.account] || {};
     if (kit.accent) v.script.palette = { bg1: kit.bg1, bg2: kit.bg2, accent: kit.accent, text: kit.text || "#ffffff" };
-    return json({ job: { id: v.id, version, format: v.format, account: v.account, script: v.script, voice: !!v.voice, voice_name: s.main.voiceName || "he-IL-HilaNeural", cta: kit.cta || "", brand: v.account === "glow" ? "Glow House" : "Karin Atar", handle: v.account === "glow" ? (s.main.handleGlow || "") : (s.main.handleKarin || "") } });
+    return json({ job: { id: v.id, version, format: v.format, account: v.account, script: v.script, ref_url: v.ref_url || "", clone: !!(EL_KEY && s.main.voiceId), voice: !!v.voice, voice_name: s.main.voiceName || "he-IL-HilaNeural", cta: kit.cta || "", brand: v.account === "glow" ? "Glow House" : "Karin Atar", handle: v.account === "glow" ? (s.main.handleGlow || "") : (s.main.handleKarin || "") } });
+  }
+  if (body.mode === "tts") {          // one scene of narration in the cloned voice; the key never leaves this function
+    if (!EL_KEY || !s.main.voiceId) return json({ url: null });
+    const { data: v } = await db.from("os_videos").select("script,version").eq("id", body.id).single();
+    const text = String(v?.script?.scenes?.[+body.i]?.vo || "").slice(0, 600).trim();
+    if (!text) return json({ url: null });
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(s.main.voiceId)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ text, model_id: s.main.voiceModel || "eleven_v3", language_code: "he" }) });
+    if (!r.ok) return json({ url: null, error: (await r.text()).slice(0, 200) });
+    const path = `videos/${body.id}/vo${+body.i}.mp3`;
+    const up = await db.storage.from(BUCKET).upload(path, new Uint8Array(await r.arrayBuffer()), { contentType: "audio/mpeg", upsert: true });
+    if (up.error) return json({ url: null, error: up.error.message });
+    return json({ url: db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl + `?v=${Date.now()}` });
   }
   if (body.mode === "render_upload") {
     const base = `videos/${body.id}/v${body.version}`;
@@ -279,25 +295,35 @@ Deno.serve(async (req) => {
     if (!fm || fm.owner_id !== "karin" || fm.role !== "admin" || !aalOk(token, u?.user)) return json({ error: "forbidden" }, 403);
 
     const m = body.mode;
-    if (m === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY, voice: true, render: true });
+    if (m === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY, voice: true, render: true, clone: !!EL_KEY });
+    const saveRef = async (id: string, img: unknown) => {      // picture Karin attached (sketch / screenshot) → storage, so Lia can read it
+      const mm = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(img || ""));
+      if (!mm || mm[2].length > 4_000_000) return;
+      const bin = Uint8Array.from(atob(mm[2]), (c) => c.charCodeAt(0));
+      const path = `refs/${id}.${mm[1] === "jpeg" ? "jpg" : mm[1]}`;
+      const up = await db.storage.from(BUCKET).upload(path, bin, { contentType: "image/" + mm[1], upsert: true });
+      if (!up.error) await db.from("os_videos").update({ ref_url: db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl }).eq("id", id);
+    };
     if (m === "create") {
       if (!AKEY) return json({ error: "no_key" }, 400);
       const row = { account: body.account === "glow" ? "glow" : "karin", topic: String(body.topic || "").slice(0, 2000), notes: String(body.notes || "").slice(0, 2000) || null, style: body.style === "mixed" ? "mixed" : "explainer", format: body.format === "carousel" ? "carousel" : "reel", length_s: Math.min(90, Math.max(10, +body.length_s || 30)), voice: !!body.voice && body.format !== "carousel" };
       if (!row.topic) return json({ error: "חסר נושא" }, 400);
       const { data, error } = await db.from("os_videos").insert(row).select("id").single();
       if (error) return json({ error: error.message }, 500);
+      if (body.image) await saveRef(data.id, body.image);
       bg(scriptJob(data.id));
       return json({ id: data.id });
     }
     if (m === "ask") {            // plain-language request: Lia decides topic angle, length and scenes
       if (!AKEY) return json({ error: "no_key" }, 400);
-      const text = String(body.text || "").slice(0, 3000).trim();
+      const text = String(body.text || "").slice(0, 3000).trim() || (body.image ? "סרטון לפי התמונה המצורפת" : "");
       if (!text) return json({ error: "כתבי מה להכין" }, 400);
       const car = /קרוסל|מצגת|שקפים|פוסט תמונות/.test(text);
       const len = (text.match(/(\d{2})\s*שני/) || [])[1];
       const row = { account: /glow|גלואו|קליניק|רינת/i.test(text) ? "glow" : "karin", topic: text, style: !car && HF_KEY && !/בלי (קטעי|וידאו) ?ai/i.test(text) ? "mixed" : "explainer", format: car ? "carousel" : "reel", length_s: Math.min(90, Math.max(15, +len || 35)), voice: !car && !/בלי קריינות|בלי קול/.test(text), auto: true };
       const { data, error } = await db.from("os_videos").insert(row).select("id").single();
       if (error) return json({ error: error.message }, 500);
+      if (body.image) await saveRef(data.id, body.image);
       bg(scriptJob(data.id));
       return json({ id: data.id });
     }
