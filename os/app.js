@@ -624,7 +624,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   const missing=()=>{ if(!M) return ""; const rows=[
       [M.meta,"פרסום לאינסטגרם ולפייסבוק","מחכה לחשבון מפתחים של Meta. עד אז: מאשרים כאן, מורידים ומעלים ידנית."],
       [M.clone,"קריינות בקול שלך","חשבון ElevenLabs + המפתח ELEVEN_KEY ב-Supabase + מזהה הקול בשדה למעלה. עד אז הקריינות בקול נשי מובנה."],
-      [M.higgsfield,"קטעי וידאו AI","המפתח HF_KEY של Higgsfield ב-Supabase. עד אז הסרטונים באנימציה בלבד."]].filter(r=>!r[0]);
+      [M.higgsfield,"קטעי וידאו AI חדשים לכל סרטון","כבר עכשיו כל סרטון מקבל רקעי וידאו קולנועיים מספרייה מוכנה ומוזיקה. המפתח HF_KEY של Higgsfield ב-Supabase יוסיף קטע חדש שנוצר במיוחד לכל סרטון."]].filter(r=>!r[0]);
     return rows.length?`<div class="card" style="margin-top:14px"><h3>מה חסר כדי שהכול יהיה מחובר</h3>${rows.map(r=>`<div class="kv"><span><b>${r[1]}</b><div class="small muted">${r[2]}</div></span><span><span class="dot warn"></span></span></div>`).join("")}</div>`:""; };
   k["mkt-factory"]=()=>{
     let h=facV().replace('<button class="btn ghost sm" data-go="mkt-config">להגדרות החיבור ←</button>','<button class="btn ghost sm" id="hubCfgGo">להגדרות החיבור ↓</button>');
