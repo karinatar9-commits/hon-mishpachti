@@ -26,15 +26,18 @@ function tts(text, voice, out) {
   if (process.env.TTS_FAKE) { ff(['-f', 'lavfi', '-i', `sine=frequency=330:duration=${Math.max(1.2, text.split(/\s+/).length / 2.6).toFixed(2)}`, '-ar', '44100', out]); return; }
   execFileSync('edge-tts', ['--voice', voice, '--rate=+6%', '--text', text, '--write-media', out], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60000 });
 }
-function narrate(job, tmp) {
-  const voice = job.voice_name || 'he-IL-HilaNeural'; let ok = 0, want = 0;
-  job.script.scenes.forEach((sc, i) => {
-    const text = String(sc.vo || '').replace(/[\u{1F000}-\u{1FFFF}\u2600-\u27BF]/gu, '').trim(); if (!text) return;
+async function narrate(job, tmp) {
+  const voice = job.voice_name || 'he-IL-HilaNeural'; let ok = 0, want = 0, cloned = 0;
+  for (const [i, sc] of job.script.scenes.entries()) {
+    const text = String(sc.vo || '').replace(/[\u{1F000}-\u{1FFFF}\u2600-\u27BF]/gu, '').trim(); if (!text) continue;
     want++;
     const f = path.join(tmp, `vo${i}.mp3`);
+    if (job.clone && !process.env.TTS_FAKE) {       // Karin's own cloned voice first; the generic voice is the fallback
+      try { const r = await api({ mode: 'tts', id: job.id, i }); if (r.url) { fs.writeFileSync(f, Buffer.from(await (await fetch(r.url)).arrayBuffer())); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); ok++; cloned++; } } else if (r.error) console.error('clone', i, r.error); } catch (e) { console.error('clone', i, String(e.message || e).slice(0, 120)); }
+    }
     for (let a = 0; a < 2 && !sc._vo; a++) { try { tts(text, voice, f); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); ok++; } } catch (e) { console.error('tts', i, String(e.message || e).slice(0, 120)); } }
-  });
-  return { ok, want };
+  }
+  return { ok, want, cloned };
 }
 function audioTrack(job, tmp) {
   const parts = job.script.scenes.map((sc, i) => {
@@ -52,7 +55,7 @@ const ENC = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt',
 async function render(page, job) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'v-'));
   let warn = '';
-  if (job.voice) { const r = narrate(job, tmp); if (r.want && !r.ok) warn = 'הקריינות לא נוצרה הפעם — הסרטון יצא בלי קול. אפשר ללחוץ "רינדור מחדש".'; else if (r.ok < r.want) warn = `קריינות חלקית: ${r.ok} מתוך ${r.want} סצנות.`; }
+  if (job.voice) { const r = await narrate(job, tmp); if (job.clone && r.cloned < r.ok) warn = 'חלק מהקריינות יצא בקול הכללי ולא בקול שלך (בדקי את החיבור ל-ElevenLabs).'; if (r.want && !r.ok) warn = 'הקריינות לא נוצרה הפעם — הסרטון יצא בלי קול. אפשר ללחוץ "רינדור מחדש".'; else if (r.ok < r.want) warn = `קריינות חלקית: ${r.ok} מתוך ${r.want} סצנות.`; }
   const info = await page.evaluate(j => window.__init(j), job);
   await page.evaluate(() => window.__fonts());
   // warm every scene once so lazily-loaded glyphs (emoji, weights) are ready before frames are captured

@@ -44,6 +44,7 @@ body.overlay #bg,body.overlay #grain,body.overlay .blob{display:none}
 .ov{position:absolute;right:0;left:0;bottom:0;padding:0 90px 280px;background:linear-gradient(transparent,rgba(0,0,0,.78) 55%);height:900px;display:flex;flex-direction:column;justify-content:flex-end;gap:26px}
 .ov .h{font-size:96px;color:#fff;text-shadow:0 6px 30px rgba(0,0,0,.5)}
 .ov .kicker{color:#111}
+.refimg{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#05070d}
 </style></head><body>
 <div id="stage"><div id="bg"></div><div class="blob" id="b1"></div><div class="blob" id="b2"></div><div id="grain"></div>
 <div id="bar"><i></i></div><div id="scenes"></div><div id="brand"></div><div id="pg"></div></div>
@@ -60,11 +61,12 @@ function sceneHTML(x,i,n){
     case 'compare': return `${k}${a(0,`<div class="h s">${esc(x.headline)}</div>`)}<div class="cmp">${a(.3,`<div class="col"><h4>${esc(x.right_title)}</h4>${(x.right||[]).map(t=>`<p>${esc(t)}</p>`).join('')}</div>`)}${a(.7,`<div class="col r"><h4>${esc(x.left_title)}</h4>${(x.left||[]).map(t=>`<p>${esc(t)}</p>`).join('')}</div>`)}</div>`;
     case 'quote': return `${a(0,`<div class="q">${esc(x.headline)}</div>`)}${x.body?a(.5,`<div class="b">${esc(x.body)}</div>`):''}`;
     case 'cta': return `${x.emoji?a(0,`<div class="emo" style="text-align:center">${esc(x.emoji)}</div>`):''}${a(.1,`<div class="h" style="text-align:center">${esc(x.headline)}</div>`)}${x.body?a(.35,`<div class="b" style="text-align:center">${esc(x.body)}</div>`):''}${a(.6,`<div class="btn">${esc(x.kicker||S.cta||'שמרי את הפוסט')}</div>`)}${S.handle?a(.8,`<div class="handle">${esc(S.handle)}</div>`):''}`;
+    case 'image': return `<img class="refimg" src="${esc(S.ref_url||'')}"><div class="ov">${k}${a(.2,`<div class="h">${esc(x.headline)}</div>`)}</div>`;
     case 'ai': return `<div class="ov">${k}${a(.2,`<div class="h">${esc(x.headline)}</div>`)}</div>`;
     default: return `${x.emoji?a(0,`<div class="emo">${esc(x.emoji)}</div>`):''}<div data-a="0" style="display:flex;gap:30px;align-items:center"><span class="num">${i}</span>${x.kicker?`<span class="kicker" style="align-self:center">${esc(x.kicker)}</span>`:''}</div>${a(.15,`<div class="h s">${esc(x.headline)}</div>`)}${x.body?a(.45,`<div class="b">${esc(x.body)}</div>`):''}`;
   }
 }
-window.__fonts=()=>Promise.all([...document.fonts].map(f=>f.load().catch(()=>0))).then(()=>document.fonts.ready);
+window.__fonts=()=>Promise.all([...[...document.fonts].map(f=>f.load().catch(()=>0)),...[...document.images].map(m=>m.complete?0:new Promise(r=>{m.onload=m.onerror=r;setTimeout(r,8000)}))]).then(()=>document.fonts.ready);
 window.__init=function(job){
   S=job; const p=job.script.palette||{}; const r=document.documentElement.style;
   const car=job.format==='carousel'; document.body.classList.toggle('car',car); r.setProperty('--H',(car?1350:1920)+'px');
