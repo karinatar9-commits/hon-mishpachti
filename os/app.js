@@ -621,8 +621,8 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   mktOld.forEach(id=>{ Ga[id]=["שיווק ותוכן",(all[id]||[])[2]||""]; });
   // ---------- "לדבר עם המערכת": voice conversation with an animated figure ----------
   const TK={state:"idle",log:[],hands:true,rec:null,amp:0,raf:0};
-  const tkSay=t=>String(t||"").replace(/```[\s\S]*?```/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_#`>|]/g," ").replace(/https?:\/\/\S+/g," ").replace(/\s+/g," ").trim();
-  k.talk=()=>`<div class="talk"><div class="tk-stage" id="tkStage"><div class="tk-stars"></div><div class="tk-horizon"></div><canvas id="tkC"></canvas><div class="tk-holo" id="tkHolo"></div></div>
+  const tkSay=t=>String(t||"").replace(/\[\[[\s\S]*?\]\]/g," ").replace(/```[\s\S]*?```/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_#`>|]/g," ").replace(/https?:\/\/\S+/g," ").replace(/\s+/g," ").trim();
+  k.talk=()=>`<div class="talk"><div class="tk-stage" id="tkStage"><div class="tk-stars"></div><div class="tk-horizon"></div><canvas id="tkC"></canvas><div class="tk-holo" id="tkHolo"></div><div class="tk-card" id="tkCard"></div></div>
     <div id="tkState" class="tk-state">לחצי על המיקרופון ודברי</div>
     <div id="tkLog" class="tk-log"></div>
     <div class="tk-bar"><button id="tkMic" class="tk-mic" title="לדבר">🎙️</button><input id="tkIn" placeholder="או לכתוב שאלה… למשל: מה הכי דחוף לי היום?"><button class="btn sm" id="tkSend">שליחה</button><button class="btn ghost sm" id="tkStop">עצירה</button></div>
@@ -662,7 +662,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     cancelAnimationFrame(TK.raf); TK.raf=requestAnimationFrame(draw); window.addEventListener("resize",fit);
     // holographic panels with the live numbers
     const holo=()=>{ const h=d("#tkHolo"); if(!h) return; const td=V(), pend=(v.actions||[]).filter(a=>a.status==="pending").length, due=(v.tasks||[]).filter(a=>a.status!=="done"&&a.due&&a.due<=td).length, nl=(v.leads||[]).filter(a=>a.stage==="new").length, op=(v.leads||[]).filter(a=>!["won","lost"].includes(a.stage)).length, vid=(typeof U!=="undefined"&&U?U:[]).filter(x=>x.status==="review").length;
-      h.innerHTML=`<div class="hp l" data-go="tasks"><small>SYSTEM · היום</small><b>${due}</b><span>משימות להיום</span><i>${pend} מחכים לאישור</i></div><div class="hp r" data-go="leads"><small>LEADS · לידים</small><b>${nl}</b><span>לידים חדשים</span><i>${op} פתוחים בסך הכול</i></div><div class="hp r2" data-go="mkt-factory"><small>CONTENT · תוכן</small><b>${vid}</b><span>סרטונים לאישור</span><i>שיווק ותוכן</i></div>`; };
+      h.innerHTML=`<div class="hp l" data-go="tasks"><small>SYSTEM · היום</small><b>${due}</b><span>משימות להיום</span><i>${pend} מחכים לאישור</i></div><div class="hp r" data-go="leads"><small>LEADS · לידים</small><b>${nl}</b><span>לידים חדשים</span><i>${op} פתוחים בסך הכול</i></div><div class="hp l2" data-go="mkt-factory"><small>CONTENT · תוכן</small><b>${vid}</b><span>סרטונים לאישור</span><i>שיווק ותוכן</i></div>`; };
     holo();
     import("./vendor/three.module.min.js").then(T3=>{ if(O!=="talk"||!document.body.contains(cv)) return;
       const stage=d("#tkStage"), W=()=>stage.clientWidth, H=()=>stage.clientHeight;
@@ -694,6 +694,12 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
       const neck=new T3.Mesh(new T3.CylinderGeometry(.34,.5,1.0,40,1,true),mat); neck.position.y=-1.2;
       const sh=new T3.Mesh(new T3.SphereGeometry(1,64,40),mat); sh.scale.set(1.85,1.15,.8); sh.position.y=-2.72;
       const body=new T3.Group(); body.add(head,neck,sh); scene.add(body);
+      // a hand: waves hello when the figure has assembled, then holds up the card with the number that was asked for
+      const hand=new T3.Group(), mk=(g,x,y,z,rz)=>{ const m=new T3.Mesh(g,mat); m.position.set(x,y,z); m.rotation.z=rz||0; hand.add(m); return m; };
+      const palm=mk(new T3.SphereGeometry(1,32,24),0,0,0); palm.scale.set(.29,.34,.11);
+      [[-.2,.5,.13],[-.07,.56,.04],[.07,.55,-.04],[.2,.47,-.14]].forEach(([x,y,r])=>mk(new T3.CapsuleGeometry(.052,.3,6,14),x,y,0,r));
+      mk(new T3.CapsuleGeometry(.058,.22,6,14),-.36,.1,.02,.95); mk(new T3.CapsuleGeometry(.17,1.6,6,18),.02,-1.12,0,-.03);
+      hand.position.set(2.35,-5.2,.9); hand.scale.setScalar(1.45); scene.add(hand); const hv=new T3.Vector3();
       // the same figure as particles: they fly in and assemble, then stay as a faint shimmer
       const tgt=[]; const push=(m)=>{ m.updateMatrixWorld(true); const a=m.geometry.attributes.position, v3=new T3.Vector3(); for(let i=0;i<a.count;i+=2){ v3.fromBufferAttribute(a,i).applyMatrix4(m.matrixWorld); tgt.push(v3.x,v3.y,v3.z); } }; push(head); push(neck); push(sh);
       const n=tgt.length/3, from=new Float32Array(n*3), cur=new Float32Array(n*3); for(let i=0;i<n;i++){ const a=Math.random()*6.28, r=1.5+Math.random()*3.5; from[i*3]=Math.cos(a)*r; from[i*3+1]=-1+(Math.random()-.5)*5; from[i*3+2]=Math.sin(a)*r-1; }
@@ -712,6 +718,10 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
         mat.opacity=Math.max(0,Math.min(1,(T-1.5)/1.2)); pm.opacity=k<1?.95:(st==="think"?.75:st==="listen"?.5:.16); pm.size=k<1?.03:.02;
         rim.intensity=22+(st==="speak"?14*TK.amp:0); rim2.intensity=st==="listen"?60:26;
         d("#tkHolo")&&d("#tkHolo").classList.toggle("on",T>2.8);
+        const wave=T>2.7&&T<5.4&&!TK.card, hy=TK.card?-2.25:wave?-1.7:-5.2, hx=TK.card?2.05:2.35;
+        hand.position.y+=(hy-hand.position.y)*.09; hand.position.x+=(hx-hand.position.x)*.09;
+        hand.rotation.z+=((wave?Math.sin(T*7.5)*.38:TK.card?.12:0)-hand.rotation.z)*.2; hand.rotation.x+=((TK.card?-.95:0)-hand.rotation.x)*.1; hand.rotation.y=-.25;
+        const ce=d("#tkCard"); if(ce&&TK.card){ hv.set(0,.55,.25).applyMatrix4(hand.matrixWorld).project(cam); const cw=ce.offsetWidth, ch=ce.offsetHeight; ce.style.left=Math.max(6,Math.min(W()-cw-6,(hv.x*.5+.5)*W()-cw/2))+"px"; ce.style.top=Math.max(6,(-hv.y*.5+.5)*H()-ch-6)+"px"; }
         rn.render(scene,cam); TK.raf=requestAnimationFrame(loop); };
       TK.raf=requestAnimationFrame(loop);
     }).catch(()=>{ d("#tkHolo")&&d("#tkHolo").classList.add("on"); });
@@ -730,15 +740,16 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
       r.onend=()=>{ TK.rec=null; if(TK.state!=="listen") return; fin.trim()?ask(fin.trim()):set("idle"); };
       set("listen"); try{ r.start(); }catch(_){ set("idle"); } };
     const stopAll=()=>{ cancelAnimationFrame(TK.raf); try{TK.rec&&TK.rec.abort()}catch(_){ } TK.rec=null; synth&&synth.cancel(); TK.state="idle"; };
-    const ask=async q=>{ TK.log.push({r:"u",t:q}); paint(); set("think");
-      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית — עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם צריך פירוט, הציעי להמשיך.]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
-      if(O!=="talk") return; TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
+    const showCard=c=>{ TK.card=c&&c.length>1?c:null; const el=d("#tkCard"); if(!el) return; el.classList.toggle("on",!!TK.card); d("#tkStage").classList.toggle("hascard",!!TK.card); if(TK.card) el.innerHTML=`<small>${l(TK.card[0])}</small><b>${l(TK.card[1])}</b>${TK.card.slice(2,6).map(x=>`<span>${l(x)}</span>`).join("")}<em>✕</em>`; };
+    const ask=async q=>{ showCard(null); TK.log.push({r:"u",t:q}); paint(); set("think");
+      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית — עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם צריך פירוט, הציעי להמשיך. אם ביקשו נתון, מספר, רשימה קצרה או סטטוס — הוסיפי בסוף התשובה שורה אחת בדיוק בפורמט הזה (היא תוצג על המסך ולא תיקרא בקול): [[כרטיס: כותרת קצרה | הערך הראשי (מספר או 2-3 מילים) | שורת פירוט | שורת פירוט | שורת פירוט]]. עד 4 שורות פירוט, כל אחת עד 8 מילים.]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
+      if(O!=="talk") return; const cm=reply.match(/\[\[\s*כרטיס\s*:\s*([\s\S]*?)\]\]/); showCard(cm?cm[1].split("|").map(x=>x.trim()).filter(Boolean):null); TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
       if(O!=="talk"||TK.state!=="speak") return; TK.hands&&SR&&heV?listen():set("idle"); };
     d("#tkMic").onclick=()=>{ TK.state==="listen"?(TK.rec&&TK.rec.stop()):listen(); };
     d("#tkStop").onclick=()=>{ try{TK.rec&&TK.rec.abort()}catch(_){ } synth&&synth.cancel(); set("idle"); };
     const send=()=>{ const v=d("#tkIn").value.trim(); if(!v||TK.state==="think") return; d("#tkIn").value=""; synth&&synth.cancel(); ask(v); };
     d("#tkSend").onclick=send; d("#tkIn").onkeydown=e=>{ e.key==="Enter"&&send(); };
-    d("#tkHands").onchange=e=>{ TK.hands=e.target.checked; };
+    d("#tkHands").onchange=e=>{ TK.hands=e.target.checked; }; d("#tkCard").onclick=()=>showCard(null); TK.card=null;
     set("idle"); paint();
   };
   // ---------- one marketing screen: create, approve, every connection and its setup ----------
