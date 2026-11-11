@@ -604,7 +604,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   const pick=ids=>ids.map(id=>all[id]).filter(Boolean);
   if(all.home) all.home[2]="היום";
   const groups=[
-    {g:"היום",items:pick(["home","approvals","tasks"])},
+    {g:"היום",items:[...pick(["home"]),["talk","🎙️","לדבר עם המערכת"],...pick(["approvals","tasks"])]},
     {g:"העסק שלי",items:pick(["leads","mkt-factory","agent-biz"])},
     {g:"סוכנים",items:pick(["agents","agent-pa","agent-invest","agent-benhur","jobs"])},
     {g:"כסף",items:pick(["fin-dash","w-home","w-gil","fin-tx","fin-subs"])},
@@ -619,6 +619,73 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   kt.forEach(g=>g.items.forEach(i=>{Ga[i[0]]=[g.g,i[2]]}));
   if(Pa("navV2")!=="1"){ Ha("closedGroups",JSON.stringify(["עוד","הגדרות"])); Ha("navV2","1"); }
   mktOld.forEach(id=>{ Ga[id]=["שיווק ותוכן",(all[id]||[])[2]||""]; });
+  // ---------- "לדבר עם המערכת": voice conversation with an animated figure ----------
+  const TK={state:"idle",log:[],hands:true,rec:null,amp:0,raf:0};
+  const tkSay=t=>String(t||"").replace(/```[\s\S]*?```/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_#`>|]/g," ").replace(/https?:\/\/\S+/g," ").replace(/\s+/g," ").trim();
+  k.talk=()=>`<div class="talk"><canvas id="tkC"></canvas>
+    <div id="tkState" class="tk-state">לחצי על המיקרופון ודברי</div>
+    <div id="tkLog" class="tk-log"></div>
+    <div class="tk-bar"><button id="tkMic" class="tk-mic" title="לדבר">🎙️</button><input id="tkIn" placeholder="או לכתוב שאלה… למשל: מה הכי דחוף לי היום?"><button class="btn sm" id="tkSend">שליחה</button><button class="btn ghost sm" id="tkStop">עצירה</button></div>
+    <label class="small muted" style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:8px"><input type="checkbox" id="tkHands" ${TK.hands?"checked":""} style="width:auto">שיחה רציפה: להקשיב שוב אחרי כל תשובה</label>
+    <div class="small muted" id="tkNote" style="text-align:center;margin-top:6px"></div></div>`;
+  z.talk=()=>{
+    const cv=d("#tkC"), ctx=cv.getContext("2d"), stEl=d("#tkState"), logEl=d("#tkLog");
+    const fit=()=>{ const r=cv.getBoundingClientRect(), dp=Math.min(2,window.devicePixelRatio||1); cv.width=r.width*dp; cv.height=r.height*dp; }; fit();
+    // point cloud: head, neck and shoulders
+    const P=[]; const rnd=(()=>{let x=7;return()=>(x=(x*16807)%2147483647)/2147483647})();
+    for(let i=0;i<2600;i++){ const u=rnd()*2-1, th=rnd()*Math.PI*2, r=Math.sqrt(1-u*u); P.push({x:.6*r*Math.cos(th),y:.42+.78*u,z:.66*r*Math.sin(th),k:0}); }
+    for(let i=0;i<500;i++){ const th=rnd()*Math.PI*2; P.push({x:.26*Math.cos(th),y:-.38-rnd()*.3,z:.26*Math.sin(th),k:1}); }
+    for(let i=0;i<1700;i++){ const u=rnd(), th=rnd()*Math.PI*2, r=Math.sqrt(1-u*u); P.push({x:1.25*r*Math.cos(th),y:-1.22+.55*u,z:.55*r*Math.sin(th),k:2}); }
+    const label={idle:"לחצי על המיקרופון ודברי",listen:"מקשיבה…",think:"חושבת ובודקת בנתונים…",speak:"עונה…"};
+    const set=st=>{ TK.state=st; stEl.textContent=label[st]; d("#tkMic").classList.toggle("on",st==="listen"); };
+    const paint=()=>{ logEl.innerHTML=TK.log.slice(-6).map(m=>`<div class="tk-msg ${m.r}">${l(m.t)}</div>`).join(""); logEl.scrollTop=logEl.scrollHeight; };
+    let t0=performance.now();
+    const draw=now=>{ if(O!=="talk"||!document.body.contains(cv)){ stopAll(); return; }
+      const T=(now-t0)/1000, W=cv.width, H=cv.height, S=Math.min(W,H)*.34, st=TK.state;
+      const target=st==="speak"?.55+.45*Math.abs(Math.sin(T*9.5)*Math.sin(T*3.1)):st==="listen"?.35+.2*Math.sin(T*5):0; TK.amp+=(target-TK.amp)*.25;
+      const rot=Math.sin(T*.5)*.38+(st==="think"?T*1.6:0), cr=Math.cos(rot), sr=Math.sin(rot), bre=1+.012*Math.sin(T*1.4);
+      ctx.clearRect(0,0,W,H);
+      const g=ctx.createRadialGradient(W/2,H*.5,S*.2,W/2,H*.5,S*2.2); g.addColorStop(0,st==="listen"?"rgba(196,161,255,.20)":"rgba(124,92,255,.14)"); g.addColorStop(1,"rgba(0,0,0,0)"); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+      for(const p of P){ let x=p.x,y=p.y,z=p.z;
+        if(p.k===0){ const front=z>.3; // eyes and mouth are hollows on the front of the head
+          if(front&&Math.abs(y-.62)<.07&&(Math.abs(x-.22)<.1||Math.abs(x+.22)<.1)) continue;
+          const mo=.035+.11*(st==="speak"?TK.amp:0); if(front&&Math.abs(x)<.2&&Math.abs(y-.12)<mo) continue;
+          if(st==="think"){ const w=.03*Math.sin(T*6+y*9); x*=1+w; z*=1+w; }
+          if(st==="listen"){ const w=.025*TK.amp*Math.sin(T*8+y*12); x*=1+w; z*=1+w; } }
+        x*=bre; z*=bre; const X=x*cr+z*sr, Z=-x*sr+z*cr, pz=1/(2.6-Z), sx=W/2+X*S*2.6*pz, sy=H*.5-(y+.25)*S*2.6*pz, a=.25+.75*Math.max(0,(Z+1)/2);
+        ctx.fillStyle=p.k===2?`rgba(160,120,255,${(a*.7).toFixed(2)})`:`rgba(${st==="speak"?"210,185,255":"185,150,255"},${a.toFixed(2)})`;
+        const sz=(p.k===0?1.9:1.5)*pz*2.2*(cv.width/600+.4); ctx.fillRect(sx,sy,sz,sz); }
+      // eyes
+      for(const ex of [-.22,.22]){ const X=ex*cr+.6*sr, Z=-ex*sr+.6*cr; if(Z<.1) continue; const pz=1/(2.6-Z), sx=W/2+X*S*2.6*pz, sy=H*.5-(.62+.25)*S*2.6*pz; const blink=Math.sin(T*.9)>.985?.2:1;
+        ctx.fillStyle="rgba(245,194,107,.95)"; ctx.beginPath(); ctx.ellipse(sx,sy,S*.035,S*.035*blink,0,0,Math.PI*2); ctx.fill(); }
+      TK.raf=requestAnimationFrame(draw); };
+    cancelAnimationFrame(TK.raf); TK.raf=requestAnimationFrame(draw); window.addEventListener("resize",fit);
+    // ----- speaking -----
+    const synth=window.speechSynthesis; let heV=null; const pickV=()=>{ const vs=synth?synth.getVoices():[]; heV=vs.find(v=>/^he|^iw/i.test(v.lang))||null; d("#tkNote")&&(d("#tkNote").textContent=synth&&!heV&&vs.length?"במכשיר הזה אין קול בעברית, אז התשובות יופיעו בכתב. באייפון ובאנדרואיד יש קול מובנה.":""); };
+    if(synth){ pickV(); synth.onvoiceschanged=pickV; }
+    const speak=text=>new Promise(res=>{ if(!synth||!heV){ setTimeout(res,400); return; } synth.cancel();
+      const parts=tkSay(text).match(/[^.!?…\n]+[.!?…]?/g)||[]; let i=0;
+      const next=()=>{ if(i>=parts.length||TK.state!=="speak"){ res(); return; } const u=new SpeechSynthesisUtterance(parts[i++].trim()); u.lang=heV.lang; u.voice=heV; u.rate=1.05; u.onend=next; u.onerror=next; synth.speak(u); }; next(); });
+    // ----- listening -----
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const listen=()=>{ if(!SR){ f("הדפדפן הזה לא תומך בזיהוי דיבור — אפשר לכתוב"); return; } if(TK.rec){ try{TK.rec.abort()}catch(_){ } }
+      synth&&synth.cancel(); const r=new SR(); TK.rec=r; r.lang="he-IL"; r.interimResults=true; r.continuous=false; let fin="";
+      r.onresult=e=>{ let t=""; for(const x of e.results) t+=x[0].transcript; fin=t; stEl.textContent="״"+t+"״"; };
+      r.onerror=e=>{ if(e.error==="not-allowed") f("צריך לאשר גישה למיקרופון"); set("idle"); };
+      r.onend=()=>{ TK.rec=null; if(TK.state!=="listen") return; fin.trim()?ask(fin.trim()):set("idle"); };
+      set("listen"); try{ r.start(); }catch(_){ set("idle"); } };
+    const stopAll=()=>{ cancelAnimationFrame(TK.raf); try{TK.rec&&TK.rec.abort()}catch(_){ } TK.rec=null; synth&&synth.cancel(); TK.state="idle"; };
+    const ask=async q=>{ TK.log.push({r:"u",t:q}); paint(); set("think");
+      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית — עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם צריך פירוט, הציעי להמשיך.]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
+      if(O!=="talk") return; TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
+      if(O!=="talk"||TK.state!=="speak") return; TK.hands&&SR&&heV?listen():set("idle"); };
+    d("#tkMic").onclick=()=>{ TK.state==="listen"?(TK.rec&&TK.rec.stop()):listen(); };
+    d("#tkStop").onclick=()=>{ try{TK.rec&&TK.rec.abort()}catch(_){ } synth&&synth.cancel(); set("idle"); };
+    const send=()=>{ const v=d("#tkIn").value.trim(); if(!v||TK.state==="think") return; d("#tkIn").value=""; synth&&synth.cancel(); ask(v); };
+    d("#tkSend").onclick=send; d("#tkIn").onkeydown=e=>{ e.key==="Enter"&&send(); };
+    d("#tkHands").onchange=e=>{ TK.hands=e.target.checked; };
+    set("idle"); paint();
+  };
   // ---------- one marketing screen: create, approve, every connection and its setup ----------
   const facV=k["mkt-factory"], facH=z["mkt-factory"], cfgV=k["mkt-config"], cfgH=z["mkt-config"];
   const missing=()=>{ if(!M) return ""; const rows=[
