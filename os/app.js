@@ -544,10 +544,11 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     ${due.length?`<div class="card" style="margin-bottom:14px"><h3>✅ משימות להיום ובאיחור<span class="r"><a href="#tasks">הכל</a></span></h3>${due.slice(0,8).map(t=>`<div class="tq"><div class="tq-t"><input type="checkbox" data-task="${t.id}" style="width:auto;margin-left:8px"><span>${l(t.title)}</span>${t.priority==="high"?' <span class="pill r">דחוף</span>':""}${t.due<b?` <span class="pill a">באיחור מ-${I(t.due)}</span>`:""}${t.postponed>=3?` <span class="pill a">נדחה ${t.postponed} פעמים</span>`:""}</div><div class="tq-b"><button class="btn ghost sm" data-tq="${t.id}" data-to="1">מחר</button><button class="btn ghost sm" data-tq="${t.id}" data-to="7">שבוע הבא</button><button class="btn ghost sm" data-tq="${t.id}" data-to="x">לא רלוונטי</button></div></div>`).join("")}${due.length>8?`<div class="small muted" style="margin-top:6px">ועוד ${due.length-8} — <a href="#tasks">לכל המשימות</a></div>`:""}</div>`:""}`;
   };
   k.home=()=>todayBlock()+`<details><summary style="cursor:pointer;margin:6px 0 12px" class="muted">התמונה המלאה מהסוכנים (כסף, השקעות, בן-חור, מחקר)</summary>${oldHome()}</details>`;
-  const capture=async()=>{
-    const t=d("#capT").value.trim(); if(!t) return f("כתבי משהו");
-    const btn=d("#capGo"), msg=d("#capMsg"); btn.disabled=!0; msg.textContent="מסדרת…";
-    const done=(m)=>{ d("#capT").value=""; window.__editing=0; btn.disabled=!1; f(m); };
+  const capture=async(ids)=>{
+    const [T,G,M]=ids||["#capT","#capGo","#capMsg"], box=d(T);
+    const t=box.value.trim(); if(!t) return f("כתבי משהו");
+    const btn=d(G), msg=d(M); btn.disabled=!0; msg&&(msg.textContent="מסדרת…");
+    const done=(m)=>{ box.value=""; window.__editing=0; btn.disabled=!1; msg&&(msg.textContent=""); ids&&D(); f(m); };
     try{
       const r=await xt(`את/ה מנתב/ת של מערכת ניהול אישית. המשתמשת כתבה: """${t}"""\nהיום ${V()}. סווג/י והחזר/י אובייקט אחד:\n{"kind":"task|lead|note|video","title":"כותרת קצרה","due":"YYYY-MM-DD או ריק","priority":"high או ריק","name":"שם הליד","phone":"","email":"","biz":"אישי|בן-חור|Glow House","notes":"שאר הפרטים"}\nכללים: משהו שצריך לעשות = task (אם נכתב מתי — לחשב תאריך). אדם או עסק שמתעניין בשירות/מוצר = lead. בקשה ליצור סרטון, רילס, קרוסלה או פוסט = video. כל השאר (רעיון, מידע לזכור) = note.`,{json:!0});
       const kind=r&&r.kind;
@@ -562,7 +563,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   z.home=()=>{
     oldZ&&oldZ();
     window.__homeVids||(window.__homeVids=1,nt().then(()=>{O==="home"&&!window.__editing&&q(!1)}).catch(()=>{}));
-    const b=d("#capGo"); b&&(b.onclick=capture);
+    const b=d("#capGo"); b&&(b.onclick=()=>capture());
   };
 
   document.addEventListener("click",async e=>{
@@ -572,6 +573,32 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     if(b.dataset.to==="x"){ await P("tasks",{id:t.id,status:"dropped"}); f("הוסר מהרשימה"); }
     else { const due=new Date(Date.now()+ +b.dataset.to*864e5).toLocaleDateString("sv-SE",{timeZone:"Asia/Jerusalem"}); await P("tasks",{id:t.id,due,postponed:(+t.postponed||0)+1}); f(b.dataset.to==="1"?"נדחה למחר":"נדחה לשבוע הבא"); }
   });
+  // ---------- capture from anywhere: ➕ in the phone tab bar / floating button, with dictation ----------
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  const openCapture=()=>{
+    K(`<h2>להכניס משהו למערכת</h2><div class="small muted">משימה, ליד, רעיון או בקשה לסרטון. כותבים או מדברים, והמערכת שמה במקום.</div>
+      <textarea id="qcT" style="min-height:110px;margin-top:10px" placeholder="למשל: להתקשר לדנה מחר על ההצעה"></textarea><div class="small muted" id="qcM" style="min-height:18px"></div>
+      <div class="acts"><button class="btn" id="qcGo">להכניס</button>${SR?'<button class="btn ghost" id="qcMic">🎤 לדבר</button>':""}<button class="btn ghost" data-close>ביטול</button></div>`);
+    d("#qcGo").onclick=()=>capture(["#qcT","#qcGo","#qcM"]);
+    setTimeout(()=>{const x=d("#qcT");x&&x.focus()},50);
+    if(SR){ let rec=null; d("#qcMic").onclick=()=>{
+      if(rec){ rec.stop(); return; }
+      rec=new SR; rec.lang="he-IL"; rec.interimResults=!1; rec.continuous=!1;
+      const mic=d("#qcMic"), base=d("#qcT").value; mic.textContent="⏹ מקשיבה…";
+      rec.onresult=e=>{ const t=[...e.results].map(r=>r[0].transcript).join(" "); const x=d("#qcT"); x&&(x.value=(base?base+" ":"")+t); };
+      rec.onerror=()=>{ f("לא הצלחתי לשמוע. אפשר לכתוב"); };
+      rec.onend=()=>{ rec=null; const m=d("#qcMic"); m&&(m.textContent="🎤 לדבר"); };
+      try{ rec.start(); }catch(_){ rec=null; mic.textContent="🎤 לדבר"; }
+    }; }
+  };
+  const tb=d("#tabbar");
+  if(tb){
+    const mark=()=>{ const h=location.hash.replace("#","")||"home"; tb.querySelectorAll("[data-go]").forEach(b=>b.classList.toggle("on",b.dataset.go===h)); };
+    window.addEventListener("hashchange",mark); mark();
+    d("#tabAdd").onclick=openCapture; d("#tabMore").onclick=()=>d("#side").classList.toggle("open");
+  }
+  const fab=d("#fabAdd"); fab&&(fab.onclick=openCapture);
+  if(/[?&]add=1/.test(location.search)) setTimeout(()=>{ d("#app").style.display!=="none"&&openCapture(); },1500);
   // ---------- shorter menu: what is used every day first, the rest under "עוד" ----------
   const all={}; kt.forEach(g=>g.items.forEach(it=>all[it[0]]=it));
   const pick=ids=>ids.map(id=>all[id]).filter(Boolean);
