@@ -49,7 +49,8 @@ const SCHEMA = `החזר/י JSON בלבד (בלי טקסט מסביב) במבנ�
 כללים: עברית תקנית. סצנה ראשונה type=title עם הוק שעוצר גלילה (עד 7 מילים). אחרונה type=cta. כותרת עד 8 מילים, body עד 18 מילים, items עד 4 פריטים קצרים. dur בין 2.5 ל-6 שניות לפי כמות הטקסט (קריאה נוחה). סכום dur קרוב ל-LEN שניות. stat: value מספר קצר (למשל "73%" או "₪1,200"). compare: שני טורים קצרים. emoji אחד לכל סצנה.`;
 
 async function claudeJSON(prompt: string, model: string, search = 0) {
-  const req: any = { model, max_tokens: 6000, messages: [{ role: "user", content: prompt }] };
+  // thinking counts against max_tokens on the 5.5 models, so keep effort low and leave room for the JSON
+  const req: any = { model, max_tokens: 16000, output_config: { effort: "low" }, messages: [{ role: "user", content: prompt }] };
   if (search) req.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: search }];
   const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": AKEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify(req) });
