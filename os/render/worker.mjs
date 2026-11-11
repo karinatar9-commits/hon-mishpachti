@@ -82,7 +82,8 @@ async function render(page, job) {
   for (let i = 0; i < info.durs.length; i++) {
     const n = Math.round(info.durs[i] * FPS), seg = path.join(tmp, `s${i}.mp4`);
     const sc = job.script.scenes[i];
-    const libClip = (sc.type === 'ai' && sc.clip_url) || sc.type === 'image' ? null : pickClip(job, i, sc, usedClips);
+    const FXT = ['graph', 'route', 'breakdown', 'stick', 'shapes']; // these scenes draw their own full-screen animation
+    const libClip = (sc.type === 'ai' && sc.clip_url) || sc.type === 'image' || FXT.includes(sc.type) ? null : pickClip(job, i, sc, usedClips);
     if (libClip) usedClips.push(libClip);
     if ((sc.type === 'ai' && sc.clip_url) || libClip) {
       let clip = path.join(tmp, `c${i}.mp4`);
