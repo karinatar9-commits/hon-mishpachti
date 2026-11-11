@@ -26,6 +26,23 @@ function tts(text, voice, out) {
   if (process.env.TTS_FAKE) { ff(['-f', 'lavfi', '-i', `sine=frequency=330:duration=${Math.max(1.2, text.split(/\s+/).length / 2.6).toFixed(2)}`, '-ar', '44100', out]); return; }
   execFileSync('edge-tts', ['--voice', voice, '--rate=+6%', '--text', text, '--write-media', out], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60000 });
 }
+// captions follow the voice: each word gets a slice of the narration proportional to its length
+function caps(text, d) {
+  const ws = text.split(/\s+/).filter(Boolean); const len = ws.map(w => w.replace(/[^\p{L}\p{N}]/gu, '').length + 1.6 + (/[.,!?:;—–]$/.test(w) ? 2.2 : 0));
+  const tot = len.reduce((a, b) => a + b, 0) || 1; let t = 0.25; const span = Math.max(0.3, d - 0.15);
+  return { start: 0.25, end: 0.25 + d, words: ws.map((w, i) => { const t0 = t; t += len[i] / tot * span; return { w: w.replace(/[״"]/g, ''), t0: +t0.toFixed(3), t1: +t.toFixed(3) }; }) };
+}
+// b-roll library that ships with the repo (os/media/broll/<tag>.mp4, seamless loops)
+const BROLL = path.join(dir, 'media', 'broll');
+const lib = fs.existsSync(BROLL) ? fs.readdirSync(BROLL).filter(f => f.endsWith('.mp4')).sort() : [];
+function pickClip(job, i, sc, used) {
+  if (!lib.length || job.look === 'classic') return null;
+  if (sc.bg && lib.includes(sc.bg + '.mp4') && used[used.length - 1] !== sc.bg + '.mp4') return sc.bg + '.mp4';
+  let h = 0; for (const c of String(job.id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  for (let k = 0; k < lib.length; k++) { const f = lib[(h + i * 3 + k) % lib.length]; if (!used.slice(-2).includes(f)) return f; }
+  return lib[(h + i) % lib.length];
+}
+const MUSIC = path.join(dir, 'media', 'music');
 async function narrate(job, tmp) {
   const voice = job.voice_name || 'he-IL-HilaNeural'; let ok = 0, want = 0, cloned = 0;
   for (const [i, sc] of job.script.scenes.entries()) {
@@ -33,9 +50,9 @@ async function narrate(job, tmp) {
     want++;
     const f = path.join(tmp, `vo${i}.mp3`);
     if (job.clone && !process.env.TTS_FAKE) {       // Karin's own cloned voice first; the generic voice is the fallback
-      try { const r = await api({ mode: 'tts', id: job.id, i }); if (r.url) { fs.writeFileSync(f, Buffer.from(await (await fetch(r.url)).arrayBuffer())); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); ok++; cloned++; } } else if (r.error) console.error('clone', i, r.error); } catch (e) { console.error('clone', i, String(e.message || e).slice(0, 120)); }
+      try { const r = await api({ mode: 'tts', id: job.id, i }); if (r.url) { fs.writeFileSync(f, Buffer.from(await (await fetch(r.url)).arrayBuffer())); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); sc._cap = caps(text, d); ok++; cloned++; } } else if (r.error) console.error('clone', i, r.error); } catch (e) { console.error('clone', i, String(e.message || e).slice(0, 120)); }
     }
-    for (let a = 0; a < 2 && !sc._vo; a++) { try { tts(text, voice, f); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); ok++; } } catch (e) { console.error('tts', i, String(e.message || e).slice(0, 120)); } }
+    for (let a = 0; a < 2 && !sc._vo; a++) { try { tts(text, voice, f); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); sc._cap = caps(text, d); ok++; } } catch (e) { console.error('tts', i, String(e.message || e).slice(0, 120)); } }
   }
   return { ok, want, cloned };
 }
@@ -61,17 +78,20 @@ async function render(page, job) {
   // warm every scene once so lazily-loaded glyphs (emoji, weights) are ready before frames are captured
   for (let i = 0; i < info.durs.length; i++) await page.evaluate((i) => window.__seek(i, 5, false), i);
   await page.evaluate(() => document.fonts.ready); await new Promise(r => setTimeout(r, 300));
-  const segs = [];
+  const segs = [], usedClips = [];
   for (let i = 0; i < info.durs.length; i++) {
     const n = Math.round(info.durs[i] * FPS), seg = path.join(tmp, `s${i}.mp4`);
     const sc = job.script.scenes[i];
-    if (sc.type === 'ai' && sc.clip_url) {
-      const clip = path.join(tmp, `c${i}.mp4`);
-      fs.writeFileSync(clip, Buffer.from(await (await fetch(sc.clip_url)).arrayBuffer()));
+    const libClip = (sc.type === 'ai' && sc.clip_url) || sc.type === 'image' ? null : pickClip(job, i, sc, usedClips);
+    if (libClip) usedClips.push(libClip);
+    if ((sc.type === 'ai' && sc.clip_url) || libClip) {
+      let clip = path.join(tmp, `c${i}.mp4`);
+      if (libClip) clip = path.join(BROLL, libClip);
+      else fs.writeFileSync(clip, Buffer.from(await (await fetch(sc.clip_url)).arrayBuffer()));
       const ov = path.join(tmp, `o${i}`); fs.mkdirSync(ov);
       for (let f = 0; f < n; f++) { await page.evaluate((i, t) => window.__seek(i, t, true), i, f / FPS); fs.writeFileSync(path.join(ov, `${String(f).padStart(5, '0')}.png`), await page.screenshot({ type: 'png', omitBackground: true })); }
-      ff(['-stream_loop', '-1', '-i', clip, '-framerate', String(FPS), '-i', path.join(ov, '%05d.png'),
-        '-filter_complex', `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS}[b];[b][1:v]overlay=0:0`, '-frames:v', String(n), '-an', ...ENC, seg]);
+      ff(['-stream_loop', '-1', '-ss', String((i * 1.7) % 4), '-i', clip, '-framerate', String(FPS), '-i', path.join(ov, '%05d.png'),
+        '-filter_complex', `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},eq=saturation=1.08[b];[b][1:v]overlay=0:0`, '-frames:v', String(n), '-an', ...ENC, seg]);
     } else {
       const { p, done } = pipeFF(['-f', 'image2pipe', '-framerate', String(FPS), '-i', '-', ...ENC, seg]);
       for (let f = 0; f < n; f++) { await page.evaluate((i, t) => window.__seek(i, t, false), i, f / FPS); const buf = await page.screenshot({ type: 'jpeg', quality: 92 }); if (!p.stdin.write(buf)) await new Promise(r => p.stdin.once('drain', r)); }
@@ -81,7 +101,15 @@ async function render(page, job) {
   }
   const list = path.join(tmp, 'list.txt'); fs.writeFileSync(list, segs.map(s => `file '${s}'`).join('\n'));
   const out = path.join(tmp, 'out.mp4'), cover = path.join(tmp, 'cover.jpg');
-  if (job.script.scenes.some(s => s._vo)) ff(['-f', 'concat', '-safe', '0', '-i', list, '-i', audioTrack(job, tmp), '-map', '0:v', '-map', '1:a', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out]);
+  const beds = fs.existsSync(MUSIC) ? fs.readdirSync(MUSIC).filter(f => /\.(mp3|m4a|wav)$/.test(f)).sort() : [];
+  const total = info.durs.reduce((a, b) => a + b, 0);
+  let bed = null; if (beds.length && job.look !== 'classic' && job.music !== false) { let h = 0; for (const c of String(job.id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; bed = path.join(MUSIC, beds[h % beds.length]); }
+  const hasVo = job.script.scenes.some(s => s._vo);
+  if (hasVo && bed) ff(['-f', 'concat', '-safe', '0', '-i', list, '-i', audioTrack(job, tmp), '-stream_loop', '-1', '-i', bed,
+    '-filter_complex', `[2:a]volume=0.5,afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, total - 1.2).toFixed(2)}:d=1.2[m];[m][1:a]sidechaincompress=threshold=0.03:ratio=9:attack=15:release=350[duck];[1:a][duck]amix=inputs=2:duration=first:normalize=0[a]`,
+    '-map', '0:v', '-map', '[a]', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out]);
+  else if (bed) ff(['-f', 'concat', '-safe', '0', '-i', list, '-stream_loop', '-1', '-i', bed, '-filter_complex', `[1:a]volume=0.6,afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, total - 1.2).toFixed(2)}:d=1.2[a]`, '-map', '0:v', '-map', '[a]', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out]);
+  else if (hasVo) ff(['-f', 'concat', '-safe', '0', '-i', list, '-i', audioTrack(job, tmp), '-map', '0:v', '-map', '1:a', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out]);
   else ff(['-f', 'concat', '-safe', '0', '-i', list, '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', out]);
   await page.evaluate(() => window.__seek(0, 1.8, false));
   fs.writeFileSync(cover, await page.screenshot({ type: 'jpeg', quality: 90 }));
