@@ -238,3 +238,27 @@ td.num,th.num{text-align:left;direction:ltr;font-variant-numeric:tabular-nums;wh
 @media(max-width:700px){.tk-bar{flex-wrap:wrap}.tk-bar input{flex-basis:100%;order:3}}
 
 .tk-stage.hascard .hp.r{opacity:0;transition:opacity .4s}
+
+/* ---- talk: full screen ---- */
+.talk{position:fixed;inset:0;z-index:400;max-width:none;margin:0;background:#03050f;display:block}
+.talk .tk-stage{position:absolute;inset:0;height:auto;border-radius:0;border:0}
+.tk-x{position:absolute;top:calc(14px + env(safe-area-inset-top));left:16px;z-index:5;width:42px;height:42px;border-radius:50%;border:1px solid rgba(170,210,255,.4);background:rgba(10,20,50,.6);color:#dbe9ff;font-size:16px;cursor:pointer}
+.tk-name{position:absolute;top:calc(22px + env(safe-area-inset-top));right:22px;z-index:5;font-size:12px;letter-spacing:3px;color:#9fc2ff;direction:ltr}
+.tk-ui{position:absolute;left:0;right:0;bottom:0;z-index:4;padding:60px max(16px,calc(50% - 380px)) calc(16px + env(safe-area-inset-bottom));background:linear-gradient(transparent,rgba(3,5,15,.88) 45%)}
+.talk .tk-log{max-height:20vh;margin:0 0 8px}
+.talk .tk-state{font-size:19px;min-height:28px;margin:0 0 10px;color:#e6f0ff;text-shadow:0 2px 12px #000}
+.talk .tk-bar{justify-content:center;gap:18px}
+.talk .tk-mic{width:78px;height:78px;font-size:34px;background:linear-gradient(135deg,#2f6bff,#7fd0ff);box-shadow:0 0 0 6px rgba(90,160,255,.15),0 10px 34px rgba(60,130,255,.6)}
+.talk .tk-mic.on{background:linear-gradient(135deg,#ff5c8a,#ffb36b)}
+.tk-type{display:flex;gap:8px;margin-top:12px}.tk-type[hidden]{display:none}.tk-type input{flex:1;min-width:0}
+.talk .hp.l{left:6%;top:14%}.talk .hp.l2{left:9%;top:40%}.talk .hp.r{right:6%;top:14%}
+.tk-panel{position:absolute;left:5%;top:11%;width:min(360px,40vw);max-height:56%;overflow:auto;padding:16px 18px;border-radius:18px;color:#e6f0ff;background:linear-gradient(160deg,rgba(90,150,255,.26),rgba(30,60,180,.14));border:1.5px solid rgba(170,215,255,.75);box-shadow:0 0 50px rgba(80,150,255,.45),inset 0 0 30px rgba(120,180,255,.14);backdrop-filter:blur(6px);opacity:0;transform:perspective(900px) rotateY(18deg) translateX(-40px);transition:opacity .5s,transform .5s;pointer-events:none;z-index:3}
+.tk-panel.on{opacity:1;transform:perspective(900px) rotateY(10deg);pointer-events:auto}
+.tk-panel small{font-size:10px;letter-spacing:2px;opacity:.7;direction:ltr;display:block;text-align:left}
+.tk-panel h4{margin:4px 0 10px;font-size:19px;display:flex;justify-content:space-between;align-items:baseline}.tk-panel h4 b{font-size:30px;text-shadow:0 0 16px rgba(130,200,255,.9)}
+.tk-panel .pr{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(170,210,255,.22);font-size:14px;animation:prin .45s both}
+.tk-panel .pr i{font-style:normal;font-size:11px;white-space:nowrap;color:#ffd58a}
+.tk-panel .btn{margin-top:10px}
+@keyframes prin{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+.tk-stage.haspanel .hp.l,.tk-stage.haspanel .hp.l2{opacity:0;transition:opacity .4s}
+@media(max-width:700px){.tk-panel{left:3%;right:3%;top:8%;width:auto;max-height:34%;transform:none}.tk-panel.on{transform:none}.talk .hp.l2{display:none}.tk-ui{padding-top:40px}.talk .tk-mic{width:68px;height:68px}}

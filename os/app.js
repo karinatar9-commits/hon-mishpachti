@@ -622,12 +622,13 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   // ---------- "לדבר עם המערכת": voice conversation with an animated figure ----------
   const TK={state:"idle",log:[],hands:true,rec:null,amp:0,raf:0};
   const tkSay=t=>String(t||"").replace(/\[\[[\s\S]*?\]\]/g," ").replace(/```[\s\S]*?```/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_#`>|]/g," ").replace(/https?:\/\/\S+/g," ").replace(/\s+/g," ").trim();
-  k.talk=()=>`<div class="talk"><div class="tk-stage" id="tkStage"><div class="tk-stars"></div><div class="tk-horizon"></div><canvas id="tkC"></canvas><div class="tk-holo" id="tkHolo"></div><div class="tk-card" id="tkCard"></div></div>
-    <div id="tkState" class="tk-state">לחצי על המיקרופון ודברי</div>
-    <div id="tkLog" class="tk-log"></div>
-    <div class="tk-bar"><button id="tkMic" class="tk-mic" title="לדבר">🎙️</button><input id="tkIn" placeholder="או לכתוב שאלה… למשל: מה הכי דחוף לי היום?"><button class="btn sm" id="tkSend">שליחה</button><button class="btn ghost sm" id="tkStop">עצירה</button></div>
-    <label class="small muted" style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:8px"><input type="checkbox" id="tkHands" ${TK.hands?"checked":""} style="width:auto">שיחה רציפה: להקשיב שוב אחרי כל תשובה</label>
-    <div class="small muted" id="tkNote" style="text-align:center;margin-top:6px"></div></div>`;
+  k.talk=()=>`<div class="talk"><div class="tk-stage" id="tkStage"><div class="tk-stars"></div><div class="tk-horizon"></div><canvas id="tkC"></canvas><div class="tk-holo" id="tkHolo"></div><div class="tk-panel" id="tkPanel"></div><div class="tk-card" id="tkCard"></div></div>
+    <button class="tk-x" data-go="home" title="סגירה">✕</button><div class="tk-name">NAAMA · המערכת שלך</div>
+    <div class="tk-ui"><div id="tkLog" class="tk-log"></div><div id="tkState" class="tk-state"></div>
+    <div class="tk-bar"><button class="btn ghost sm" id="tkStop">עצירה</button><button id="tkMic" class="tk-mic" title="לדבר">🎙️</button><button class="btn ghost sm" id="tkKb">⌨️ לכתוב</button></div>
+    <div class="tk-type" id="tkType" hidden><input id="tkIn" placeholder="לכתוב שאלה או בקשה…"><button class="btn sm" id="tkSend">שליחה</button></div>
+    <label class="small muted" style="display:flex;gap:6px;align-items:center;justify-content:center;margin-top:8px"><input type="checkbox" id="tkHands" ${TK.hands?"checked":""} style="width:auto">שיחה רציפה</label>
+    <div class="small muted" id="tkNote" style="text-align:center;margin-top:4px"></div></div></div>`;
   z.talk=()=>{
     const cv=d("#tkC"), ctx=cv.getContext("2d"), stEl=d("#tkState"), logEl=d("#tkLog");
     const fit=()=>{ const r=cv.getBoundingClientRect(), dp=Math.min(2,window.devicePixelRatio||1); cv.width=r.width*dp; cv.height=r.height*dp; }; fit();
@@ -636,9 +637,9 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     for(let i=0;i<2600;i++){ const u=rnd()*2-1, th=rnd()*Math.PI*2, r=Math.sqrt(1-u*u); P.push({x:.6*r*Math.cos(th),y:.42+.78*u,z:.66*r*Math.sin(th),k:0}); }
     for(let i=0;i<500;i++){ const th=rnd()*Math.PI*2; P.push({x:.26*Math.cos(th),y:-.38-rnd()*.3,z:.26*Math.sin(th),k:1}); }
     for(let i=0;i<1700;i++){ const u=rnd(), th=rnd()*Math.PI*2, r=Math.sqrt(1-u*u); P.push({x:1.25*r*Math.cos(th),y:-1.22+.55*u,z:.55*r*Math.sin(th),k:2}); }
-    const label={idle:"לחצי על המיקרופון ודברי",listen:"מקשיבה…",think:"חושבת ובודקת בנתונים…",speak:"עונה…"};
+    const label={idle:"לחצי על המיקרופון ודברי",listen:"מקשיבה… דברי חופשי, אשלח כשתסיימי",think:"בודקת בנתונים…",speak:""};
     const set=st=>{ TK.state=st; stEl.textContent=label[st]; d("#tkMic").classList.toggle("on",st==="listen"); };
-    const paint=()=>{ logEl.innerHTML=TK.log.slice(-6).map(m=>`<div class="tk-msg ${m.r}">${l(m.t)}</div>`).join(""); logEl.scrollTop=logEl.scrollHeight; };
+    const paint=()=>{ logEl.innerHTML=TK.log.slice(-3).map(m=>`<div class="tk-msg ${m.r}">${l(m.t)}</div>`).join(""); logEl.scrollTop=logEl.scrollHeight; };
     let t0=performance.now();
     const draw=now=>{ if(O!=="talk"||!document.body.contains(cv)){ stopAll(); return; }
       const T=(now-t0)/1000, W=cv.width, H=cv.height, S=Math.min(W,H)*.34, st=TK.state;
@@ -668,10 +669,10 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
       const stage=d("#tkStage"), W=()=>stage.clientWidth, H=()=>stage.clientHeight;
       const rn=new T3.WebGLRenderer({antialias:true,alpha:true}); rn.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); rn.setSize(W(),H()); rn.domElement.id="tk3"; stage.insertBefore(rn.domElement,d("#tkHolo"));
       cancelAnimationFrame(TK.raf); cv.style.display="none";
-      const scene=new T3.Scene(), cam=new T3.PerspectiveCamera(30,W()/H(),.1,50); cam.position.set(0,-.7,8.6); cam.lookAt(0,-.95,0);
+      const scene=new T3.Scene(), cam=new T3.PerspectiveCamera(30,W()/H(),.1,50); cam.position.set(0,-1.3,11.5); cam.lookAt(0,-1.75,0);
       scene.add(new T3.HemisphereLight(0x8fb6ff,0x0a1030,.9));
       const key=new T3.DirectionalLight(0xcfe0ff,1.5); key.position.set(-2.5,3,5); scene.add(key);
-      const rim=new T3.PointLight(0xff3f9a,22,6); rim.position.set(2.3,-2.6,1.4); scene.add(rim);
+      const rim=new T3.PointLight(0xff3f9a,13,5); rim.position.set(1.0,-3.4,1.3); scene.add(rim);
       const rim2=new T3.PointLight(0x35d0ff,26,9); rim2.position.set(-3,1.2,-1.5); scene.add(rim2);
       const G=(v,s)=>Math.exp(-(v*v)/(2*s*s));
       // a head sculpted from a sphere: jaw taper, eye sockets, brow, nose, lips, chin
@@ -716,7 +717,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
         body.rotation.y+=(ry-body.rotation.y)*.08; body.rotation.x+=(rx-body.rotation.x)*.08; body.position.y=Math.sin(T*1.3)*.025; pts.rotation.copy(body.rotation); pts.position.copy(body.position);
         for(let i=0;i<n*3;i++){ const j=(i%3===1?.012:.006)*Math.sin(T*3+i); cur[i]=from[i]+(tgt[i]-from[i])*e+(k>=1?j*(st==="think"?4:1):0); } pg.attributes.position.needsUpdate=true;
         mat.opacity=Math.max(0,Math.min(1,(T-1.5)/1.2)); pm.opacity=k<1?.95:(st==="think"?.75:st==="listen"?.5:.16); pm.size=k<1?.03:.02;
-        rim.intensity=22+(st==="speak"?14*TK.amp:0); rim2.intensity=st==="listen"?60:26;
+        rim.intensity=13+(st==="speak"?9*TK.amp:0); rim2.intensity=st==="listen"?60:26;
         d("#tkHolo")&&d("#tkHolo").classList.toggle("on",T>2.8);
         const wave=T>2.7&&T<5.4&&!TK.card, hy=TK.card?-2.25:wave?-1.7:-5.2, hx=TK.card?2.05:2.35;
         hand.position.y+=(hy-hand.position.y)*.09; hand.position.x+=(hx-hand.position.x)*.09;
@@ -733,20 +734,34 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
       const next=()=>{ if(i>=parts.length||TK.state!=="speak"){ res(); return; } const u=new SpeechSynthesisUtterance(parts[i++].trim()); u.lang=heV.lang; u.voice=heV; u.rate=1.05; u.onend=next; u.onerror=next; synth.speak(u); }; next(); });
     // ----- listening -----
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    const listen=()=>{ if(!SR){ f("הדפדפן הזה לא תומך בזיהוי דיבור — אפשר לכתוב"); return; } if(TK.rec){ try{TK.rec.abort()}catch(_){ } }
-      synth&&synth.cancel(); const r=new SR(); TK.rec=r; r.lang="he-IL"; r.interimResults=true; r.continuous=false; let fin="";
-      r.onresult=e=>{ let t=""; for(const x of e.results) t+=x[0].transcript; fin=t; stEl.textContent="״"+t+"״"; };
-      r.onerror=e=>{ if(e.error==="not-allowed") f("צריך לאשר גישה למיקרופון"); set("idle"); };
-      r.onend=()=>{ TK.rec=null; if(TK.state!=="listen") return; fin.trim()?ask(fin.trim()):set("idle"); };
-      set("listen"); try{ r.start(); }catch(_){ set("idle"); } };
-    const stopAll=()=>{ cancelAnimationFrame(TK.raf); try{TK.rec&&TK.rec.abort()}catch(_){ } TK.rec=null; synth&&synth.cancel(); TK.state="idle"; };
+    // The microphone stays open while she talks: it restarts itself if the browser cuts it, and the text is sent
+    // only after ~2.4 seconds of silence (or when she taps the microphone again). Up to 90 seconds per turn.
+    let heard="", silT=0, maxT=0;
+    const endTurn=()=>{ clearTimeout(silT); clearTimeout(maxT); const q=heard.trim(); heard=""; const r=TK.rec; TK.rec=null; try{ r&&r.abort(); }catch(_){ } q?ask(q):set("idle"); };
+    const startRec=()=>{ const r=new SR(); TK.rec=r; r.lang="he-IL"; r.interimResults=true; r.continuous=true; let base=heard;
+      r.onresult=e=>{ let fin="", inter=""; for(const x of e.results){ x.isFinal?fin+=x[0].transcript+" ":inter+=x[0].transcript; } heard=(base+" "+fin+inter).replace(/\s+/g," ").trim(); stEl.textContent="״"+heard+"״"; clearTimeout(silT); silT=setTimeout(endTurn,2400); };
+      r.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"){ f("צריך לאשר גישה למיקרופון"); TK.rec=null; set("idle"); } };
+      r.onend=()=>{ if(TK.rec!==r||TK.state!=="listen") return; if(!heard.trim()||silT){ try{ startRec(); }catch(_){ endTurn(); } } };
+      try{ r.start(); }catch(_){ } };
+    const listen=()=>{ if(!SR){ f("הדפדפן הזה לא תומך בזיהוי דיבור — אפשר לכתוב"); d("#tkType").hidden=false; return; }
+      synth&&synth.cancel(); try{ TK.rec&&TK.rec.abort(); }catch(_){ } heard=""; clearTimeout(silT); silT=0; clearTimeout(maxT); maxT=setTimeout(endTurn,90000); set("listen"); startRec(); };
+    const stopAll=()=>{ cancelAnimationFrame(TK.raf); clearTimeout(silT); clearTimeout(maxT); const r0=TK.rec; TK.rec=null; try{r0&&r0.abort()}catch(_){ } synth&&synth.cancel(); TK.state="idle"; };
     const showCard=c=>{ TK.card=c&&c.length>1?c:null; const el=d("#tkCard"); if(!el) return; el.classList.toggle("on",!!TK.card); d("#tkStage").classList.toggle("hascard",!!TK.card); if(TK.card) el.innerHTML=`<small>${l(TK.card[0])}</small><b>${l(TK.card[1])}</b>${TK.card.slice(2,6).map(x=>`<span>${l(x)}</span>`).join("")}<em>✕</em>`; };
-    const ask=async q=>{ showCard(null); TK.log.push({r:"u",t:q}); paint(); set("think");
-      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית — עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם צריך פירוט, הציעי להמשיך. אם ביקשו נתון, מספר, רשימה קצרה או סטטוס — הוסיפי בסוף התשובה שורה אחת בדיוק בפורמט הזה (היא תוצג על המסך ולא תיקרא בקול): [[כרטיס: כותרת קצרה | הערך הראשי (מספר או 2-3 מילים) | שורת פירוט | שורת פירוט | שורת פירוט]]. עד 4 שורות פירוט, כל אחת עד 8 מילים.]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
-      if(O!=="talk") return; const cm=reply.match(/\[\[\s*כרטיס\s*:\s*([\s\S]*?)\]\]/); showCard(cm?cm[1].split("|").map(x=>x.trim()).filter(Boolean):null); TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
+    const PAN={ tasks:["משימות",()=>{ const td=V(); return (v.tasks||[]).filter(t=>t.status!=="done").sort((x,y)=>(x.due||"9").localeCompare(y.due||"9")).slice(0,7).map(t=>[t.title,t.due?(t.due<td?"באיחור":t.due===td?"היום":I(t.due)):""]); },"tasks"],
+      leads:["לידים",()=>(v.leads||[]).filter(x=>!["won","lost"].includes(x.stage)).sort((x,y)=>(x.stage==="new"?0:1)-(y.stage==="new"?0:1)).slice(0,7).map(x=>[x.name||x.company||x.title||"ליד",x.stage==="new"?"חדש":(x.source||"")]),"leads"],
+      approvals:["מחכה לאישור שלך",()=>(v.actions||[]).filter(a=>a.status==="pending").slice(0,7).map(a=>[a.title,a.type==="email"?"מייל":""]),"approvals"],
+      videos:["סרטונים לאישור",()=>(typeof U!=="undefined"&&U?U:[]).filter(x=>x.status==="review").slice(0,7).map(x=>[(x.script&&x.script.title)||x.topic||"סרטון",""]),"mkt-factory"] };
+    const showPanel=kind=>{ const el=d("#tkPanel"), P0=PAN[kind]; if(!el) return; d("#tkStage").classList.toggle("haspanel",!!P0); el.classList.toggle("on",!!P0); if(!P0) return; const rows=P0[1]();
+      el.innerHTML=`<small>LIVE · ${l(P0[0])}</small><h4>${l(P0[0])} <b>${rows.length}</b></h4>${rows.map((r,i)=>`<div class="pr" style="animation-delay:${i*70}ms"><span>${l(String(r[0]).slice(0,64))}</span>${r[1]?`<i>${l(String(r[1]).slice(0,18))}</i>`:""}</div>`).join("")||'<div class="pr"><span>אין כרגע</span></div>'}<button class="btn ghost sm" data-go="${P0[2]}">לפתוח את המסך המלא ←</button>`; };
+    const kindOf=q=>/אישור|לאשר|טיוט/.test(q)?"approvals":/ליד|לקוח/.test(q)?"leads":/סרטו|רילס|וידאו|תוכן/.test(q)?"videos":/משימ|דחוף|לעשות|היום|מחר/.test(q)?"tasks":null;
+    const GO={ "לידים":"leads","משימות":"tasks","אישורים":"approvals","שיווק":"mkt-factory","תוכן":"mkt-factory","כסף":"fin-dash","דאשבורד":"fin-dash","היום":"home","הבית":"home" };
+    const ask=async q=>{ const nav=q.match(/^(?:תפתחי|תפתח|פתחי|פתח|תעברי|תעבור|לכי|לך|קחי אותי|תראי לי את המסך של)\s+(?:את\s+|ל|אל\s+)?(?:ה|מסך\s+ה?)?(לידים|משימות|אישורים|שיווק|תוכן|כסף|דאשבורד|היום|הבית)\s*$/); if(nav&&k[GO[nav[1]]]){ stopAll(); location.hash=GO[nav[1]]; return; }
+      showPanel(kindOf(q)); showCard(null); TK.log.push({r:"u",t:q}); paint(); set("think");
+      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית עם קרין דרך מסך הדיבור של המערכת. הטקסט שלה הוא תמלול של דיבור — ייתכנו מילים שגויות, משפטים קטועים או כמה בקשות ברצף: הביני את הכוונה מההקשר ומהשיחה הקודמת, וטפלי בכל הבקשות. אם באמת אי אפשר להבין — שאלי שאלה קצרה אחת. לפני שאת עונה בדקי בנתונים האמיתיים (משימות, לידים, אישורים, מיילים, כספים, דוחות) ואל תנחשי. אם היא מבקשת לעשות משהו שבסמכותך (להוסיף או לעדכן משימה, להכין טיוטת מייל לאישור, לרשום ליד או הערה) — בצעי מיד ואמרי במשפט מה עשית. עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם ביקשו נתון, מספר או סטטוס — הוסיפי בסוף שורה אחת בדיוק בפורמט (תוצג על המסך ולא תיקרא): [[כרטיס: כותרת קצרה | הערך הראשי (מספר או 2-3 מילים) | שורת פירוט | שורת פירוט | שורת פירוט]], עד 4 שורות פירוט של עד 8 מילים. אם כדאי להציג לה רשימה חיה על המסך הוסיפי גם [[הצג: משימות]] או [[הצג: לידים]] או [[הצג: אישורים]] או [[הצג: סרטונים]].]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
+      if(O!=="talk") return; const pmx=reply.match(/\[\[\s*הצג\s*:\s*(משימות|לידים|אישורים|סרטונים)\s*\]\]/); pmx&&showPanel({"משימות":"tasks","לידים":"leads","אישורים":"approvals","סרטונים":"videos"}[pmx[1]]); const cm=reply.match(/\[\[\s*כרטיס\s*:\s*([\s\S]*?)\]\]/); showCard(cm?cm[1].split("|").map(x=>x.trim()).filter(Boolean):null); TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
       if(O!=="talk"||TK.state!=="speak") return; TK.hands&&SR&&heV?listen():set("idle"); };
-    d("#tkMic").onclick=()=>{ TK.state==="listen"?(TK.rec&&TK.rec.stop()):listen(); };
-    d("#tkStop").onclick=()=>{ try{TK.rec&&TK.rec.abort()}catch(_){ } synth&&synth.cancel(); set("idle"); };
+    d("#tkMic").onclick=()=>{ TK.state==="listen"?endTurn():listen(); }; d("#tkKb").onclick=()=>{ const t=d("#tkType"); t.hidden=!t.hidden; t.hidden||d("#tkIn").focus(); };
+    d("#tkStop").onclick=()=>{ clearTimeout(silT); clearTimeout(maxT); heard=""; const r0=TK.rec; TK.rec=null; try{r0&&r0.abort()}catch(_){ } synth&&synth.cancel(); set("idle"); };
     const send=()=>{ const v=d("#tkIn").value.trim(); if(!v||TK.state==="think") return; d("#tkIn").value=""; synth&&synth.cancel(); ask(v); };
     d("#tkSend").onclick=send; d("#tkIn").onkeydown=e=>{ e.key==="Enter"&&send(); };
     d("#tkHands").onchange=e=>{ TK.hands=e.target.checked; }; d("#tkCard").onclick=()=>showCard(null); TK.card=null;
