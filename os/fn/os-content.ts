@@ -53,9 +53,12 @@ async function claudeJSON(prompt: string, model: string, search = 0) {
   if (search) req.tools = [{ type: "web_search_20250305", name: "web_search", max_uses: search }];
   const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": AKEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
     body: JSON.stringify(req) });
-  const j = await r.json(); if (!r.ok) throw new Error(j?.error?.message || `API ${r.status}`);
-  const t = j.content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
-  return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+  const raw = await r.text();
+  let j: any; try { j = JSON.parse(raw); } catch { throw new Error(`API ${r.status}: ${raw.slice(0, 160) || "empty body"}`); }
+  if (!r.ok) throw new Error(j?.error?.message || `API ${r.status}`);
+  const t = (j.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+  try { return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); }
+  catch { throw new Error(`no JSON (stop=${j.stop_reason}, out=${j.usage?.output_tokens}): ${t.slice(0, 160)}`); }
 }
 
 async function scriptJob(id: string, feedback?: string) {
