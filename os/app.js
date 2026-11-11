@@ -609,10 +609,27 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     {g:"סוכנים",items:pick(["agents","agent-pa","agent-invest","agent-benhur","jobs"])},
     {g:"כסף",items:pick(["fin-dash","w-home","w-gil","fin-tx","fin-subs"])},
   ];
-  const used=new Set(groups.flatMap(g=>g.items.map(i=>i[0])));
+  // marketing is one screen: the old separate pages stay reachable from inside it, not from the menu
+  const mktOld=["mkt-meta","mkt-ig","mkt-fb","mkt-mail","mkt-text","mkt-config"];
+  if(all["mkt-factory"]){ all["mkt-factory"][1]="📣"; all["mkt-factory"][2]="שיווק ותוכן"; }
+  const used=new Set([...groups.flatMap(g=>g.items.map(i=>i[0])),...mktOld]);
   const settings=kt.find(g=>g.g==="הגדרות");
   const rest=kt.filter(g=>g!==settings).flatMap(g=>g.items).filter(i=>!used.has(i[0]));
   kt.length=0; kt.push(...groups,{g:"עוד",items:rest}); settings&&kt.push(settings);
   kt.forEach(g=>g.items.forEach(i=>{Ga[i[0]]=[g.g,i[2]]}));
   if(Pa("navV2")!=="1"){ Ha("closedGroups",JSON.stringify(["עוד","הגדרות"])); Ha("navV2","1"); }
+  mktOld.forEach(id=>{ Ga[id]=["שיווק ותוכן",(all[id]||[])[2]||""]; });
+  // ---------- one marketing screen: create, approve, every connection and its setup ----------
+  const facV=k["mkt-factory"], facH=z["mkt-factory"], cfgV=k["mkt-config"], cfgH=z["mkt-config"];
+  const missing=()=>{ if(!M) return ""; const rows=[
+      [M.meta,"פרסום לאינסטגרם ולפייסבוק","מחכה לחשבון מפתחים של Meta. עד אז: מאשרים כאן, מורידים ומעלים ידנית."],
+      [M.clone,"קריינות בקול שלך","חשבון ElevenLabs + המפתח ELEVEN_KEY ב-Supabase + מזהה הקול בשדה למעלה. עד אז הקריינות בקול נשי מובנה."],
+      [M.higgsfield,"קטעי וידאו AI","המפתח HF_KEY של Higgsfield ב-Supabase. עד אז הסרטונים באנימציה בלבד."]].filter(r=>!r[0]);
+    return rows.length?`<div class="card" style="margin-top:14px"><h3>מה חסר כדי שהכול יהיה מחובר</h3>${rows.map(r=>`<div class="kv"><span><b>${r[1]}</b><div class="small muted">${r[2]}</div></span><span><span class="dot warn"></span></span></div>`).join("")}</div>`:""; };
+  k["mkt-factory"]=()=>{
+    let h=facV().replace('<button class="btn ghost sm" data-go="mkt-config">להגדרות החיבור ←</button>','<button class="btn ghost sm" id="hubCfgGo">להגדרות החיבור ↓</button>');
+    return h+missing()+`<details class="card" id="hubCfg" style="margin-top:14px" ${window.__hubCfg?"open":""}><summary style="cursor:pointer"><b>⚙️ הגדרות: קול המותג וחשבונות האינסטגרם</b></summary><div style="margin-top:12px">${cfgV()}</div></details>
+    <div class="card" style="margin-top:14px"><h3>כלים נוספים</h3><div class="acts" style="flex-wrap:wrap"><button class="btn ghost sm" data-go="mkt-text">✍️ פוסט טקסט</button><button class="btn ghost sm" data-go="mkt-mail">✉️ מיילים שיווקיים</button><button class="btn ghost sm" data-go="mkt-meta">📢 נתוני קמפיינים במטא</button><button class="btn ghost sm" data-go="leads">🧲 לידים מאינסטגרם</button></div></div>`; };
+  z["mkt-factory"]=()=>{ facH&&facH(); try{ cfgH&&cfgH(); }catch(_){ }
+    const dt2=d("#hubCfg"); if(dt2){ dt2.ontoggle=()=>{ window.__hubCfg=dt2.open; }; const go=d("#hubCfgGo"); go&&(go.onclick=()=>{ dt2.open=!0; dt2.scrollIntoView({behavior:"smooth"}); }); } };
 })();
