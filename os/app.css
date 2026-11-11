@@ -203,7 +203,22 @@ td.num,th.num{text-align:left;direction:ltr;font-variant-numeric:tabular-nums;wh
 
 /* ---- talk to the system ---- */
 .talk{max-width:760px;margin:0 auto;display:flex;flex-direction:column}
-.talk canvas{width:100%;height:min(46vh,430px);display:block}
+.talk{max-width:980px}
+.tk-stage{position:relative;height:min(52vh,500px);border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 62%,#16337a 0%,#0a1740 38%,#050a1c 72%,#03050f 100%);border:1px solid #1b2a5a;box-shadow:inset 0 0 120px rgba(60,120,255,.18)}
+.tk-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.tk-stars{position:absolute;inset:0;background-image:radial-gradient(1.2px 1.2px at 12% 18%,#cfe2ff 50%,transparent 51%),radial-gradient(1px 1px at 28% 9%,#9fc2ff 50%,transparent 51%),radial-gradient(1.4px 1.4px at 44% 22%,#fff 50%,transparent 51%),radial-gradient(1px 1px at 63% 12%,#bcd4ff 50%,transparent 51%),radial-gradient(1.2px 1.2px at 78% 26%,#e6efff 50%,transparent 51%),radial-gradient(1px 1px at 90% 8%,#9fc2ff 50%,transparent 51%),radial-gradient(1px 1px at 6% 40%,#bcd4ff 50%,transparent 51%),radial-gradient(1.2px 1.2px at 94% 44%,#cfe2ff 50%,transparent 51%),radial-gradient(1px 1px at 36% 36%,#9fc2ff 50%,transparent 51%),radial-gradient(1px 1px at 70% 40%,#fff 50%,transparent 51%);opacity:.8}
+.tk-horizon{position:absolute;left:-20%;right:-20%;top:63%;height:70%;border-radius:50%;background:radial-gradient(60% 40% at 50% 0%,rgba(120,180,255,.55),rgba(40,90,220,.18) 45%,transparent 70%);border-top:2px solid rgba(170,210,255,.55);filter:blur(.4px)}
+.tk-holo{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity 1.2s;perspective:900px}
+.tk-holo.on{opacity:1}
+.hp{pointer-events:auto;cursor:pointer;position:absolute;width:168px;padding:12px 14px;border-radius:14px;color:#dbe9ff;background:linear-gradient(160deg,rgba(90,150,255,.20),rgba(40,80,200,.08));border:1px solid rgba(150,200,255,.5);box-shadow:0 0 26px rgba(80,150,255,.28),inset 0 0 22px rgba(120,180,255,.12);backdrop-filter:blur(3px);display:flex;flex-direction:column;gap:2px;animation:hpf 5s ease-in-out infinite}
+.hp small{font-size:10px;letter-spacing:1.5px;opacity:.75;direction:ltr;text-align:left}
+.hp b{font-size:34px;line-height:1;font-weight:800;color:#fff;text-shadow:0 0 16px rgba(120,190,255,.9)}
+.hp span{font-size:13px;font-weight:700}.hp i{font-style:normal;font-size:11px;opacity:.7}
+.hp.l{left:5%;top:16%;transform:rotateY(24deg)}
+.hp.r{right:5%;top:12%;transform:rotateY(-24deg);animation-delay:-1.6s}
+.hp.r2{right:8%;top:52%;transform:rotateY(-24deg) scale(.92);animation-delay:-3.1s}
+@keyframes hpf{0%,100%{margin-top:0}50%{margin-top:-9px}}
+@media(max-width:700px){.tk-stage{height:46vh}.hp{width:112px;padding:8px 10px}.hp b{font-size:24px}.hp.l{left:2%;top:6%}.hp.r{right:2%;top:6%}.hp.r2{right:2%;top:60%}.hp span{font-size:11px}}
 .tk-state{text-align:center;font-weight:700;font-size:17px;min-height:26px;margin-top:4px}
 .tk-log{display:flex;flex-direction:column;gap:8px;max-height:26vh;overflow:auto;margin:12px 0;padding:0 4px}
 .tk-msg{padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.5;max-width:88%}

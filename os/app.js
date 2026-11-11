@@ -622,7 +622,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   // ---------- "לדבר עם המערכת": voice conversation with an animated figure ----------
   const TK={state:"idle",log:[],hands:true,rec:null,amp:0,raf:0};
   const tkSay=t=>String(t||"").replace(/```[\s\S]*?```/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_#`>|]/g," ").replace(/https?:\/\/\S+/g," ").replace(/\s+/g," ").trim();
-  k.talk=()=>`<div class="talk"><canvas id="tkC"></canvas>
+  k.talk=()=>`<div class="talk"><div class="tk-stage" id="tkStage"><div class="tk-stars"></div><div class="tk-horizon"></div><canvas id="tkC"></canvas><div class="tk-holo" id="tkHolo"></div></div>
     <div id="tkState" class="tk-state">לחצי על המיקרופון ודברי</div>
     <div id="tkLog" class="tk-log"></div>
     <div class="tk-bar"><button id="tkMic" class="tk-mic" title="לדבר">🎙️</button><input id="tkIn" placeholder="או לכתוב שאלה… למשל: מה הכי דחוף לי היום?"><button class="btn sm" id="tkSend">שליחה</button><button class="btn ghost sm" id="tkStop">עצירה</button></div>
@@ -660,6 +660,61 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
         ctx.fillStyle="rgba(245,194,107,.95)"; ctx.beginPath(); ctx.ellipse(sx,sy,S*.035,S*.035*blink,0,0,Math.PI*2); ctx.fill(); }
       TK.raf=requestAnimationFrame(draw); };
     cancelAnimationFrame(TK.raf); TK.raf=requestAnimationFrame(draw); window.addEventListener("resize",fit);
+    // holographic panels with the live numbers
+    const holo=()=>{ const h=d("#tkHolo"); if(!h) return; const td=V(), pend=(v.actions||[]).filter(a=>a.status==="pending").length, due=(v.tasks||[]).filter(a=>a.status!=="done"&&a.due&&a.due<=td).length, nl=(v.leads||[]).filter(a=>a.stage==="new").length, op=(v.leads||[]).filter(a=>!["won","lost"].includes(a.stage)).length, vid=(typeof U!=="undefined"&&U?U:[]).filter(x=>x.status==="review").length;
+      h.innerHTML=`<div class="hp l" data-go="tasks"><small>SYSTEM · היום</small><b>${due}</b><span>משימות להיום</span><i>${pend} מחכים לאישור</i></div><div class="hp r" data-go="leads"><small>LEADS · לידים</small><b>${nl}</b><span>לידים חדשים</span><i>${op} פתוחים בסך הכול</i></div><div class="hp r2" data-go="mkt-factory"><small>CONTENT · תוכן</small><b>${vid}</b><span>סרטונים לאישור</span><i>שיווק ותוכן</i></div>`; };
+    holo();
+    import("./vendor/three.module.min.js").then(T3=>{ if(O!=="talk"||!document.body.contains(cv)) return;
+      const stage=d("#tkStage"), W=()=>stage.clientWidth, H=()=>stage.clientHeight;
+      const rn=new T3.WebGLRenderer({antialias:true,alpha:true}); rn.setPixelRatio(Math.min(2,window.devicePixelRatio||1)); rn.setSize(W(),H()); rn.domElement.id="tk3"; stage.insertBefore(rn.domElement,d("#tkHolo"));
+      cancelAnimationFrame(TK.raf); cv.style.display="none";
+      const scene=new T3.Scene(), cam=new T3.PerspectiveCamera(30,W()/H(),.1,50); cam.position.set(0,-.7,8.6); cam.lookAt(0,-.95,0);
+      scene.add(new T3.HemisphereLight(0x8fb6ff,0x0a1030,.9));
+      const key=new T3.DirectionalLight(0xcfe0ff,1.5); key.position.set(-2.5,3,5); scene.add(key);
+      const rim=new T3.PointLight(0xff3f9a,22,6); rim.position.set(2.3,-2.6,1.4); scene.add(rim);
+      const rim2=new T3.PointLight(0x35d0ff,26,9); rim2.position.set(-3,1.2,-1.5); scene.add(rim2);
+      const G=(v,s)=>Math.exp(-(v*v)/(2*s*s));
+      // a head sculpted from a sphere: jaw taper, eye sockets, brow, nose, lips, chin
+      const hg=new T3.SphereGeometry(1,96,80), base=hg.attributes.position.array.slice(), pos=hg.attributes.position;
+      const shape=(amp)=>{ for(let i=0;i<pos.count;i++){ let x=base[i*3],y=base[i*3+1],z=base[i*3+2];
+          const fr=Math.max(0,Math.min(1,(z-.05)/.5)); let dsp=0;
+          dsp-=.11*fr*(G(Math.hypot(x-.33,y-.14),.13)+G(Math.hypot(x+.33,y-.14),.13));
+          dsp+=.045*fr*G(y-.3,.07)*G(x,.5);
+          dsp+=.2*fr*G(x,.08)*G(y+.08,.17)*(y<.2?1:.3);
+          dsp+=.035*fr*G(x,.2)*(G(y+.33,.03)+G(y+.45,.035));
+          dsp-=(.035+.16*amp)*fr*G(x,.17)*G(y+.39,.028+.035*amp);
+          dsp+=.06*fr*G(x,.2)*G(y+.74,.11);
+          dsp-=.03*fr*(G(Math.hypot(x-.48,y+.2),.2)+G(Math.hypot(x+.48,y+.2),.2));
+          const k=1+dsp; x*=k; y*=k; z*=k;
+          if(y<0){ const t=Math.min(1,-y); x*=1-.27*Math.pow(t,1.9); z*=1-.1*t; if(y<-.42) y-=.05*amp*fr; }
+          pos.setXYZ(i,x*.76,y*1.06,z*.88); } pos.needsUpdate=true; hg.computeVertexNormals(); };
+      shape(0);
+      const mat=new T3.MeshStandardMaterial({color:0x3d78ff,roughness:.42,metalness:.12,transparent:true,opacity:0});
+      const head=new T3.Mesh(hg,mat);
+      const neck=new T3.Mesh(new T3.CylinderGeometry(.34,.5,1.0,40,1,true),mat); neck.position.y=-1.2;
+      const sh=new T3.Mesh(new T3.SphereGeometry(1,64,40),mat); sh.scale.set(1.85,1.15,.8); sh.position.y=-2.72;
+      const body=new T3.Group(); body.add(head,neck,sh); scene.add(body);
+      // the same figure as particles: they fly in and assemble, then stay as a faint shimmer
+      const tgt=[]; const push=(m)=>{ m.updateMatrixWorld(true); const a=m.geometry.attributes.position, v3=new T3.Vector3(); for(let i=0;i<a.count;i+=2){ v3.fromBufferAttribute(a,i).applyMatrix4(m.matrixWorld); tgt.push(v3.x,v3.y,v3.z); } }; push(head); push(neck); push(sh);
+      const n=tgt.length/3, from=new Float32Array(n*3), cur=new Float32Array(n*3); for(let i=0;i<n;i++){ const a=Math.random()*6.28, r=1.5+Math.random()*3.5; from[i*3]=Math.cos(a)*r; from[i*3+1]=-1+(Math.random()-.5)*5; from[i*3+2]=Math.sin(a)*r-1; }
+      const pg=new T3.BufferGeometry(); pg.setAttribute("position",new T3.BufferAttribute(cur,3));
+      const pm=new T3.PointsMaterial({color:0xa9d4ff,size:.028,transparent:true,opacity:.95,blending:T3.AdditiveBlending,depthWrite:false});
+      const pts=new T3.Points(pg,pm); scene.add(pts);
+      const onR=()=>{ if(!document.body.contains(rn.domElement)) return; rn.setSize(W(),H()); cam.aspect=W()/H(); cam.updateProjectionMatrix(); }; window.addEventListener("resize",onR);
+      const t1=performance.now(); let lastAmp=-1;
+      const loop=now=>{ if(O!=="talk"||!document.body.contains(rn.domElement)){ window.removeEventListener("resize",onR); rn.dispose(); stopAll(); return; }
+        const T=(now-t1)/1000, st=TK.state, k=Math.min(1,T/2.4), e=1-Math.pow(1-k,3);
+        const target=st==="speak"?.5+.5*Math.abs(Math.sin(T*9.5)*Math.sin(T*3.3)):0; TK.amp+=(target-TK.amp)*.3;
+        if(Math.abs(TK.amp-lastAmp)>.02){ shape(TK.amp); lastAmp=TK.amp; }
+        const ry=Math.sin(T*.45)*.28+(st==="think"?Math.sin(T*2.2)*.35:0), rx=(st==="listen"?.09:0)+Math.sin(T*.7)*.03+(st==="speak"?Math.sin(T*4)*.02:0);
+        body.rotation.y+=(ry-body.rotation.y)*.08; body.rotation.x+=(rx-body.rotation.x)*.08; body.position.y=Math.sin(T*1.3)*.025; pts.rotation.copy(body.rotation); pts.position.copy(body.position);
+        for(let i=0;i<n*3;i++){ const j=(i%3===1?.012:.006)*Math.sin(T*3+i); cur[i]=from[i]+(tgt[i]-from[i])*e+(k>=1?j*(st==="think"?4:1):0); } pg.attributes.position.needsUpdate=true;
+        mat.opacity=Math.max(0,Math.min(1,(T-1.5)/1.2)); pm.opacity=k<1?.95:(st==="think"?.75:st==="listen"?.5:.16); pm.size=k<1?.03:.02;
+        rim.intensity=22+(st==="speak"?14*TK.amp:0); rim2.intensity=st==="listen"?60:26;
+        d("#tkHolo")&&d("#tkHolo").classList.toggle("on",T>2.8);
+        rn.render(scene,cam); TK.raf=requestAnimationFrame(loop); };
+      TK.raf=requestAnimationFrame(loop);
+    }).catch(()=>{ d("#tkHolo")&&d("#tkHolo").classList.add("on"); });
     // ----- speaking -----
     const synth=window.speechSynthesis; let heV=null; const pickV=()=>{ const vs=synth?synth.getVoices():[]; heV=vs.find(v=>/^he|^iw/i.test(v.lang))||null; d("#tkNote")&&(d("#tkNote").textContent=synth&&!heV&&vs.length?"במכשיר הזה אין קול בעברית, אז התשובות יופיעו בכתב. באייפון ובאנדרואיד יש קול מובנה.":""); };
     if(synth){ pickV(); synth.onvoiceschanged=pickV; }
