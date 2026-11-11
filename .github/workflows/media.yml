@@ -1,0 +1,42 @@
+name: Media library (b-roll + music)
+# Downloads the clips listed in os/render/media/sources.json, turns each b-roll clip into a seamless
+# 720p loop (forward + reverse), normalises the music beds, and commits them next to the renderer.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg jq > /dev/null
+      - name: Build library
+        working-directory: os/render/media
+        run: |
+          set -e
+          mkdir -p broll music
+          jq -r '.broll | to_entries[] | "\(.key) \(.value)"' sources.json | while read tag url; do
+            [ -f "broll/$tag.mp4" ] && continue
+            curl -sSL --fail -o "/tmp/$tag.src.mp4" "$url"
+            ffmpeg -y -loglevel error -i "/tmp/$tag.src.mp4" -filter_complex "[0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,fps=30,split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]" -map "[v]" -an -c:v libx264 -preset slow -crf 27 -pix_fmt yuv420p -movflags +faststart "broll/$tag.mp4"
+            echo "built broll/$tag.mp4"
+          done
+          jq -r '.music | to_entries[] | "\(.key) \(.value)"' sources.json | while read name url; do
+            [ -f "music/$name.mp3" ] && continue
+            curl -sSL --fail -o "/tmp/$name.src" "$url"
+            ffmpeg -y -loglevel error -i "/tmp/$name.src" -af "loudnorm=I=-18:TP=-2:LRA=9" -ar 44100 -ac 2 -b:a 128k "music/$name.mp3"
+            echo "built music/$name.mp3"
+          done
+          # contact sheet: one frame from each clip, so the library can be reviewed at a glance
+          i=0; args=""; for f in broll/*.mp4; do ffmpeg -y -loglevel error -ss 2 -i "$f" -frames:v 1 -vf "scale=270:480,drawtext=text='$(basename $f .mp4)':x=10:y=10:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.6" "/tmp/c$i.jpg"; args="$args -i /tmp/c$i.jpg"; i=$((i+1)); done
+          [ $i -gt 1 ] && ffmpeg -y -loglevel error $args -filter_complex "hstack=inputs=$i" sheet.jpg || true
+          ls -la broll music
+      - name: Commit
+        run: |
+          git config user.name "karin-os-bot"
+          git config user.email "karin-os-bot@users.noreply.github.com"
+          git add os/render/media
+          git diff --cached --quiet || (git commit -m "Media library: add b-roll loops and music beds" && git push)
