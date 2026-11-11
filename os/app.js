@@ -541,7 +541,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     ${pend.length?`<div class="card" style="margin-bottom:14px"><h3>✋ מחכה לאישור שלך<span class="r">${pend.length}</span></h3>${pend.slice(0,3).map(e=>se(e,!0)).join("")}${pend.length>3?`<button class="btn ghost sm" data-go="approvals">עוד ${pend.length-3} ←</button>`:""}</div>`:""}
     ${vids.length||working?`<div class="card" style="margin-bottom:14px"><h3>🎬 סרטונים<span class="r"><a href="#mkt-factory">למפעל התוכן</a></span></h3>${vids.length?`<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">${vids.slice(0,8).map(e=>`<div data-go="mkt-factory" style="cursor:pointer;flex:none;width:120px"><img src="${l(e.cover_url||e.video_url||"")}" style="width:120px;height:${e.format==="carousel"?150:213}px;object-fit:cover;border-radius:10px;background:#141a2b"><div class="small" style="margin-top:4px;line-height:1.3">${l((e.script&&e.script.title||e.topic||"").slice(0,48))}</div></div>`).join("")}</div>`:""}${working?`<div class="small muted" style="margin-top:6px">${working} בהכנה עכשיו</div>`:""}</div>`:""}
     ${newLeads.length?`<div class="card" style="margin-bottom:14px"><h3>🧲 לידים חדשים<span class="r"><a href="#leads">לכל הלידים</a></span></h3>${newLeads.slice(0,5).map(e=>`<div class="kv" data-go="leads" style="cursor:pointer"><span><b>${l(e.name||"ליד")}</b> <span class="muted small">${l(e.source||"")}${e.biz?" · "+l(e.biz):""}</span></span><span class="small muted">${l(String(e.notes||"").split("\n")[0].slice(0,60))}</span></div>`).join("")}</div>`:""}
-    ${due.length?`<div class="card" style="margin-bottom:14px"><h3>✅ משימות להיום ובאיחור<span class="r"><a href="#tasks">הכל</a></span></h3>${due.slice(0,6).map(Jt).join("")}${due.length>6?`<div class="small muted" style="margin-top:6px">ועוד ${due.length-6}</div>`:""}</div>`:""}`;
+    ${due.length?`<div class="card" style="margin-bottom:14px"><h3>✅ משימות להיום ובאיחור<span class="r"><a href="#tasks">הכל</a></span></h3>${due.slice(0,8).map(t=>`<div class="tq"><div class="tq-t"><input type="checkbox" data-task="${t.id}" style="width:auto;margin-left:8px"><span>${l(t.title)}</span>${t.priority==="high"?' <span class="pill r">דחוף</span>':""}${t.due<b?` <span class="pill a">באיחור מ-${I(t.due)}</span>`:""}${t.postponed>=3?` <span class="pill a">נדחה ${t.postponed} פעמים</span>`:""}</div><div class="tq-b"><button class="btn ghost sm" data-tq="${t.id}" data-to="1">מחר</button><button class="btn ghost sm" data-tq="${t.id}" data-to="7">שבוע הבא</button><button class="btn ghost sm" data-tq="${t.id}" data-to="x">לא רלוונטי</button></div></div>`).join("")}${due.length>8?`<div class="small muted" style="margin-top:6px">ועוד ${due.length-8} — <a href="#tasks">לכל המשימות</a></div>`:""}</div>`:""}`;
   };
   k.home=()=>todayBlock()+`<details><summary style="cursor:pointer;margin:6px 0 12px" class="muted">התמונה המלאה מהסוכנים (כסף, השקעות, בן-חור, מחקר)</summary>${oldHome()}</details>`;
   const capture=async()=>{
@@ -565,6 +565,13 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     const b=d("#capGo"); b&&(b.onclick=capture);
   };
 
+  document.addEventListener("click",async e=>{
+    const b=e.target.closest&&e.target.closest("[data-tq]"); if(!b) return;
+    const t=v.tasks.find(x=>x.id===b.dataset.tq); if(!t) return;
+    b.parentNode.querySelectorAll("button").forEach(x=>x.disabled=!0);
+    if(b.dataset.to==="x"){ await P("tasks",{id:t.id,status:"dropped"}); f("הוסר מהרשימה"); }
+    else { const due=new Date(Date.now()+ +b.dataset.to*864e5).toLocaleDateString("sv-SE",{timeZone:"Asia/Jerusalem"}); await P("tasks",{id:t.id,due,postponed:(+t.postponed||0)+1}); f(b.dataset.to==="1"?"נדחה למחר":"נדחה לשבוע הבא"); }
+  });
   // ---------- shorter menu: what is used every day first, the rest under "עוד" ----------
   const all={}; kt.forEach(g=>g.items.forEach(it=>all[it[0]]=it));
   const pick=ids=>ids.map(id=>all[id]).filter(Boolean);
