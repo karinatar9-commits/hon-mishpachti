@@ -24,7 +24,7 @@ function pipeFF(args) { const p = spawn('ffmpeg', ['-y', '-loglevel', 'error', .
 function probe(f) { try { return +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString().trim() || 0; } catch { return 0; } }
 function tts(text, voice, out) {
   if (process.env.TTS_FAKE) { ff(['-f', 'lavfi', '-i', `sine=frequency=330:duration=${Math.max(1.2, text.split(/\s+/).length / 2.6).toFixed(2)}`, '-ar', '44100', out]); return; }
-  execFileSync('edge-tts', ['--voice', voice, '--rate=+6%', '--text', text, '--write-media', out], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60000 });
+  execFileSync('edge-tts', ['--voice', voice, '--rate=-6%', '--text', text, '--write-media', out], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60000 });
 }
 // captions follow the voice: each word gets a slice of the narration proportional to its length
 function caps(text, d) {
@@ -33,14 +33,16 @@ function caps(text, d) {
   return { start: 0.25, end: 0.25 + d, words: ws.map((w, i) => { const t0 = t; t += len[i] / tot * span; return { w: w.replace(/[״"]/g, ''), t0: +t0.toFixed(3), t1: +t.toFixed(3) }; }) };
 }
 // b-roll library that ships with the repo (os/media/broll/<tag>.mp4, seamless loops)
+const FXT = ['graph', 'route', 'breakdown', 'stick', 'shapes']; // scenes that draw their own full-screen animation
 const BROLL = path.join(dir, 'media', 'broll');
 const lib = fs.existsSync(BROLL) ? fs.readdirSync(BROLL).filter(f => f.endsWith('.mp4')).sort() : [];
 function pickClip(job, i, sc, used) {
   if (!lib.length || job.look === 'classic') return null;
-  if (sc.bg && lib.includes(sc.bg + '.mp4') && used[used.length - 1] !== sc.bg + '.mp4') return sc.bg + '.mp4';
+  if (job.script.anim && FXT.includes(job.script.anim)) return null;   // an animation-style video has no b-roll at all
+  if (job._clip) return job._clip;                                      // one clip for the whole video
+  const want = job.script.bg || sc.bg; if (want && lib.includes(want + '.mp4')) return (job._clip = want + '.mp4');
   let h = 0; for (const c of String(job.id || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  for (let k = 0; k < lib.length; k++) { const f = lib[(h + i * 3 + k) % lib.length]; if (!used.slice(-2).includes(f)) return f; }
-  return lib[(h + i) % lib.length];
+  return (job._clip = lib[h % lib.length]);
 }
 const MUSIC = path.join(dir, 'media', 'music');
 async function narrate(job, tmp) {
@@ -50,9 +52,9 @@ async function narrate(job, tmp) {
     want++;
     const f = path.join(tmp, `vo${i}.mp3`);
     if (job.clone && !process.env.TTS_FAKE) {       // Karin's own cloned voice first; the generic voice is the fallback
-      try { const r = await api({ mode: 'tts', id: job.id, i }); if (r.url) { fs.writeFileSync(f, Buffer.from(await (await fetch(r.url)).arrayBuffer())); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); sc._cap = caps(text, d); ok++; cloned++; } } else if (r.error) console.error('clone', i, r.error); } catch (e) { console.error('clone', i, String(e.message || e).slice(0, 120)); }
+      try { const r = await api({ mode: 'tts', id: job.id, i }); if (r.url) { fs.writeFileSync(f, Buffer.from(await (await fetch(r.url)).arrayBuffer())); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(16, Math.max(+sc.dur || 4, d + 1.3)); sc._cap = caps(text, d); ok++; cloned++; } } else if (r.error) console.error('clone', i, r.error); } catch (e) { console.error('clone', i, String(e.message || e).slice(0, 120)); }
     }
-    for (let a = 0; a < 2 && !sc._vo; a++) { try { tts(text, voice, f); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); sc._cap = caps(text, d); ok++; } } catch (e) { console.error('tts', i, String(e.message || e).slice(0, 120)); } }
+    for (let a = 0; a < 2 && !sc._vo; a++) { try { tts(text, voice, f); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(16, Math.max(+sc.dur || 4, d + 1.3)); sc._cap = caps(text, d); ok++; } } catch (e) { console.error('tts', i, String(e.message || e).slice(0, 120)); } }
   }
   return { ok, want, cloned };
 }
@@ -82,7 +84,6 @@ async function render(page, job) {
   for (let i = 0; i < info.durs.length; i++) {
     const n = Math.round(info.durs[i] * FPS), seg = path.join(tmp, `s${i}.mp4`);
     const sc = job.script.scenes[i];
-    const FXT = ['graph', 'route', 'breakdown', 'stick', 'shapes']; // these scenes draw their own full-screen animation
     const libClip = (sc.type === 'ai' && sc.clip_url) || sc.type === 'image' || FXT.includes(sc.type) ? null : pickClip(job, i, sc, usedClips);
     if (libClip) usedClips.push(libClip);
     if ((sc.type === 'ai' && sc.clip_url) || libClip) {
@@ -92,7 +93,7 @@ async function render(page, job) {
       const ov = path.join(tmp, `o${i}`); fs.mkdirSync(ov);
       // the text layer is captured at half rate (15 fps) over the 30 fps clip: half the render time, no visible difference
       const m = Math.ceil(n / 2); for (let f = 0; f < m; f++) { await page.evaluate((i, t) => window.__seek(i, t, true), i, (f * 2) / FPS); fs.writeFileSync(path.join(ov, `${String(f).padStart(5, '0')}.png`), await page.screenshot({ type: 'png', omitBackground: true })); }
-      ff(['-stream_loop', '-1', '-ss', String((i * 1.7) % 4), '-i', clip, '-framerate', String(FPS / 2), '-i', path.join(ov, '%05d.png'),
+      ff(['-stream_loop', '-1', '-ss', String(libClip ? (segs.length * 2.3) % 8 : 0), '-i', clip, '-framerate', String(FPS / 2), '-i', path.join(ov, '%05d.png'),
         '-filter_complex', `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},eq=saturation=1.08[b];[b][1:v]overlay=0:0:eof_action=repeat`, '-frames:v', String(n), '-an', ...ENC, seg]);
     } else {
       const { p, done } = pipeFF(['-f', 'image2pipe', '-framerate', String(FPS), '-i', '-', ...ENC, seg]);
