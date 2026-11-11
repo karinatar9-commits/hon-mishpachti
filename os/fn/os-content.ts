@@ -84,6 +84,8 @@ ${SCHEMA.replace("LEN", String(v.length_s))}`;
     const sc = await claudeJSON(p, s.model);
     sc.scenes = (sc.scenes || []).slice(0, 14).map((x: any) => ({ ...x, dur: Math.min(8, Math.max(2, +x.dur || 3.5)) }));
     if (car) sc.scenes.forEach((x: any) => { if (x.type === "ai") x.type = "point"; });
+    // narration asked for but the writer skipped it on a scene: read the on-screen text instead of leaving silence
+    if (v.voice && !car) sc.scenes.forEach((x: any) => { if (!String(x.vo || "").trim()) x.vo = [x.headline, x.body, ...(x.items || [])].filter(Boolean).join(". ").slice(0, 220); });
     if (kit.accent) sc.palette = { bg1: kit.bg1, bg2: kit.bg2, accent: kit.accent, text: kit.text || "#ffffff" };
     if (Array.isArray(sc.lessons) && sc.lessons.length) {
       const cur: any = s.lessons; const arr: string[] = cur[v.account] || [];
