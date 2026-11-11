@@ -20,10 +20,39 @@ async function api(body) {
 }
 function ff(args) { execFileSync('ffmpeg', ['-y', '-loglevel', 'error', ...args], { stdio: 'inherit' }); }
 function pipeFF(args) { const p = spawn('ffmpeg', ['-y', '-loglevel', 'error', ...args], { stdio: ['pipe', 'inherit', 'inherit'] }); const done = new Promise((res, rej) => p.on('close', c => c ? rej(new Error('ffmpeg ' + c)) : res())); return { p, done }; }
+// ---- narration: one MP3 per scene (Microsoft neural Hebrew voice via edge-tts), silent fallback ----
+function probe(f) { try { return +execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString().trim() || 0; } catch { return 0; } }
+function tts(text, voice, out) {
+  if (process.env.TTS_FAKE) { ff(['-f', 'lavfi', '-i', `sine=frequency=330:duration=${Math.max(1.2, text.split(/\s+/).length / 2.6).toFixed(2)}`, '-ar', '44100', out]); return; }
+  execFileSync('edge-tts', ['--voice', voice, '--rate=+6%', '--text', text, '--write-media', out], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60000 });
+}
+function narrate(job, tmp) {
+  const voice = job.voice_name || 'he-IL-HilaNeural'; let ok = 0, want = 0;
+  job.script.scenes.forEach((sc, i) => {
+    const text = String(sc.vo || '').replace(/[\u{1F000}-\u{1FFFF}\u2600-\u27BF]/gu, '').trim(); if (!text) return;
+    want++;
+    const f = path.join(tmp, `vo${i}.mp3`);
+    for (let a = 0; a < 2 && !sc._vo; a++) { try { tts(text, voice, f); const d = probe(f); if (d > 0.3) { sc._vo = f; sc.dur = Math.min(14, Math.max(+sc.dur || 3, d + 0.55)); ok++; } } catch (e) { console.error('tts', i, String(e.message || e).slice(0, 120)); } }
+  });
+  return { ok, want };
+}
+function audioTrack(job, tmp) {
+  const parts = job.script.scenes.map((sc, i) => {
+    const o = path.join(tmp, `a${i}.wav`), d = (Math.round(sc.dur * FPS) / FPS).toFixed(3);
+    if (sc._vo) ff(['-i', sc._vo, '-af', 'adelay=250|250,apad', '-t', d, '-ar', '44100', '-ac', '2', o]);
+    else ff(['-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-t', d, o]);
+    return o;
+  });
+  const list = path.join(tmp, 'alist.txt'); fs.writeFileSync(list, parts.map(s => `file '${s}'`).join('\n'));
+  const out = path.join(tmp, 'voice.wav'); ff(['-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', out]); return out;
+}
+
 const ENC = ['-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(FPS)];
 
 async function render(page, job) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'v-'));
+  let warn = '';
+  if (job.voice) { const r = narrate(job, tmp); if (r.want && !r.ok) warn = 'הקריינות לא נוצרה הפעם — הסרטון יצא בלי קול. אפשר ללחוץ "רינדור מחדש".'; else if (r.ok < r.want) warn = `קריינות חלקית: ${r.ok} מתוך ${r.want} סצנות.`; }
   const info = await page.evaluate(j => window.__init(j), job);
   await page.evaluate(() => window.__fonts());
   // warm every scene once so lazily-loaded glyphs (emoji, weights) are ready before frames are captured
@@ -49,10 +78,11 @@ async function render(page, job) {
   }
   const list = path.join(tmp, 'list.txt'); fs.writeFileSync(list, segs.map(s => `file '${s}'`).join('\n'));
   const out = path.join(tmp, 'out.mp4'), cover = path.join(tmp, 'cover.jpg');
-  ff(['-f', 'concat', '-safe', '0', '-i', list, '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', out]);
+  if (job.script.scenes.some(s => s._vo)) ff(['-f', 'concat', '-safe', '0', '-i', list, '-i', audioTrack(job, tmp), '-map', '0:v', '-map', '1:a', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out]);
+  else ff(['-f', 'concat', '-safe', '0', '-i', list, '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo', '-shortest', ...ENC, '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', out]);
   await page.evaluate(() => window.__seek(0, 1.8, false));
   fs.writeFileSync(cover, await page.screenshot({ type: 'jpeg', quality: 90 }));
-  return { out, cover };
+  return { out, cover, warn };
 }
 
 async function put(url, file, type) {
@@ -86,11 +116,11 @@ while (Date.now() < RUN_UNTIL) {
       await page.setViewport({ width: W, height: H, deviceScaleFactor: 1 });
       console.log('done carousel', job.id); continue;
     }
-    const { out, cover } = await render(page, job);
+    const { out, cover, warn } = await render(page, job);
     const up = await api({ mode: 'render_upload', id: job.id, version: job.version });
     await put(up.video, out, 'video/mp4'); await put(up.cover, cover, 'image/jpeg');
-    await api({ mode: 'render_done', id: job.id, version: job.version });
-    console.log('done', job.id);
+    await api({ mode: 'render_done', id: job.id, version: job.version, warn });
+    console.log('done', job.id, warn);
   } catch (e) { console.error(e); await api({ mode: 'render_fail', id: job.id, error: String(e.message || e) }).catch(() => {}); }
 }
 await browser.close();
