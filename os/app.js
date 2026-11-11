@@ -520,3 +520,64 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     <div style="margin-top:4px">${e.length?e.map(n).join(""):'<span class="small muted">אין קבצים מצורפים</span>'}${i>18*1048576?'<div class="small" style="color:#fca5a5">גדול מדי לשליחה במייל (מעל 18MB)</div>':""}</div>
     <div class="row wrap" style="gap:6px;margin-top:8px"><input data-attq="${a}" value="${l(Ht[a+"q"]!=null?Ht[a+"q"]:qe(t))}" placeholder="מה לחפש במייל (שם קובץ, ספק, נושא)" style="flex:1;min-width:160px"><button class="btn ghost sm" data-attfind="${a}">🔎 לחפש במייל</button>
     <label class="btn ghost sm" style="cursor:pointer">⬆️ מהמחשב<input type="file" multiple data-attup="${a}" style="display:none"></label></div>${o}</div>`}function Ft(t){const a=v.actions.find(i=>i.id===t);if(!a)return;const e=document.querySelector(`[data-attq="${t}"]`),s=e&&e.closest('div[style*="dashed"]');s&&(s.outerHTML=Ce(a))}async function Ia(t){const a=v.actions.find(i=>i.id===t);if(!a)return;const e=document.querySelector(`[data-attq="${t}"]`),s=e?e.value.trim():qe(a);Ht[t+"q"]=s,jt[t]="loading",Ft(t);try{const i=await Bt({mode:"find_attachments",q:s,thread:(a.payload||{}).reply_to_thread||""});jt[t]=i.items||[]}catch(i){jt[t]="החיפוש נכשל: "+(i.message||i)}Ft(t)}document.addEventListener("toggle",t=>{const a=t.target;if(!(a instanceof HTMLDetailsElement)||!a.open)return;const e=a.querySelector("[data-attopen]");if(!e)return;const s=e.dataset.attopen,i=v.actions.find(n=>n.id===s);i&&!Ht[s]&&!jt[s]&&je(i)&&(Ht[s]=1,Ia(s))},!0),document.addEventListener("click",async t=>{const a=t.target.closest("[data-attrm]");if(a){t.preventDefault();const i=a.dataset.attrm;return et[i].splice(+a.dataset.i,1),Ft(i)}const e=t.target.closest("[data-attadd]");if(e){const i=e.dataset.attadd,n=(jt[i]||[])[+e.dataset.i];n&&(et[i].push(n),Ft(i));return}const s=t.target.closest("[data-attfind]");if(s)return Ia(s.dataset.attfind)}),document.addEventListener("keydown",t=>{const a=t.target.closest&&t.target.closest("[data-attq]");a&&t.key==="Enter"&&(t.preventDefault(),Ia(a.dataset.attq))}),document.addEventListener("change",async t=>{const a=t.target.closest&&t.target.closest("[data-attup]");if(!a)return;const e=a.dataset.attup;for(const s of a.files){if(s.size>18*1048576){f("הקובץ גדול מדי: "+s.name);continue}const i=(s.name.match(/\.([A-Za-z0-9]{1,6})$/)||[,"bin"])[1].toLowerCase(),n=`att/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${i}`;f("מעלה "+s.name+"…");const o=await y.storage.from("os-files").upload(n,s,{contentType:s.type||"application/octet-stream",upsert:!1});if(o.error){f("ההעלאה נכשלה: "+o.error.message);continue}et[e].push({source:"upload",path:n,filename:s.name,mimeType:s.type||"application/octet-stream",size:s.size})}Ft(e),f('הקבצים צורפו — לחצי "לשמור שינויים" או "לאשר ולשלוח"')});let H=null;function ia(){H&&H.box&&H.box.remove(),H=null}function qs(t){if(t=t.trim().toLowerCase(),t.length<1)return[];const a=new Set,e=[],s=[...ae,...(v.contacts||[]).map(n=>({name:n.name||n.title||"",email:String(n.email||"").toLowerCase(),n:0})).filter(n=>n.email)],i=n=>{const o=n.email,c=(n.name||"").toLowerCase();return o.startsWith(t)?3:c.split(/\s+/).some(r=>r.startsWith(t))||c.startsWith(t)?2:o.split(/[@.]/).some(r=>r.startsWith(t))?1.5:o.includes(t)||c.includes(t)?1:0};for(const n of s){if(!n.email||a.has(n.email))continue;const o=i(n);o&&(a.add(n.email),e.push([o,n]))}return e.sort((n,o)=>o[0]-n[0]||(o[1].n||0)-(n[1].n||0)).slice(0,8).map(n=>n[1])}function js(t){const a=t.value,e=Math.max(a.lastIndexOf(","),a.lastIndexOf(";")),s=a.slice(e+1),i=qs(s);if(ia(),!i.length)return;const n=document.createElement("div");n.style.cssText="position:absolute;top:100%;left:0;right:0;z-index:50;background:#151826;border:1px solid rgba(196,181,253,.4);border-radius:10px;margin-top:2px;max-height:260px;overflow:auto;box-shadow:0 8px 24px rgba(0,0,0,.5);direction:ltr;text-align:left",n.innerHTML=i.map((o,c)=>`<div data-aci="${c}" style="padding:7px 10px;cursor:pointer;${c===0?"background:rgba(196,181,253,.15)":""}"><b style="font-size:13px">${l(o.name||o.email)}</b>${o.name?` <span class="small muted">${l(o.email)}</span>`:""}</div>`).join(""),t.parentElement.appendChild(n),H={inp:t,box:n,list:i,sel:0,cut:e},n.addEventListener("mousedown",o=>{const c=o.target.closest("[data-aci]");c&&(o.preventDefault(),Ee(+c.dataset.aci))})}function Ee(t){if(!H)return;const{inp:a,list:e,cut:s}=H,i=e[t];if(!i)return;const n=s>=0?a.value.slice(0,s+1).replace(/\s*$/," "):"";a.value=(n+i.email+", ").replace(/^\s+/,""),ia(),a.focus()}function Le(){H&&[...H.box.children].forEach((t,a)=>t.style.background=a===H.sel?"rgba(196,181,253,.15)":"")}document.addEventListener("input",t=>{const a=t.target;a.matches&&a.matches("input[data-ac]")&&js(a)}),document.addEventListener("keydown",t=>{!H||t.target!==H.inp||(t.key==="ArrowDown"?(t.preventDefault(),H.sel=Math.min(H.list.length-1,H.sel+1),Le()):t.key==="ArrowUp"?(t.preventDefault(),H.sel=Math.max(0,H.sel-1),Le()):t.key==="Enter"||t.key==="Tab"?(t.preventDefault(),Ee(H.sel)):t.key==="Escape"&&ia())}),document.addEventListener("focusout",t=>{H&&t.target===H.inp&&setTimeout(ia,150)}),rt(),document.addEventListener("input",t=>{const a=t.target;a&&a.closest&&a.closest("#view")&&!["cFilter","txS","bq"].includes(a.id)&&(window.__editing=1)},!0),document.addEventListener("click",t=>{t.target.closest&&t.target.closest("button,[data-go],[data-agtab]")&&(window.__editing=0)},!0),document.addEventListener("keydown",t=>{t.key==="Enter"&&t.target.tagName==="INPUT"&&(window.__editing=0)},!0);
+;(()=>{
+  // ---------- "היום": one screen with everything that waits for a decision ----------
+  const oldHome=k.home, oldZ=z.home;
+  const tile=(n,label,go,ic)=>`<div class="card" data-go="${go}" style="cursor:pointer;${n?"border-color:rgba(167,139,250,.55)":"opacity:.6"}"><div class="muted small">${ic} ${label}</div><div class="big">${n||"✓"}</div></div>`;
+  const todayBlock=()=>{
+    const b=V(), pend=v.actions.filter(e=>e.status==="pending"), vids=U.filter(e=>e.status==="review"), working=U.filter(e=>["scripting","revising","waiting_clips","queued","rendering"].includes(e.status)).length,
+      newLeads=v.leads.filter(e=>e.stage==="new"), due=v.tasks.filter(e=>e.status==="open"&&e.due&&e.due<=b).sort((x,y)=>(x.due||"").localeCompare(y.due||"")),
+      pa=v.agent_reports.filter(e=>e.agent==="pa").sort((x,y)=>y.createdAt-x.createdAt)[0], focus=pa&&pa.data&&pa.data.focus||[],
+      total=pend.length+vids.length+newLeads.length+due.length;
+    return `<div class="card" style="margin-bottom:14px;border-top:3px solid var(--purple)">
+      <div class="big" style="font-size:20px">${total?`${total} דברים מחכים לך`:"הכל סגור. אין מה שמחכה לך ✓"}</div>
+      <div class="grid g4" style="margin-top:12px">${tile(pend.length,"לאישור","approvals","✋")}${tile(vids.length,"סרטונים לאישור","mkt-factory","🎬")}${tile(newLeads.length,"לידים חדשים","leads","🧲")}${tile(due.length,"משימות להיום","tasks","✅")}</div>
+      <label style="margin-top:14px">להכניס משהו למערכת</label>
+      <div style="display:flex;gap:8px;align-items:flex-start"><textarea id="capT" style="min-height:54px" placeholder="כותבים חופשי: ״להתקשר לדנה מחר על ההצעה״ · ״ליד חדש: יוסי כהן, רוצה אוטומציה לקליניקה, 050…״ · ״סרטון על סוכני AI לעורכי דין״"></textarea><button class="btn" id="capGo" style="white-space:nowrap">להכניס</button></div>
+      <div class="small muted" id="capMsg" style="margin-top:6px">המערכת מבינה לבד אם זו משימה, ליד, פתק או בקשה לסרטון, ושמה את זה במקום.</div>
+    </div>
+    ${focus.length?`<div class="card" style="margin-bottom:14px"><h3>🎯 במה להתמקד היום</h3>${focus.slice(0,3).map((x,i)=>`<div class="kv"><span><b style="color:var(--purple)">${i+1}</b>&nbsp; ${l(typeof x=="string"?x:x.title||x.text||"")}</span></div>`).join("")}</div>`:""}
+    ${pend.length?`<div class="card" style="margin-bottom:14px"><h3>✋ מחכה לאישור שלך<span class="r">${pend.length}</span></h3>${pend.slice(0,3).map(e=>se(e,!0)).join("")}${pend.length>3?`<button class="btn ghost sm" data-go="approvals">עוד ${pend.length-3} ←</button>`:""}</div>`:""}
+    ${vids.length||working?`<div class="card" style="margin-bottom:14px"><h3>🎬 סרטונים<span class="r"><a href="#mkt-factory">למפעל התוכן</a></span></h3>${vids.length?`<div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px">${vids.slice(0,8).map(e=>`<div data-go="mkt-factory" style="cursor:pointer;flex:none;width:120px"><img src="${l(e.cover_url||e.video_url||"")}" style="width:120px;height:${e.format==="carousel"?150:213}px;object-fit:cover;border-radius:10px;background:#141a2b"><div class="small" style="margin-top:4px;line-height:1.3">${l((e.script&&e.script.title||e.topic||"").slice(0,48))}</div></div>`).join("")}</div>`:""}${working?`<div class="small muted" style="margin-top:6px">${working} בהכנה עכשיו</div>`:""}</div>`:""}
+    ${newLeads.length?`<div class="card" style="margin-bottom:14px"><h3>🧲 לידים חדשים<span class="r"><a href="#leads">לכל הלידים</a></span></h3>${newLeads.slice(0,5).map(e=>`<div class="kv" data-go="leads" style="cursor:pointer"><span><b>${l(e.name||"ליד")}</b> <span class="muted small">${l(e.source||"")}${e.biz?" · "+l(e.biz):""}</span></span><span class="small muted">${l(String(e.notes||"").split("\n")[0].slice(0,60))}</span></div>`).join("")}</div>`:""}
+    ${due.length?`<div class="card" style="margin-bottom:14px"><h3>✅ משימות להיום ובאיחור<span class="r"><a href="#tasks">הכל</a></span></h3>${due.slice(0,6).map(Jt).join("")}${due.length>6?`<div class="small muted" style="margin-top:6px">ועוד ${due.length-6}</div>`:""}</div>`:""}`;
+  };
+  k.home=()=>todayBlock()+`<details><summary style="cursor:pointer;margin:6px 0 12px" class="muted">התמונה המלאה מהסוכנים (כסף, השקעות, בן-חור, מחקר)</summary>${oldHome()}</details>`;
+  const capture=async()=>{
+    const t=d("#capT").value.trim(); if(!t) return f("כתבי משהו");
+    const btn=d("#capGo"), msg=d("#capMsg"); btn.disabled=!0; msg.textContent="מסדרת…";
+    const done=(m)=>{ d("#capT").value=""; window.__editing=0; btn.disabled=!1; f(m); };
+    try{
+      const r=await xt(`את/ה מנתב/ת של מערכת ניהול אישית. המשתמשת כתבה: """${t}"""\nהיום ${V()}. סווג/י והחזר/י אובייקט אחד:\n{"kind":"task|lead|note|video","title":"כותרת קצרה","due":"YYYY-MM-DD או ריק","priority":"high או ריק","name":"שם הליד","phone":"","email":"","biz":"אישי|בן-חור|Glow House","notes":"שאר הפרטים"}\nכללים: משהו שצריך לעשות = task (אם נכתב מתי — לחשב תאריך). אדם או עסק שמתעניין בשירות/מוצר = lead. בקשה ליצור סרטון, רילס, קרוסלה או פוסט = video. כל השאר (רעיון, מידע לזכור) = note.`,{json:!0});
+      const kind=r&&r.kind;
+      if(kind==="video"){ await J({mode:"ask",text:t}); return done("נשלח למפעל התוכן. ליה מתחילה לעבוד"); }
+      if(kind==="lead"){ await P("leads",{name:r.name||r.title||t.slice(0,40),phone:r.phone||"",email:r.email||"",biz:r.biz||"אישי",source:"הכנסה מהירה",stage:"new",notes:r.notes||t}); return done("נכנס ללידים"); }
+      if(kind==="note"){ await P("notes",{title:r.title||t.slice(0,50),body:r.notes?r.title+"\n"+r.notes:t,by:"הכנסה מהירה"}); return done("נשמר כפתק"); }
+      await P("tasks",{title:r&&r.title||t.slice(0,120),due:r&&/^\d{4}-\d{2}-\d{2}$/.test(r.due||"")?r.due:"",priority:r&&r.priority==="high"?"high":"",notes:r&&r.notes||"",status:"open",source:"הכנסה מהירה"}); done("נכנס למשימות");
+    }catch(e){
+      try{ await P("tasks",{title:t.slice(0,200),status:"open",source:"הכנסה מהירה"}); done("נשמר כמשימה (לא הצלחתי לסווג)"); }catch(_){ btn.disabled=!1; f("לא נשמר, נסי שוב"); }
+    }
+  };
+  z.home=()=>{
+    oldZ&&oldZ();
+    window.__homeVids||(window.__homeVids=1,nt().then(()=>{O==="home"&&!window.__editing&&q(!1)}).catch(()=>{}));
+    const b=d("#capGo"); b&&(b.onclick=capture);
+  };
+
+  // ---------- shorter menu: what is used every day first, the rest under "עוד" ----------
+  const all={}; kt.forEach(g=>g.items.forEach(it=>all[it[0]]=it));
+  const pick=ids=>ids.map(id=>all[id]).filter(Boolean);
+  if(all.home) all.home[2]="היום";
+  const groups=[
+    {g:"היום",items:pick(["home","approvals","tasks"])},
+    {g:"העסק שלי",items:pick(["leads","mkt-factory","agent-biz"])},
+    {g:"סוכנים",items:pick(["agents","agent-pa","agent-invest","agent-benhur","jobs"])},
+    {g:"כסף",items:pick(["fin-dash","w-home","w-gil","fin-tx","fin-subs"])},
+  ];
+  const used=new Set(groups.flatMap(g=>g.items.map(i=>i[0])));
+  const settings=kt.find(g=>g.g==="הגדרות");
+  const rest=kt.filter(g=>g!==settings).flatMap(g=>g.items).filter(i=>!used.has(i[0]));
+  kt.length=0; kt.push(...groups,{g:"עוד",items:rest}); settings&&kt.push(settings);
+  kt.forEach(g=>g.items.forEach(i=>{Ga[i[0]]=[g.g,i[2]]}));
+  if(Pa("navV2")!=="1"){ Ha("closedGroups",JSON.stringify(["עוד","הגדרות"])); Ha("navV2","1"); }
+})();
