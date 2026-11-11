@@ -89,9 +89,10 @@ async function render(page, job) {
       if (libClip) clip = path.join(BROLL, libClip);
       else fs.writeFileSync(clip, Buffer.from(await (await fetch(sc.clip_url)).arrayBuffer()));
       const ov = path.join(tmp, `o${i}`); fs.mkdirSync(ov);
-      for (let f = 0; f < n; f++) { await page.evaluate((i, t) => window.__seek(i, t, true), i, f / FPS); fs.writeFileSync(path.join(ov, `${String(f).padStart(5, '0')}.png`), await page.screenshot({ type: 'png', omitBackground: true })); }
-      ff(['-stream_loop', '-1', '-ss', String((i * 1.7) % 4), '-i', clip, '-framerate', String(FPS), '-i', path.join(ov, '%05d.png'),
-        '-filter_complex', `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},eq=saturation=1.08[b];[b][1:v]overlay=0:0`, '-frames:v', String(n), '-an', ...ENC, seg]);
+      // the text layer is captured at half rate (15 fps) over the 30 fps clip: half the render time, no visible difference
+      const m = Math.ceil(n / 2); for (let f = 0; f < m; f++) { await page.evaluate((i, t) => window.__seek(i, t, true), i, (f * 2) / FPS); fs.writeFileSync(path.join(ov, `${String(f).padStart(5, '0')}.png`), await page.screenshot({ type: 'png', omitBackground: true })); }
+      ff(['-stream_loop', '-1', '-ss', String((i * 1.7) % 4), '-i', clip, '-framerate', String(FPS / 2), '-i', path.join(ov, '%05d.png'),
+        '-filter_complex', `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},eq=saturation=1.08[b];[b][1:v]overlay=0:0:eof_action=repeat`, '-frames:v', String(n), '-an', ...ENC, seg]);
     } else {
       const { p, done } = pipeFF(['-f', 'image2pipe', '-framerate', String(FPS), '-i', '-', ...ENC, seg]);
       for (let f = 0; f < n; f++) { await page.evaluate((i, t) => window.__seek(i, t, false), i, f / FPS); const buf = await page.screenshot({ type: 'jpeg', quality: 92 }); if (!p.stdin.write(buf)) await new Promise(r => p.stdin.once('drain', r)); }
