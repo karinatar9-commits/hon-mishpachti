@@ -619,6 +619,9 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   kt.forEach(g=>g.items.forEach(i=>{Ga[i[0]]=[g.g,i[2]]}));
   if(Pa("navV2")!=="1"){ Ha("closedGroups",JSON.stringify(["עוד","הגדרות"])); Ha("navV2","1"); }
   mktOld.forEach(id=>{ Ga[id]=["שיווק ותוכן",(all[id]||[])[2]||""]; });
+  const curV=(document.querySelector('script[src*="app.js"]')||{src:""}).src.match(/v=([\w]+)/);
+  const chkV=async()=>{ try{ if(!curV||document.hidden) return; const h=await (await fetch("index.html?_="+Date.now(),{cache:"no-store"})).text(); const m=h.match(/app\.js\?v=([\w]+)/); if(m&&m[1]!==curV[1]){ const a=document.activeElement, busy=(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)&&a.value)||(O==="talk"&&TK.state!=="idle")||document.querySelector(".modal.on,.modal.open"); if(!busy) location.reload(); } }catch(_){ } };
+  setInterval(chkV,5*60e3); document.addEventListener("visibilitychange",()=>{ document.hidden||chkV(); }); window.addEventListener("hashchange",()=>{ if(!chkV.t||Date.now()-chkV.t>60e3){ chkV.t=Date.now(); chkV(); } });
   // ---------- "לדבר עם המערכת": voice conversation with an animated figure ----------
   const TK={state:"idle",log:[],hands:true,rec:null,amp:0,raf:0};
   const tkSay=t=>String(t||"").replace(/\[\[[\s\S]*?\]\]/g," ").replace(/```[\s\S]*?```/g," ").replace(/\[([^\]]+)\]\([^)]+\)/g,"$1").replace(/[*_#`>|]/g," ").replace(/https?:\/\/\S+/g," ").replace(/\s+/g," ").trim();
@@ -711,7 +714,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
       const t1=performance.now(); let lastAmp=-1;
       const loop=now=>{ if(O!=="talk"||!document.body.contains(rn.domElement)){ window.removeEventListener("resize",onR); rn.dispose(); stopAll(); return; }
         const T=(now-t1)/1000, st=TK.state, k=Math.min(1,T/2.4), e=1-Math.pow(1-k,3);
-        const target=st==="speak"?.5+.5*Math.abs(Math.sin(T*9.5)*Math.sin(T*3.3)):0; TK.amp+=(target-TK.amp)*.3;
+        const lv=TK.level?TK.level():null, target=st==="speak"?(lv!==null?lv:.5+.5*Math.abs(Math.sin(T*9.5)*Math.sin(T*3.3))):0; TK.amp+=(target-TK.amp)*.3;
         if(Math.abs(TK.amp-lastAmp)>.02){ shape(TK.amp); lastAmp=TK.amp; }
         const ry=Math.sin(T*.45)*.28+(st==="think"?Math.sin(T*2.2)*.35:0), rx=(st==="listen"?.09:0)+Math.sin(T*.7)*.03+(st==="speak"?Math.sin(T*4)*.02:0);
         body.rotation.y+=(ry-body.rotation.y)*.08; body.rotation.x+=(rx-body.rotation.x)*.08; body.position.y=Math.sin(T*1.3)*.025; pts.rotation.copy(body.rotation); pts.position.copy(body.position);
@@ -729,9 +732,21 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     // ----- speaking -----
     const synth=window.speechSynthesis; let heV=null; const pickV=()=>{ const vs=synth?synth.getVoices():[]; heV=vs.find(v=>/^he|^iw/i.test(v.lang))||null; d("#tkNote")&&(d("#tkNote").textContent=synth&&!heV&&vs.length?"במכשיר הזה אין קול בעברית, אז התשובות יופיעו בכתב. באייפון ובאנדרואיד יש קול מובנה.":""); };
     if(synth){ pickV(); synth.onvoiceschanged=pickV; }
-    const speak=text=>new Promise(res=>{ if(!synth||!heV){ setTimeout(res,400); return; } synth.cancel();
+    const speakDevice=text=>new Promise(res=>{ if(!synth||!heV){ setTimeout(res,400); return; } synth.cancel();
       const parts=tkSay(text).match(/[^.!?…\n]+[.!?…]?/g)||[]; let i=0;
-      const next=()=>{ if(i>=parts.length||TK.state!=="speak"){ res(); return; } const u=new SpeechSynthesisUtterance(parts[i++].trim()); u.lang=heV.lang; u.voice=heV; u.rate=1.05; u.onend=next; u.onerror=next; synth.speak(u); }; next(); });
+      const next=()=>{ if(i>=parts.length||TK.state!=="speak"){ res(); return; } const u=new SpeechSynthesisUtterance(parts[i++].trim()); u.lang=heV.lang; u.voice=heV; u.rate=1.0; u.onend=next; u.onerror=next; synth.speak(u); }; next(); });
+    // natural voice: each sentence group is turned into audio on the server and played in order; the mouth follows the real sound
+    const au=TK.au||(TK.au=new Audio()); au.preload="auto"; let actx=null, an=null, anBuf=null;
+    const unlock=()=>{ try{ if(!actx){ const AC=window.AudioContext||window.webkitAudioContext; if(AC){ actx=new AC(); const src=TK.auSrc||(TK.auSrc=actx.createMediaElementSource(au)); an=actx.createAnalyser(); an.fftSize=256; anBuf=new Uint8Array(an.fftSize); src.connect(an); an.connect(actx.destination); } } actx&&actx.state==="suspended"&&actx.resume(); }catch(_){ } };
+    TK.level=()=>{ if(!an||au.paused) return null; an.getByteTimeDomainData(anBuf); let m=0; for(let i=0;i<anBuf.length;i++){ const v=Math.abs(anBuf[i]-128); if(v>m) m=v; } return Math.min(1,m/46); };
+    document.querySelector(".talk").addEventListener("pointerdown",unlock,{passive:true}); unlock();
+    const speak=async text=>{ const clean=tkSay(text); if(!clean) return;
+      const sents=clean.match(/[^.!?…]+[.!?…]*/g)||[clean], groups=[]; let cur=""; for(const x of sents){ if((cur+x).length>170&&cur){ groups.push(cur.trim()); cur=""; } cur+=x+" "; } cur.trim()&&groups.push(cur.trim());
+      const get=g=>y.functions.invoke("os-tts",{body:{text:g,rate:"+4%"}}).then(r=>(r.data instanceof Blob&&r.data.size>400)?URL.createObjectURL(r.data):null).catch(()=>null);
+      const urls=groups.map(get); const first=await urls[0]; if(!first||TK.novoice){ TK.novoice=!first||TK.novoice; return speakDevice(text); }
+      for(let i=0;i<urls.length;i++){ const u=await urls[i]; if(!u||TK.state!=="speak"||O!=="talk") break;
+        const ok=await new Promise(res=>{ au.onended=()=>res(true); au.onerror=()=>res(false); au.src=u; au.play().then(()=>{},()=>res(false)); });
+        URL.revokeObjectURL(u); if(!ok){ if(i===0){ d("#tkNote")&&(d("#tkNote").textContent="הדפדפן חסם השמעה אוטומטית — לחצי פעם אחת על המסך כדי לשמוע"); } break; } } };
     // ----- listening -----
     const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
     // The microphone stays open while she talks: it restarts itself if the browser cuts it, and the text is sent
@@ -744,28 +759,37 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
       r.onend=()=>{ if(TK.rec!==r||TK.state!=="listen") return; if(!heard.trim()||silT){ try{ startRec(); }catch(_){ endTurn(); } } };
       try{ r.start(); }catch(_){ } };
     const listen=()=>{ if(!SR){ f("הדפדפן הזה לא תומך בזיהוי דיבור — אפשר לכתוב"); d("#tkType").hidden=false; return; }
-      synth&&synth.cancel(); try{ TK.rec&&TK.rec.abort(); }catch(_){ } heard=""; clearTimeout(silT); silT=0; clearTimeout(maxT); maxT=setTimeout(endTurn,90000); set("listen"); startRec(); };
-    const stopAll=()=>{ cancelAnimationFrame(TK.raf); clearTimeout(silT); clearTimeout(maxT); const r0=TK.rec; TK.rec=null; try{r0&&r0.abort()}catch(_){ } synth&&synth.cancel(); TK.state="idle"; };
+      synth&&synth.cancel(); try{ au.pause(); }catch(_){ } unlock(); try{ TK.rec&&TK.rec.abort(); }catch(_){ } heard=""; clearTimeout(silT); silT=0; clearTimeout(maxT); maxT=setTimeout(endTurn,90000); set("listen"); startRec(); };
+    const stopAll=()=>{ cancelAnimationFrame(TK.raf); clearTimeout(silT); clearTimeout(maxT); try{ au.pause(); }catch(_){ } const r0=TK.rec; TK.rec=null; try{r0&&r0.abort()}catch(_){ } synth&&synth.cancel(); TK.state="idle"; };
     const showCard=c=>{ TK.card=c&&c.length>1?c:null; const el=d("#tkCard"); if(!el) return; el.classList.toggle("on",!!TK.card); d("#tkStage").classList.toggle("hascard",!!TK.card); if(TK.card) el.innerHTML=`<small>${l(TK.card[0])}</small><b>${l(TK.card[1])}</b>${TK.card.slice(2,6).map(x=>`<span>${l(x)}</span>`).join("")}<em>✕</em>`; };
     const PAN={ tasks:["משימות",()=>{ const td=V(); return (v.tasks||[]).filter(t=>t.status!=="done").sort((x,y)=>(x.due||"9").localeCompare(y.due||"9")).slice(0,7).map(t=>[t.title,t.due?(t.due<td?"באיחור":t.due===td?"היום":I(t.due)):""]); },"tasks"],
       leads:["לידים",()=>(v.leads||[]).filter(x=>!["won","lost"].includes(x.stage)).sort((x,y)=>(x.stage==="new"?0:1)-(y.stage==="new"?0:1)).slice(0,7).map(x=>[x.name||x.company||x.title||"ליד",x.stage==="new"?"חדש":(x.source||"")]),"leads"],
       approvals:["מחכה לאישור שלך",()=>(v.actions||[]).filter(a=>a.status==="pending").slice(0,7).map(a=>[a.title,a.type==="email"?"מייל":""]),"approvals"],
       videos:["סרטונים לאישור",()=>(typeof U!=="undefined"&&U?U:[]).filter(x=>x.status==="review").slice(0,7).map(x=>[(x.script&&x.script.title)||x.topic||"סרטון",""]),"mkt-factory"] };
-    const showPanel=kind=>{ const el=d("#tkPanel"), P0=PAN[kind]; if(!el) return; d("#tkStage").classList.toggle("haspanel",!!P0); el.classList.toggle("on",!!P0); if(!P0) return; const rows=P0[1]();
+    const showPanel=kind=>{ const el=d("#tkPanel"), P0=PAN[kind]; if(!el) return; el.classList.remove("chart"); d("#tkStage").classList.toggle("haspanel",!!P0); el.classList.toggle("on",!!P0); if(!P0) return; const rows=P0[1]();
       el.innerHTML=`<small>LIVE · ${l(P0[0])}</small><h4>${l(P0[0])} <b>${rows.length}</b></h4>${rows.map((r,i)=>`<div class="pr" style="animation-delay:${i*70}ms"><span>${l(String(r[0]).slice(0,64))}</span>${r[1]?`<i>${l(String(r[1]).slice(0,18))}</i>`:""}</div>`).join("")||'<div class="pr"><span>אין כרגע</span></div>'}<button class="btn ghost sm" data-go="${P0[2]}">לפתוח את המסך המלא ←</button>`; };
     const kindOf=q=>/אישור|לאשר|טיוט/.test(q)?"approvals":/ליד|לקוח/.test(q)?"leads":/סרטו|רילס|וידאו|תוכן/.test(q)?"videos":/משימ|דחוף|לעשות|היום|מחר/.test(q)?"tasks":null;
     const GO={ "לידים":"leads","משימות":"tasks","אישורים":"approvals","שיווק":"mkt-factory","תוכן":"mkt-factory","כסף":"fin-dash","דאשבורד":"fin-dash","היום":"home","הבית":"home" };
-    const ask=async q=>{ const nav=q.match(/^(?:תפתחי|תפתח|פתחי|פתח|תעברי|תעבור|לכי|לך|קחי אותי|תראי לי את המסך של)\s+(?:את\s+|ל|אל\s+)?(?:ה|מסך\s+ה?)?(לידים|משימות|אישורים|שיווק|תוכן|כסף|דאשבורד|היום|הבית)\s*$/); if(nav&&k[GO[nav[1]]]){ stopAll(); location.hash=GO[nav[1]]; return; }
-      showPanel(kindOf(q)); showCard(null); TK.log.push({r:"u",t:q}); paint(); set("think");
-      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית עם קרין דרך מסך הדיבור של המערכת. הטקסט שלה הוא תמלול של דיבור — ייתכנו מילים שגויות, משפטים קטועים או כמה בקשות ברצף: הביני את הכוונה מההקשר ומהשיחה הקודמת, וטפלי בכל הבקשות. אם באמת אי אפשר להבין — שאלי שאלה קצרה אחת. לפני שאת עונה בדקי בנתונים האמיתיים (משימות, לידים, אישורים, מיילים, כספים, דוחות) ואל תנחשי. אם היא מבקשת לעשות משהו שבסמכותך (להוסיף או לעדכן משימה, להכין טיוטת מייל לאישור, לרשום ליד או הערה) — בצעי מיד ואמרי במשפט מה עשית. עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם ביקשו נתון, מספר או סטטוס — הוסיפי בסוף שורה אחת בדיוק בפורמט (תוצג על המסך ולא תיקרא): [[כרטיס: כותרת קצרה | הערך הראשי (מספר או 2-3 מילים) | שורת פירוט | שורת פירוט | שורת פירוט]], עד 4 שורות פירוט של עד 8 מילים. אם כדאי להציג לה רשימה חיה על המסך הוסיפי גם [[הצג: משימות]] או [[הצג: לידים]] או [[הצג: אישורים]] או [[הצג: סרטונים]].]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
-      if(O!=="talk") return; const pmx=reply.match(/\[\[\s*הצג\s*:\s*(משימות|לידים|אישורים|סרטונים)\s*\]\]/); pmx&&showPanel({"משימות":"tasks","לידים":"leads","אישורים":"approvals","סרטונים":"videos"}[pmx[1]]); const cm=reply.match(/\[\[\s*כרטיס\s*:\s*([\s\S]*?)\]\]/); showCard(cm?cm[1].split("|").map(x=>x.trim()).filter(Boolean):null); TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
-      if(O!=="talk"||TK.state!=="speak") return; TK.hands&&SR&&heV?listen():set("idle"); };
+    const showChart=c=>{ const el=d("#tkPanel"); if(!el) return; if(!c||c.length<3){ el.classList.contains("chart")&&(el.classList.remove("on","chart"),d("#tkStage").classList.remove("haspanel")); return; }
+      const rows=c.slice(1,8).map(x=>{ const m=x.match(/^(.*?)\s*[=:]\s*(-?[\d.,]+)/); return m?[m[1].trim(),parseFloat(m[2].replace(/,/g,""))]:null; }).filter(r=>r&&isFinite(r[1])); if(rows.length<2) return;
+      const max=Math.max(...rows.map(r=>Math.abs(r[1])),1), unit=/₪/.test(c[0])?"₪":/%/.test(c[0])?"%":"";
+      d("#tkStage").classList.add("haspanel"); el.classList.add("on","chart");
+      el.innerHTML=`<small>LIVE · CHART</small><h4>${l(c[0])}</h4>${rows.map((r,i)=>`<div class="cb" style="animation-delay:${i*120}ms"><span>${l(r[0].slice(0,26))}</span><div class="cbt"><i data-w="${(Math.abs(r[1])/max*100).toFixed(1)}"></i></div><b data-v="${r[1]}">0</b></div>`).join("")}`;
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{ el.querySelectorAll(".cbt i").forEach((b,i)=>{ b.style.transitionDelay=i*120+"ms"; b.style.width=b.dataset.w+"%"; });
+        const t0=performance.now(); const tick=now=>{ const kx=Math.min(1,(now-t0)/1400), e=1-Math.pow(1-kx,3); el.querySelectorAll(".cb b").forEach(b=>{ const v=+b.dataset.v*e; b.textContent=(unit==="₪"?"₪":"")+Math.round(v).toLocaleString("en-US")+(unit==="%"?"%":""); }); kx<1&&el.classList.contains("chart")&&requestAnimationFrame(tick); }; requestAnimationFrame(tick); })); };
+    const ask=async (q,opt={})=>{ const nav=q.match(/^(?:תפתחי|תפתח|פתחי|פתח|תעברי|תעבור|לכי|לך|קחי אותי|תראי לי את המסך של)\s+(?:את\s+|ל|אל\s+)?(?:ה|מסך\s+ה?)?(לידים|משימות|אישורים|שיווק|תוכן|כסף|דאשבורד|היום|הבית)\s*$/); if(nav&&k[GO[nav[1]]]){ stopAll(); location.hash=GO[nav[1]]; return; }
+      showPanel(opt.brief?"tasks":kindOf(q)); showCard(null); showChart(null); opt.brief||TK.log.push({r:"u",t:q}); paint(); set("think"); opt.brief&&(stEl.textContent="מכינה לך בריף…");
+      let reply=""; try{ const r=await Et({mode:"chat",agent:"pa",message:"[שיחה קולית עם קרין דרך מסך הדיבור של המערכת. הטקסט שלה הוא תמלול של דיבור — ייתכנו מילים שגויות, משפטים קטועים או כמה בקשות ברצף: הביני את הכוונה מההקשר ומהשיחה הקודמת, וטפלי בכל הבקשות. אם באמת אי אפשר להבין — שאלי שאלה קצרה אחת. לפני שאת עונה בדקי בנתונים האמיתיים (משימות, לידים, אישורים, מיילים, כספים, דוחות) ואל תנחשי. אם היא מבקשת לעשות משהו שבסמכותך (להוסיף או לעדכן משימה, להכין טיוטת מייל לאישור, לרשום ליד או הערה) — בצעי מיד ואמרי במשפט מה עשית. עני כמו בשיחה: 2 עד 4 משפטים קצרים בעברית מדוברת, קודם השורה התחתונה, מספרים עגולים, בלי רשימות, טבלאות, כוכביות או קישורים. אם ביקשו נתון, מספר או סטטוס — הוסיפי בסוף שורה אחת בדיוק בפורמט (תוצג על המסך ולא תיקרא): [[כרטיס: כותרת קצרה | הערך הראשי (מספר או 2-3 מילים) | שורת פירוט | שורת פירוט | שורת פירוט]], עד 4 שורות פירוט של עד 8 מילים. אם ביקשו פירוט של סכומים או כמויות לפי קטגוריות, חודשים או השוואה (למשל הוצאות החודש לפי סוג) — הוסיפי גם גרף שיונפש על המסך: [[גרף: כותרת | תווית=מספר | תווית=מספר | תווית=מספר]] עם 3 עד 7 ערכים, מספרים בלבד בלי פסיקים ובלי סימן מטבע, ואת היחידה (₪ או %) בסוף הכותרת. אם כדאי להציג לה רשימה חיה על המסך הוסיפי גם [[הצג: משימות]] או [[הצג: לידים]] או [[הצג: אישורים]] או [[הצג: סרטונים]].]\n"+q}); reply=r.reply||"בוצע."; }catch(e){ reply=X(e); }
+      if(O!=="talk") return; const pmx=reply.match(/\[\[\s*הצג\s*:\s*(משימות|לידים|אישורים|סרטונים)\s*\]\]/); pmx&&showPanel({"משימות":"tasks","לידים":"leads","אישורים":"approvals","סרטונים":"videos"}[pmx[1]]); const gm=reply.match(/\[\[\s*גרף\s*:\s*([\s\S]*?)\]\]/); gm&&showChart(gm[1].split("|").map(x=>x.trim()).filter(Boolean)); const cm=reply.match(/\[\[\s*כרטיס\s*:\s*([\s\S]*?)\]\]/); showCard(cm?cm[1].split("|").map(x=>x.trim()).filter(Boolean):null); TK.log.push({r:"a",t:tkSay(reply)}); paint(); set("speak"); await speak(reply);
+      if(O!=="talk"||TK.state!=="speak") return; TK.hands&&SR&&!opt.brief?listen():set("idle"); };
     d("#tkMic").onclick=()=>{ TK.state==="listen"?endTurn():listen(); }; d("#tkKb").onclick=()=>{ const t=d("#tkType"); t.hidden=!t.hidden; t.hidden||d("#tkIn").focus(); };
-    d("#tkStop").onclick=()=>{ clearTimeout(silT); clearTimeout(maxT); heard=""; const r0=TK.rec; TK.rec=null; try{r0&&r0.abort()}catch(_){ } synth&&synth.cancel(); set("idle"); };
+    d("#tkStop").onclick=()=>{ try{ au.pause(); }catch(_){ } clearTimeout(silT); clearTimeout(maxT); heard=""; const r0=TK.rec; TK.rec=null; try{r0&&r0.abort()}catch(_){ } synth&&synth.cancel(); set("idle"); };
     const send=()=>{ const v=d("#tkIn").value.trim(); if(!v||TK.state==="think") return; d("#tkIn").value=""; synth&&synth.cancel(); ask(v); };
     d("#tkSend").onclick=send; d("#tkIn").onkeydown=e=>{ e.key==="Enter"&&send(); };
     d("#tkHands").onchange=e=>{ TK.hands=e.target.checked; }; d("#tkCard").onclick=()=>showCard(null); TK.card=null;
     set("idle"); paint();
+    // every time she opens the screen she gets a short spoken brief (not more than once every 20 minutes)
+    if(!TK.briefAt||Date.now()-TK.briefAt>20*60e3){ TK.briefAt=Date.now(); setTimeout(()=>{ O==="talk"&&TK.state==="idle"&&ask("תני לי בריף פתיחה קצר: ברכה לפי השעה עכשיו, עד שלושה דברים שהכי דחופים לי היום, מה מחכה לאישור שלי, אם יש לידים חדשים, ודבר אחד חשוב מהדוחות האחרונים של הסוכנים. עד חמישה משפטים. הוסיפי כרטיס עם מספר הדברים שדורשים אותי היום, ו-[[הצג: משימות]].",{brief:true}); },3200); }
   };
   // ---------- one marketing screen: create, approve, every connection and its setup ----------
   const facV=k["mkt-factory"], facH=z["mkt-factory"], cfgV=k["mkt-config"], cfgH=z["mkt-config"];
