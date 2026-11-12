@@ -93,6 +93,19 @@ Deno.serve(async (req) => {
     const voice = /^he-IL-(Hila|Avri)Neural$/.test(body.voice || "") ? body.voice : "he-IL-HilaNeural";
     const rate = /^[+-]\d{1,2}%$/.test(body.rate || "") ? body.rate : "+0%";
     let audio: Uint8Array | null = null; const errs: string[] = [];
+    // Karin's own cloned voice (ElevenLabs) comes first whenever the key and her voice id are set; the neural voice is the fallback
+    const EL = Deno.env.get("ELEVEN_KEY") || "";
+    if (EL && !body.generic) {
+      try {
+        const { data: st } = await db.from("os_settings").select("value").eq("key", "main").maybeSingle(); const m: any = st?.value || {};
+        if (m.voiceId) {
+          const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(m.voiceId)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL, "content-type": "application/json" },
+            body: JSON.stringify({ text, model_id: m.voiceModel || "eleven_v3", language_code: "he" }) });
+          if (r.ok) { const u = new Uint8Array(await r.arrayBuffer()); if (u.length > 400) audio = u; else errs.push("clone: empty"); } else errs.push("clone: " + r.status + " " + (await r.text()).slice(0, 160));
+        }
+      } catch (e) { errs.push("clone: " + String((e as Error).message || e)); }
+      if (audio) { if (body.probe) return json({ ok: true, bytes: audio.length, voice: "clone" }); return new Response(audio, { headers: { ...CORS, "Content-Type": "audio/mpeg", "Cache-Control": "no-store", "x-voice": "clone" } }); }
+    }
     for (let i = 0; i < 2 && !audio; i++) { try { const a = await synth(text, voice, rate); if (a.length > 400) audio = a; else errs.push("empty"); } catch (e) { errs.push(String((e as Error).message || e)); } }
     if (!audio) return json({ error: "tts_failed", detail: errs }, 502);
     if (body.probe) return json({ ok: true, bytes: audio.length, head: [...audio.subarray(0, 4)], tried: errs });
