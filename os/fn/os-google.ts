@@ -361,6 +361,36 @@ Deno.serve(async (req) => {
         return json({ items });
       } catch (e) { return json({ error: String((e as Error).message || e) }, 500); }
     }
+    // Karin's own session only: put an event straight into her calendar (no attendees, so nothing is sent to anyone),
+    // and take back an event that was added this way.
+    if (body.mode === "calendar_add" || body.mode === "calendar_del") {
+      if (cron) return json({ error: "forbidden" }, 403);
+      try {
+        const base = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+        if (body.mode === "calendar_del") {
+          const id = String(body.id || "").replace(/[^A-Za-z0-9_-]/g, ""); if (!id) return json({ error: "no id" }, 400);
+          const ev: any = await gapi(`${base}/${id}`);
+          if (ev?.extendedProperties?.private?.karin_os !== "1") return json({ error: "האירוע הזה לא נוצר מהמערכת, אז לא מוחקים אותו מכאן" }, 400);
+          await gapi(`${base}/${id}`, { method: "DELETE" });
+          return json({ ok: true });
+        }
+        const title = String(body.title || "").trim().slice(0, 200); const st = String(body.start || "").trim(), en = String(body.end || "").trim();
+        if (!title) return json({ error: "חסרה כותרת" }, 400);
+        const isDT = (x: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(x), isD = (x: string) => /^\d{4}-\d{2}-\d{2}$/.test(x);
+        const sec = (x: string) => x.length === 16 ? x + ":00" : x;
+        let start: any, end: any;
+        if (isDT(st)) {
+          let e = isDT(en) && en > st ? en : "";
+          if (!e) { const d = new Date(sec(st) + "Z"); d.setUTCHours(d.getUTCHours() + 1); e = d.toISOString().slice(0, 19); }
+          start = { dateTime: sec(st), timeZone: "Asia/Jerusalem" }; end = { dateTime: sec(e), timeZone: "Asia/Jerusalem" };
+        } else if (isD(st)) {
+          const d = new Date((isD(en) && en > st ? en : st) + "T00:00:00Z"); if (!(isD(en) && en > st)) d.setUTCDate(d.getUTCDate() + 1);
+          start = { date: st }; end = { date: d.toISOString().slice(0, 10) };
+        } else return json({ error: "תאריך או שעה לא תקינים" }, 400);
+        const ev: any = await gapi(`${base}?sendUpdates=none`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ summary: title, location: String(body.where || "").slice(0, 200), description: String(body.description || "").slice(0, 2000), start, end, extendedProperties: { private: { karin_os: "1" } } }) });
+        return json({ ok: true, id: ev.id, link: ev.htmlLink, start: ev.start?.dateTime || ev.start?.date, end: ev.end?.dateTime || ev.end?.date });
+      } catch (e) { return json({ error: String((e as Error).message || e) }, 500); }
+    }
     if (body.mode === "find_attachments") { try { return json({ items: await findAttachments(String(body.q || "").slice(0, 200), String(body.thread || "")) }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
     if (body.mode === "mail_search") { try { return json({ items: await mailSearch(String(body.q || "").slice(0, 300), +body.n || 10) }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
     if (body.mode === "mail_read") { try { return json(await mailRead(String(body.id || ""))); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
