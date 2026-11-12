@@ -104,12 +104,12 @@ Deno.serve(async (req) => {
           if (r.ok) { const u = new Uint8Array(await r.arrayBuffer()); if (u.length > 400) audio = u; else errs.push("clone: empty"); } else errs.push("clone: " + r.status + " " + (await r.text()).slice(0, 160));
         }
       } catch (e) { errs.push("clone: " + String((e as Error).message || e)); }
-      if (audio) { if (body.probe) return json({ ok: true, bytes: audio.length, voice: "clone" }); return new Response(audio, { headers: { ...CORS, "Content-Type": "audio/mpeg", "Cache-Control": "no-store", "x-voice": "clone" } }); }
+      if (audio) { if (body.probe) return json({ ok: true, bytes: audio.length, voice: "clone" }); return new Response(audio, { headers: { ...CORS, "Content-Type": "application/octet-stream", "Cache-Control": "no-store", "x-voice": "clone" } }); }
     }
     for (let i = 0; i < 2 && !audio; i++) { try { const a = await synth(text, voice, rate); if (a.length > 400) audio = a; else errs.push("empty"); } catch (e) { errs.push(String((e as Error).message || e)); } }
     if (!audio) return json({ error: "tts_failed", detail: errs }, 502);
     if (body.probe) return json({ ok: true, bytes: audio.length, head: [...audio.subarray(0, 4)], tried: errs });
-    return new Response(audio, { headers: { ...CORS, "Content-Type": "audio/mpeg", "Cache-Control": "no-store" } });
+    return new Response(audio, { headers: { ...CORS, "Content-Type": "application/octet-stream", "Cache-Control": "no-store" } });
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
   }

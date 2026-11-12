@@ -742,8 +742,8 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     document.querySelector(".talk").addEventListener("pointerdown",unlock,{passive:true}); unlock();
     const speak=async text=>{ const clean=tkSay(text); if(!clean) return;
       const sents=clean.match(/[^.!?…]+[.!?…]*/g)||[clean], groups=[]; let cur=""; for(const x of sents){ if((cur+x).length>170&&cur){ groups.push(cur.trim()); cur=""; } cur+=x+" "; } cur.trim()&&groups.push(cur.trim());
-      const get=g=>y.functions.invoke("os-tts",{body:{text:g,rate:"+4%"}}).then(r=>(r.data instanceof Blob&&r.data.size>400)?URL.createObjectURL(r.data):null).catch(()=>null);
-      const urls=groups.map(get); const first=await urls[0]; if(!first||TK.novoice){ TK.novoice=!first||TK.novoice; return speakDevice(text); }
+      const get=g=>y.functions.invoke("os-tts",{body:{text:g,rate:"+4%"}}).then(r=>(r.data instanceof Blob&&r.data.size>400)?URL.createObjectURL(new Blob([r.data],{type:"audio/mpeg"})):null).catch(()=>null);
+      const urls=groups.map(get); let first=await urls[0]; if(!first){ first=await get(groups[0]); urls[0]=Promise.resolve(first); } if(!first){ d("#tkNote")&&(d("#tkNote").textContent="הקול הטבעי לא זמין כרגע, אז אני מדברת בקול של המכשיר"); return speakDevice(text); }
       for(let i=0;i<urls.length;i++){ const u=await urls[i]; if(!u||TK.state!=="speak"||O!=="talk") break;
         const ok=await new Promise(res=>{ au.onended=()=>res(true); au.onerror=()=>res(false); au.src=u; au.play().then(()=>{},()=>res(false)); });
         URL.revokeObjectURL(u); if(!ok){ if(i===0){ d("#tkNote")&&(d("#tkNote").textContent="הדפדפן חסם השמעה אוטומטית — לחצי פעם אחת על המסך כדי לשמוע"); } break; } } };
