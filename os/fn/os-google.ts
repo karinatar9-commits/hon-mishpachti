@@ -6,6 +6,7 @@
 //   POST {mode:'digest'}          (Karin JWT or x-cron-key) → morning mail + calendar summary by Naama
 //   POST {mode:'send'}            (Karin JWT or x-cron-key) → carry out approved os_actions (email/calendar)
 //   POST {mode:'mail_search'|'mail_read'} (Karin JWT or x-cron-key) → read-only mail lookup for agents
+//   POST {mode:'calendar', days}   (Karin JWT or x-cron-key) → read-only list of the coming days' events
 //   POST {mode:'disconnect'}      (Karin JWT)
 // Reading is read-only. Sending happens only for rows Karin approved in the app.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -348,6 +349,17 @@ Deno.serve(async (req) => {
       // @ts-ignore EdgeRuntime is provided by Supabase
       EdgeRuntime.waitUntil(job);
       return json({ started: true });
+    }
+    // read-only: the coming days in Karin's calendar (for the talk screen and the agents)
+    if (body.mode === "calendar") {
+      try {
+        const days = Math.min(31, Math.max(1, +body.days || 8));
+        const t0 = new Date(new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jerusalem" }) + "T00:00:00+02:00"); t0.setTime(t0.getTime() - 3600e3);
+        const t1 = new Date(t0.getTime() + days * 86400e3);
+        const c: any = await gapi(`https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${t0.toISOString()}&timeMax=${t1.toISOString()}&maxResults=80`);
+        const items = (c.items || []).filter((e: any) => e.status !== "cancelled").map((e: any) => ({ id: e.id, title: e.summary || "(ללא כותרת)", start: e.start?.dateTime || e.start?.date, end: e.end?.dateTime || e.end?.date, all_day: !e.start?.dateTime, where: e.location || "", who: (e.attendees || []).filter((a: any) => !a.self).map((a: any) => a.displayName || a.email).slice(0, 6) }));
+        return json({ items });
+      } catch (e) { return json({ error: String((e as Error).message || e) }, 500); }
     }
     if (body.mode === "find_attachments") { try { return json({ items: await findAttachments(String(body.q || "").slice(0, 200), String(body.thread || "")) }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
     if (body.mode === "mail_search") { try { return json({ items: await mailSearch(String(body.q || "").slice(0, 300), +body.n || 10) }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
