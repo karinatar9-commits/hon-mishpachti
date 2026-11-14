@@ -325,7 +325,9 @@ Deno.serve(async (req) => {
             const g = await graph(`search?type=adgeolocation&location_types=["city"]&q=${encodeURIComponent(b.city)}&country_code=IL&limit=5`, tok);
             const c = (g.data || [])[0]; if (c) { geo = { cities: [{ key: c.key, radius: b.radius || 15, distance_unit: "kilometer" }], location_types: ["home", "recent"] }; out.city = c.name; }
           }
-          const t = { ...old.targeting, age_min: b.age_min, age_max: b.age_max, genders: [2], geo_locations: geo };
+          // placements left automatic (Advantage+): the old list includes positions Meta no longer accepts
+          const t: any = { ...old.targeting, age_min: b.age_min, age_max: b.age_max, genders: [2], geo_locations: geo };
+          for (const k of ["publisher_platforms", "facebook_positions", "instagram_positions", "messenger_positions", "audience_network_positions", "whatsapp_positions", "threads_positions", "device_platforms"]) delete t[k];
           const as = await step("adset", () => post(`${act}/adsets`, { name: b.adset_name, campaign_id: camp.id, status: "PAUSED", daily_budget: b.daily_budget, targeting: t,
             optimization_goal: old.optimization_goal || "CONVERSATIONS", billing_event: old.billing_event || "IMPRESSIONS", destination_type: old.destination_type || "WHATSAPP",
             promoted_object: { page_id: b.page_id }, bid_strategy: old.bid_strategy || "LOWEST_COST_WITHOUT_CAP", attribution_spec: [{ event_type: "CLICK_THROUGH", window_days: 1 }] }));
