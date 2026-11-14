@@ -191,7 +191,9 @@ async function publishJob(id: string) {
     if (!tok) return fail("עוד לא חובר טוקן של מטא");
     if (!ig) return fail("לא נבחר חשבון אינסטגרם בהגדרות שיווק");
     let c: any;
-    if (v.format === "carousel") {
+    if (v.format === "carousel" && (v.slides || []).length === 1) {
+      c = await (await fetch(`${G}/${ig}/media`, { method: "POST", body: new URLSearchParams({ image_url: v.slides[0], caption: v.caption || "", access_token: tok }) })).json();
+    } else if (v.format === "carousel") {
       const kids: string[] = [];
       for (const u of (v.slides || []).slice(0, 10)) {
         const k = await (await fetch(`${G}/${ig}/media`, { method: "POST", body: new URLSearchParams({ image_url: u, is_carousel_item: "true", access_token: tok }) })).json();
