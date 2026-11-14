@@ -320,7 +320,8 @@ Deno.serve(async (req) => {
           // settings of the best ad set ever (read only), reused for the new one
           const old = await graph(`${b.from_adset}?fields=targeting,optimization_goal,billing_event,destination_type,promoted_object,bid_strategy`, tok);
           let geo = old.targeting?.geo_locations;
-          if (b.city) {
+          if (b.lat && b.lng) { geo = { custom_locations: [{ latitude: b.lat, longitude: b.lng, radius: b.radius || 15, distance_unit: "kilometer" }], location_types: ["home", "recent"] }; out.city = `${b.lat},${b.lng} +${b.radius || 15}km`; }
+          else if (b.city) {
             const g = await graph(`search?type=adgeolocation&location_types=["city"]&q=${encodeURIComponent(b.city)}&country_code=IL&limit=5`, tok);
             const c = (g.data || [])[0]; if (c) { geo = { cities: [{ key: c.key, radius: b.radius || 15, distance_unit: "kilometer" }], location_types: ["home", "recent"] }; out.city = c.name; }
           }
