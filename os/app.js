@@ -1018,3 +1018,34 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   // Meta Business Suite links on the Instagram screen open Rinat's real page, not the empty second page
   const oldIG=k["mkt-ig"]; if(oldIG) k["mkt-ig"]=()=>{ const h=oldIG(); if(Pa("biz")!=="glow") return h; return h.replace(/https:\/\/business\.facebook\.com\/latest\/([a-z_\/0-9]+)(\?[^"'`\s]*)?/g,(m,p)=>`https://business.facebook.com/latest/${p}?asset_id=111564514515729&business_id=313332126192796`); };
 })();
+
+// ---------- Connections screen inside Glow House: only Glow's own connections, plus Rinat's mailbox ----------
+(()=>{
+  let RS=null, RM=null, asked=!1;
+  const row=(ok,ic,t,sub,btn)=>`<div class="card" style="margin-bottom:12px"><div class="row" style="align-items:flex-start;gap:12px"><span style="font-size:26px">${ic}</span><div style="flex:1"><div class="row" style="justify-content:space-between"><b>${t}</b><span class="small"><span class="dot ${ok===!0?"ok":"warn"}"></span> ${ok===!0?"מחובר":ok==="soon"?"בקרוב":ok==="part"?"מחובר חלקית":"לא מחובר"}</span></div><div class="small muted" style="margin-top:4px;line-height:1.6">${sub}</div>${btn?`<div class="acts" style="margin-top:10px;flex-wrap:wrap">${btn}</div>`:""}</div></div></div>`;
+  const glowConn=()=>{
+    const meta=!!(M&&M.metaGlow);
+    const mail=RS&&RS.connected;
+    const mails=mail&&RM&&RM.length?`<div style="margin-top:10px">${RM.slice(0,5).map(m=>`<div class="small" style="padding:6px 0;border-top:1px solid var(--line)"><b>${l((m.from||"").replace(/<.*>/,"").trim())}</b> · ${l(m.subject||"(ללא נושא)")}</div>`).join("")}</div>`:"";
+    return `<div class="small muted" style="margin-bottom:12px">מוצגים רק החיבורים של Glow House. סיסמאות וקודים רינת או את מכניסות תמיד בעצמכן.</div>
+    ${row(mail?!0:!1,"✉️","המייל של רינת",mail?`מחובר ל-${l(RS.email||"")} · קריאה בלבד — המערכת לא שולחת ולא מוחקת כלום מהתיבה שלה.${mails}`:RS&&RS.broken?"החיבור נותק — צריך להתחבר מחדש.":"קריאה בלבד: סוכן הבוקר יראה פניות של לקוחות, הזמנות וחשבוניות שמגיעות למייל של רינת. רינת לוחצת \"לחבר\" ונכנסת בעצמה לחשבון הגוגל שלה.",
+      mail?`<button class="btn ghost sm" id="rmRef">↻ לרענן</button><button class="btn ghost sm" id="rmOff">לנתק</button>`:`<button class="btn sm" id="rmOn">✉️ לחבר את המייל של רינת</button>`)}
+    ${row(meta?!0:!1,"📢","מנהל המודעות של מטא",meta?"מחובר לחשבון המודעות של רינת קוסמטיקס ולעמוד rinat.cosmetics — הקמפיינים, העלויות והלקחים מהעבר.":"לא מחובר.",`<button class="btn ghost sm" data-go="mkt-meta">לקמפיינים</button>`)}
+    ${row(meta?"part":!1,"📸","אינסטגרם ועמוד הפייסבוק","מספר העוקבים בעמוד נקרא. נתוני הפוסטים והאינסטגרם (לייקים, צפיות, הודעות) דורשים להוסיף הרשאות לאפליקציית Glow House OS במטא — עושים את זה יחד עם רינת.",`<button class="btn ghost sm" data-go="mkt-ig">לאינסטגרם</button>`)}
+    ${row(!0,"☀️","סוכן הבוקר של Glow House","כל בוקר ב-07:15 שולף את הקמפיינים, העמוד והלידים, וכותב תמונת מצב קצרה — במרכז השיווק ובמייל שלך.",`<button class="btn ghost sm" data-go="glow-hub">לתמונת הבוקר</button>`)}
+    ${row("part","🗂️","תיקיית התמונות בדרייב","התיקייה שרינת שיתפה (תמונות השיזוף), דרך חשבון הגוגל שלך. אם היא לא נפתחת — צריך להפעיל את Drive API ב-Google Cloud ולחבר מחדש.",`<button class="btn ghost sm" data-go="glow-hub">לתיקייה</button>`)}
+    ${row("soon","🧾","מורנינג — Glow House","הטבלה השנתית, התזרים וסגירת החשבוניות יתמלאו מהמורנינג של רינת אחרי שהיא תיצור מפתח API.","")}
+    ${row(!1,"💬","הבוט בוואטסאפ","רץ בנפרד (Railway) ועדיין לא מחובר למסך הזה.","")}`;
+  };
+  const loadMail=async()=>{ try{ const r=await Bt({mode:"mail_search",acct:"glow",q:"in:inbox newer_than:7d",n:5}); RM=r.items||[]; }catch(_){ RM=[]; } O==="set-conn"&&q(!1); };
+  const load=async()=>{ try{ RS=await Bt({mode:"status",acct:"glow"}); }catch(_){ RS={connected:!1}; } if(RS.connected) await loadMail(); O==="set-conn"&&q(!1); };
+  const oldV=k["set-conn"], oldZ=z["set-conn"];
+  k["set-conn"]=()=>Pa("biz")==="glow"?glowConn():oldV();
+  z["set-conn"]=()=>{ if(Pa("biz")!=="glow") return oldZ&&oldZ();
+    if(!M) J({mode:"status"}).then(s=>{ M=s; O==="set-conn"&&q(!1); }).catch(()=>{});
+    if(!asked){ asked=!0; load(); }
+    const on=d("#rmOn"); on&&(on.onclick=async()=>{ try{ const r=await Bt({mode:"auth_url",acct:"glow"}); if(r&&r.url) location.href=r.url; else f("לא התקבל קישור"); }catch(e){ f(X(e)); } });
+    const rf=d("#rmRef"); rf&&(rf.onclick=()=>{ RM=null; loadMail(); });
+    const off=d("#rmOff"); off&&(off.onclick=async()=>{ if(!confirm("לנתק את המייל של רינת מהמערכת?")) return; await Bt({mode:"disconnect",acct:"glow"}); RS={connected:!1}; RM=null; q(!1); });
+  };
+})();
