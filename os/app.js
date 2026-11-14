@@ -907,8 +907,10 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
         <div class="small muted" style="margin-top:10px">נותח ב-${when} · ${(LS.accounts||[]).reduce((s,a)=>s+(a.campaigns||[]).length,0)} קמפיינים ב-${(LS.accounts||[]).length} חשבונות. ההצעות הן טיוטה — שום קמפיין לא עולה מכאן בלי אישור שלך.</div>`
       :LS&&(LS.accounts||[]).length&&!errs?'<div class="small muted">לא נמצאו קמפיינים קודמים בחשבונות שהטוקן רואה.</div>':'<div class="small muted">לחיצה אחת קוראת את כל הקמפיינים והמודעות שרצו אי פעם בחשבון, ומסכמת מה הביא תוצאות ומה שרף כסף.</div>'}</div>`;
   };
-  k["mkt-meta"]=()=>view()+oldV();
-  z["mkt-meta"]=()=>{ oldZ&&oldZ();
+  // a token of Glow House alone counts as connected for the campaigns table too
+  const asMeta=fn=>{ if(!M||M.meta||!M.metaGlow) return fn(); M.meta=!0; try{ return fn(); } finally { M.meta=!1; } };
+  k["mkt-meta"]=()=>view()+asMeta(oldV);
+  z["mkt-meta"]=()=>{ oldZ&&asMeta(oldZ);
     if(M&&(M.meta||M.metaGlow)&&LS===null){ LS={}; J({mode:"ads_lessons"}).then(r=>{ LS=r||{}; O==="mkt-meta"&&q(!1); }).catch(()=>{}); }
     const b=d("#adsLearn"); b&&(b.onclick=async()=>{ busy=!0; q(!1); try{ LS=await J({mode:"ads_history"}); f("הניתוח מוכן"); }catch(e){ f(X(e)); } busy=!1; O==="mkt-meta"&&q(!1); });
   };

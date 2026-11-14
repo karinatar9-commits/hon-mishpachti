@@ -374,10 +374,15 @@ Deno.serve(async (req) => {
       return json(out);
     }
     if (m === "ads") {
-      if (!META) return json({ error: "no_meta" }, 400);
-      const acc = (await graph("me/adaccounts?fields=name,account_id,currency,amount_spent,account_status&limit=10", META)).data || [];
-      for (const a of acc.slice(0, 5)) {
-        try { a.campaigns = (await graph(`act_${a.account_id}/insights?level=campaign&date_preset=last_30d&fields=campaign_name,spend,impressions,clicks,ctr,cpc,actions&limit=25`, META)).data || []; } catch (e) { a.error = String((e as Error).message); }
+      if (!META && !META_GLOW) return json({ error: "no_meta" }, 400);
+      const acc: any[] = []; const seenA = new Set<string>();
+      for (const tok of [META_GLOW, META].filter(Boolean)) {
+        const list = (await graph("me/adaccounts?fields=name,account_id,currency,amount_spent,account_status&limit=10", tok)).data || [];
+        for (const a of list.slice(0, 5)) {
+          if (seenA.has(a.account_id)) continue; seenA.add(a.account_id);
+          try { a.campaigns = (await graph(`act_${a.account_id}/insights?level=campaign&date_preset=last_30d&fields=campaign_name,spend,impressions,clicks,ctr,cpc,actions&limit=25`, tok)).data || []; } catch (e) { a.error = String((e as Error).message); }
+          acc.push(a);
+        }
       }
       return json({ accounts: acc });
     }
