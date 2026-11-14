@@ -227,6 +227,60 @@ async function graph(path: string, tok: string) {
   return j;
 }
 
+
+// ---------- Glow House morning snapshot: campaigns, page/Instagram, leads → one short Hebrew brief + email to Karin ----------
+const GLOW = { act: "act_2052225301495780", page: "111564514515729", ig: "17841406940882705" };
+async function glowDaily() {
+  const tok = META_GLOW; const s = await settings(); const out: any = { at: now(), errors: [] as string[] };
+  const safe = async (k: string, fn: () => Promise<any>) => { try { out[k] = await fn(); } catch (e) { out.errors.push(`${k}: ${String((e as Error).message).slice(0, 160)}`); } };
+  const conv = (a: any[]) => +((a || []).find((x: any) => /messaging_conversation_started/.test(x.action_type))?.value || 0);
+  const lead = (a: any[]) => +((a || []).find((x: any) => x.action_type === "lead")?.value || 0);
+  const row = (x: any) => ({ name: x.campaign_name, spend: Math.round(+x.spend || 0), reach: +x.reach || 0, impr: +x.impressions || 0, clicks: +x.clicks || 0, conv: conv(x.actions), leads: lead(x.actions) });
+  if (tok) {
+    const F = "campaign_name,spend,reach,impressions,clicks,actions";
+    await safe("yesterday", async () => ((await graph(`${GLOW.act}/insights?level=campaign&date_preset=yesterday&fields=${F}&limit=50`, tok)).data || []).map(row));
+    await safe("week", async () => ((await graph(`${GLOW.act}/insights?level=campaign&date_preset=last_7d&fields=${F}&limit=50`, tok)).data || []).map(row));
+    await safe("running", async () => ((await graph(`${GLOW.act}/ads?fields=name,effective_status,campaign{name,daily_budget},adset{name,daily_budget,targeting{age_min,age_max}}&effective_status=["ACTIVE","PENDING_REVIEW","DISAPPROVED","WITH_ISSUES","IN_PROCESS"]&limit=50`, tok)).data || [])
+      .map((a: any) => ({ ad: a.name, status: a.effective_status, campaign: a.campaign?.name, budget: Math.round((+a.adset?.daily_budget || +a.campaign?.daily_budget || 0) / 100), age: a.adset?.targeting ? `${a.adset.targeting.age_min}-${a.adset.targeting.age_max}` : "" })));
+    let ptok = "";
+    await safe("page", async () => { const p = await graph(`${GLOW.page}?fields=name,fan_count,followers_count,access_token`, tok); ptok = p.access_token || ""; return { followers: p.followers_count, fans: p.fan_count }; });
+    if (ptok) await safe("posts", async () => ((await graph(`${GLOW.page}/posts?fields=message,created_time,reactions.summary(true).limit(0),comments.summary(true).limit(0),shares&limit=5`, ptok)).data || [])
+      .map((x: any) => ({ t: String(x.message || "").slice(0, 60), at: x.created_time?.slice(0, 10), likes: x.reactions?.summary?.total_count || 0, comments: x.comments?.summary?.total_count || 0, shares: x.shares?.count || 0 })));
+    await safe("ig", async () => { const g = await graph(`${GLOW.ig}?fields=username,followers_count,media_count,media.limit(6){caption,timestamp,like_count,comments_count,media_product_type}`, tok);
+      return { followers: g.followers_count, posts: g.media_count, recent: (g.media?.data || []).map((m: any) => ({ t: String(m.caption || "").slice(0, 60), at: m.timestamp?.slice(0, 10), likes: m.like_count, comments: m.comments_count, type: m.media_product_type })) }; });
+  } else out.errors.push("meta: אין חיבור");
+  // leads in the system (Glow House)
+  const since = new Date(Date.now() - 86400000).toISOString();
+  const { data: L } = await db.from("os_items").select("data,created_at").eq("kind", "leads");
+  const gl = (L || []).filter((x: any) => x.data?.biz === "Glow House");
+  out.leads = { new24: gl.filter((x: any) => x.created_at >= since).length, open: gl.filter((x: any) => !["won", "lost"].includes(x.data?.stage)).length, waiting: gl.filter((x: any) => x.data?.stage === "new").length };
+  // yesterday's snapshot, so the brief can say what changed
+  const { data: prev } = await db.from("os_settings").select("value").eq("key", "glow_daily").maybeSingle();
+  const pv = prev?.value?.raw || null;
+  const lessons = (await db.from("os_settings").select("value").eq("key", "meta_lessons").maybeSingle()).data?.value;
+  if (AKEY) {
+    const p = `את/ה דניאל, מנהל השיווק של Glow House (רינת קוסמטיקס, קליניקת יופי בראשון לציון: שיזוף בהתזה, הסרת שיער, גבות). כתוב/י לקרין תמונת בוקר קצרה בעברית פשוטה.
+היא לא אוהבת טבלאות מספרים — כל מספר בתוך משפט שמסביר מה הוא אומר ולמה זה חשוב. קצר, ענייני, בלי הקדמות.
+מדדי ייחוס מהעבר של החשבון: שיחת וואטסאפ עולה בממוצע כ-14 ₪; מתחת ל-12 ₪ מצוין, מעל 15 ₪ צריך לשנות; שיזוף בגילאי 25-54 עבד הכי טוב. ${lessons?.summary ? "לקחים מהעבר: " + String(lessons.summary).slice(0, 600) : ""}
+כללים: קמפיין בשלושת הימים הראשונים נמצא בלמידה — לא להמליץ לשנות בו כלום. אם מודעה נדחתה (DISAPPROVED) או בבעיה — זו התראה ראשונה. אל תמציא/י נתונים שאין; אם משהו חסר (למשל אינסטגרם לא נגיש) תגיד/י את זה במשפט אחד.
+נתוני היום: ${JSON.stringify({ ...out, errors: undefined })}
+שגיאות גישה: ${JSON.stringify(out.errors)}
+אתמול-שלשום (להשוואה): ${pv ? JSON.stringify({ yesterday: pv.yesterday, ig: pv.ig?.followers, page: pv.page, leads: pv.leads }) : "אין"}
+החזר/י JSON בלבד: {"headline":"משפט אחד — הדבר הכי חשוב הבוקר","status":"good|watch|alert","story":["2-4 משפטים: מה קרה אתמול ומה זה אומר"],"campaigns":[{"name":"...","line":"משפט על מצבו"}],"social":"משפט על אינסטגרם/פייסבוק","actions":["עד 3 דברים לעשות היום, הכי חשוב ראשון"]}`;
+    try { out.brief = await claudeJSON(p, s.model); } catch (e) { out.errors.push("brief: " + String((e as Error).message).slice(0, 160)); }
+  }
+  const raw = { yesterday: out.yesterday, week: out.week, running: out.running, page: out.page, posts: out.posts, ig: out.ig, leads: out.leads };
+  await db.from("os_settings").upsert({ key: "glow_daily", value: { at: out.at, brief: out.brief || null, raw, errors: out.errors }, updated_at: now() });
+  // email to Karin herself (her own morning digest, pre-approved)
+  const b = out.brief; const base = "https://karinatar9-commits.github.io/hon-mishpachti/os/#glow-hub";
+  if (b) {
+    const body = `${b.headline}\n\n${(b.story || []).join("\n")}\n\n${(b.campaigns || []).length ? "📢 הקמפיינים\n" + b.campaigns.map((c: any) => `• ${c.name}: ${c.line}`).join("\n") + "\n\n" : ""}${b.social ? "📸 " + b.social + "\n\n" : ""}${(b.actions || []).length ? "✅ מה לעשות היום\n" + b.actions.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n") + "\n\n" : ""}הכל במערכת: ${base}`;
+    const d = new Date().toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "2-digit", month: "2-digit" });
+    await db.from("os_actions").insert({ agent: "pa", type: "email", title: `Glow House · בוקר ${d}`, payload: { to: "karinatar9@gmail.com", subject: `${b.status === "alert" ? "⚠️ " : "✨ "}Glow House · ${b.headline}`.slice(0, 140), body }, status: "approved", decided_at: now() });
+  }
+  return { ok: !!b, errors: out.errors };
+}
+
 // ---------- renderer API (GitHub Actions, OIDC) ----------
 async function renderApi(body: any) {
   const s = await settings();
@@ -301,6 +355,7 @@ Deno.serve(async (req) => {
       if (body.mode === "daily") { if (!AKEY) return json({ error: "no_key" }, 400); bg(dailyPlan(!!body.force).then((r) => console.log("daily", JSON.stringify(r)))); return json({ ok: true }); }
       if (body.mode === "script_one") { await db.from("os_videos").update({ status: "scripting" }).eq("id", body.id).eq("status", "scripting"); bg(scriptJob(String(body.id))); return json({ ok: true }); }
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
+      if (body.mode === "glow_daily") { const r = await glowDaily(); return json(r); }
       // read-only: results of chosen campaigns split by age and gender (lifetime)
       if (body.mode === "ads_breakdown") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
@@ -414,6 +469,8 @@ Deno.serve(async (req) => {
       bg(scriptJob(data.id));
       return json({ id: data.id });
     }
+    if (m === "glow_daily_get") { const { data } = await db.from("os_settings").select("value").eq("key", "glow_daily").maybeSingle(); return json(data?.value || {}); }
+    if (m === "glow_daily_now") { bg(glowDaily()); return json({ ok: true }); }
     if (m === "daily_now") { if (!AKEY) return json({ error: "no_key" }, 400); bg(dailyPlan(true)); return json({ ok: true }); }
     if (m === "revise") {
       const fb = String(body.feedback || "").slice(0, 4000);
