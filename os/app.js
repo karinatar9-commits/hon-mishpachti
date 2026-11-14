@@ -841,7 +841,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   const it=(id,ic,label)=>[id,ic||(all[id]||[])[1]||"•",label||(all[id]||[])[2]||id];
   const MENU={
     me:{g:"העסק שלי · Goldchain AI",items:[it("leads"),it("mkt-factory"),it("quotes","📄","הצעות מחיר"),it("agent-biz")]},
-    glow:{g:"Glow House",items:[it("glow-hub","✨","מרכז השיווק"),it("mkt-factory","🎬","תוכן וסרטונים"),it("mkt-meta","📢","קמפיינים ומודעות"),it("leads"),it("mkt-ig","📸","אינסטגרם"),it("biz-glow","📊","תמונת מצב")]},
+    glow:{g:"Glow House",items:[it("glow-hub","✨","מרכז השיווק"),it("mkt-factory","🎬","תוכן וסרטונים"),it("mkt-meta","📢","קמפיינים ומודעות"),it("leads"),it("mkt-ig","📸","אינסטגרם"),it("biz-glow","📊","תמונת מצב"),it("leads-dash","🎯","לוח בקרה"),it("glow-annual","🗓️","טבלה שנתית"),it("glow-cash","📈","תזרים מזומנים"),it("glow-invoices","🧾","סגירת חשבוניות"),it("glow-map","🕸️","מפת חשבונות")]},
     x4:{g:"4X",items:[it("biz-x4","🏢","תמונת מצב"),it("w-hold","📊","אחזקות"),it("fin-map","🕸️","מפת חשבונות")]},
     benhur:{g:"בן-חור",items:[it("biz-benhur","🏭","תמונת מצב"),it("leads"),it("quotes","📄","הצעות מחיר"),it("agent-benhur"),it("fin-invoices","🧾","סגירת חשבוניות"),it("fin-cash","📈","תזרים מזומנים")]}
   };
@@ -944,4 +944,47 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     const on=d("#drOn"); on&&(on.onclick=async()=>{ on.disabled=!0; on.textContent="פותח את גוגל…"; try{ const s=await Bt({mode:"auth_url"}); location.href=s.url; }catch(e){ f(X(e)); on.disabled=!1; on.textContent="🔗 לחבר את הדרייב"; } });
     const more=d("#drMore"); more&&(more.onclick=async()=>{ busy=!0; q(!1); await load(DR.next); busy=!1; q(!1); });
   };
+})();
+
+;(()=>{
+  // ---------- Glow House books: yearly table, cash flow, open invoices and money map, read from Morning (read-only) ----------
+  let ST=null, MG=null, busy=!1, asked=!1;
+  const Mo=async b=>{ const {data,error}=await y.functions.invoke("os-morning",{body:b}); if(error){ let m=error.message; try{ m=(await error.context.json()).error||m; }catch(_){ } throw new Error(m); } return data; };
+  const PAGES=["glow-annual","glow-cash","glow-invoices","glow-map"];
+  const IN=[320,400], mk=d=>(d||"").slice(0,7), HE=["ינו׳","פבר׳","מרץ","אפר׳","מאי","יוני","יולי","אוג׳","ספט׳","אוק׳","נוב׳","דצמ׳"], mn=k=>HE[+k.slice(5)-1]+" "+k.slice(2,4);
+  const months=()=>{ const out=[], t=new Date(); for(let i=11;i>=0;i--){ const d=new Date(t.getFullYear(),t.getMonth()-i,1); out.push(d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")); } return out; };
+  const income=d=>IN.includes(d.type)?d.total:d.type===330?-Math.abs(d.total):0;
+  const top=(arr,key,val,n=8)=>{ const m={}; arr.forEach(x=>{ const k=key(x)||"לא צוין"; m[k]=(m[k]||0)+val(x); }); return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,n); };
+  const PAY={1:"מזומן",2:"צ׳ק",3:"כרטיס אשראי",4:"העברה בנקאית",5:"PayPal",10:"אפליקציית תשלום",11:"אחר"};
+  const gate=title=>{
+    if(!ST) return `<div class="card"><h3>${title}</h3><div class="small muted">בודק חיבור למורנינג…</div></div>`;
+    if(!ST.keys) return `<div class="card" style="border-top:3px solid #fbbf24"><h3>${title}</h3><p class="small">המסך הזה מתמלא מהנתונים של Glow House במורנינג (חשבונית ירוקה), והחיבור עדיין לא קיים. המערכת רק קוראת מסמכים והוצאות — היא לא מפיקה, לא משנה ולא שולחת שום מסמך.</p>
+      <ol class="small" style="line-height:1.9;padding-inline-start:18px;margin:8px 0 0"><li>רינת נכנסת למורנינג ← הגדרות ← כלים למפתחים ← מפתחות API ← הוספת מפתח.</li><li>מעתיקים את שני הערכים (מזהה וסוד).</li><li>ב-Supabase ← Edge Functions ← Secrets מוסיפים שני סודות: <b>MORNING_ID</b> ו-<b>MORNING_SECRET</b>.</li><li>חוזרים לכאן ולוחצים "לסנכרן ממורנינג".</li></ol></div>`;
+    if(!MG||!(MG.docs||MG.exps)) return `<div class="card"><h3>${title}</h3>${ST.error?`<div class="small" style="color:var(--red);margin-bottom:8px">${l(ST.error)}</div>`:""}<div class="small muted" style="margin-bottom:10px">מורנינג מחובר. עוד לא נמשכו נתונים.</div><button class="btn sm" data-msync ${busy?"disabled":""}>${busy?"מסנכרן…":"לסנכרן ממורנינג"}</button></div>`;
+    return null;
+  };
+  const foot=()=>`<div class="small muted" style="margin-top:10px">ממורנינג · ${MG.from?I(MG.from)+" עד "+I(MG.to):""} · עודכן ${MG.at?new Date(MG.at).toLocaleString("he-IL",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}):""} · <a href="#" data-msync>${busy?"מסנכרן…":"לסנכרן שוב"}</a>${MG.expsError?` · <span style="color:var(--red)">הוצאות לא נקראו: ${l(MG.expsError)}</span>`:""}</div>`;
+  const rows=()=>{ const ms=months(), D=MG.docs||[], X=MG.exps||[]; let cum=0; return ms.map(m=>{ const inc=D.filter(d=>mk(d.date)===m).reduce((s,d)=>s+income(d),0), exp=X.filter(e=>mk(e.date)===m).reduce((s,e)=>s+e.total,0), n=D.filter(d=>mk(d.date)===m&&IN.includes(d.type)).length; cum+=inc-exp; return {m,inc,exp,diff:inc-exp,cum,n}; }); };
+  k["glow-annual"]=()=>{ const g=gate("🗓️ טבלה שנתית — Glow House"); if(g) return g; const R=rows(), ti=R.reduce((s,r)=>s+r.inc,0), te=R.reduce((s,r)=>s+r.exp,0);
+    return `<div class="card"><h3>🗓️ טבלה שנתית — Glow House<span class="r small muted">12 החודשים האחרונים · כולל מע״מ</span></h3><div class="tbl-wrap"><table><tr><th>חודש</th><th class="num">הכנסות שהתקבלו</th><th class="num">קבלות</th><th class="num">הוצאות</th><th class="num">הפרש</th><th class="num">מצטבר</th></tr>
+      ${R.map(r=>`<tr><td>${mn(r.m)}</td><td class="num pos">${w(r.inc)}</td><td class="num muted">${r.n}</td><td class="num">${w(r.exp)}</td><td class="num ${r.diff<0?"neg":"pos"}">${w(r.diff)}</td><td class="num">${w(r.cum)}</td></tr>`).join("")}
+      <tr><td><b>סה״כ</b></td><td class="num"><b>${w(ti)}</b></td><td></td><td class="num"><b>${w(te)}</b></td><td class="num"><b>${w(ti-te)}</b></td><td></td></tr></table></div>
+      <div class="small muted" style="margin-top:8px">הכנסות = קבלות וחשבוניות מס-קבלה שהופקו, בניכוי זיכויים. הוצאות = מה שהוזן במורנינג; הוצאה שלא הוזנה שם לא מופיעה כאן.</div>${foot()}</div>`; };
+  k["glow-cash"]=()=>{ const g=gate("📈 תזרים מזומנים — Glow House"); if(g) return g; const R=rows(), mx=Math.max(1,...R.map(r=>Math.max(r.inc,r.exp)));
+    const last=[...(MG.docs||[]).filter(d=>income(d)).map(d=>({d:d.date,t:(d.client||d.typeName)+(d.desc?" · "+d.desc:""),a:income(d)})),...(MG.exps||[]).map(e=>({d:e.date,t:(e.supplier||"הוצאה")+(e.desc?" · "+e.desc:""),a:-e.total}))].sort((a,b)=>b.d.localeCompare(a.d)).slice(0,25);
+    return `<div class="grid g2"><div class="card"><h3>נכנס מול יוצא לפי חודש</h3>${R.map(r=>`<div style="margin:9px 0"><div class="row small"><span>${mn(r.m)}</span><span class="sp1"></span><span class="${r.diff<0?"neg":"pos"}">${w(r.diff)}</span></div><div style="height:7px;border-radius:4px;background:#3ddc84;width:${Math.max(1,r.inc/mx*100)}%;margin-top:4px"></div><div style="height:7px;border-radius:4px;background:#f87171;width:${Math.max(1,r.exp/mx*100)}%;margin-top:3px"></div></div>`).join("")}<div class="small muted">ירוק: התקבל · אדום: הוצאות</div></div>
+      <div class="card"><h3>תנועות אחרונות</h3>${last.map(x=>`<div class="kv"><span><span class="muted small">${I(x.d)}</span> ${l(x.t.slice(0,60))}</span><span class="${x.a<0?"neg":"pos"}" style="direction:ltr">${w(x.a)}</span></div>`).join("")||'<div class="small muted">אין תנועות</div>'}${foot()}</div></div>`; };
+  k["glow-invoices"]=()=>{ const g=gate("🧾 סגירת חשבוניות — Glow House"); if(g) return g; const open=(MG.docs||[]).filter(d=>[300,305].includes(d.type)&&d.status===0).sort((a,b)=>a.date.localeCompare(b.date)), tot=open.reduce((s,d)=>s+d.total,0);
+    return `<div class="card"><h3>🧾 חשבוניות פתוחות — Glow House<span class="r ${open.length?"neg":"pos"}">${open.length} · ${w(tot)}</span></h3><div class="small muted" style="margin-bottom:8px">חשבוניות מס וחשבונות עסקה שהופקו ועדיין מסומנים במורנינג כפתוחים (לא שולמו או לא נסגרו מול קבלה).</div>
+      ${open.length?`<div class="tbl-wrap"><table><tr><th>תאריך</th><th>מסמך</th><th>לקוח</th><th class="num">סכום</th></tr>${open.map(d=>`<tr><td>${I(d.date)}</td><td>${l(d.typeName)} ${l(d.number||"")}</td><td>${l(d.client)}</td><td class="num">${w(d.total)}</td></tr>`).join("")}</table></div>`:'<div class="small pos">אין חשבוניות פתוחות.</div>'}${foot()}</div>`; };
+  k["glow-map"]=()=>{ const g=gate("🕸️ מפת חשבונות — Glow House"); if(g) return g; const D=(MG.docs||[]).filter(d=>income(d)>0), X=MG.exps||[];
+    const byPay=top(D,d=>PAY[(d.pay||[])[0]]||((d.pay||[])[0]!=null?"אמצעי "+d.pay[0]:""),d=>d.total), byCl=top(D,d=>d.client,d=>d.total), bySup=top(X,e=>e.supplier,e=>e.total), byCat=top(X,e=>e.cat,e=>e.total);
+    const col=(t,a,c)=>`<div class="card"><h3>${t}</h3>${a.map(([k2,v2])=>`<div class="kv"><span>${l(k2)}</span><span class="${c}">${w(v2)}</span></div>`).join("")||'<div class="small muted">אין נתונים</div>'}</div>`;
+    return `<div class="grid g2">${col("⬅️ מאיפה נכנס הכסף · אמצעי תשלום",byPay,"pos")}${col("⬅️ לקוחות מובילים",byCl,"pos")}${col("➡️ לאן יוצא הכסף · ספקים",bySup,"neg")}${col("➡️ לפי סוג הוצאה",byCat,"neg")}</div><div class="card" style="margin-top:14px"><div class="small muted">המפה נבנית ממה שרשום במורנינג ב-12 החודשים האחרונים. חשבונות בנק וכרטיסים לא מופיעים במורנינג ולכן לא מוצגים כאן.</div>${foot()}</div>`; };
+  const hook=()=>{ if(!asked){ asked=!0; Mo({mode:"status"}).then(async s=>{ ST=s||{}; if(ST.keys&&(ST.docs||ST.exps)) try{ MG=await Mo({mode:"get"}); }catch(_){ } PAGES.includes(O)&&q(!1); }).catch(e=>{ ST={keys:!1,error:X(e)}; PAGES.includes(O)&&q(!1); }); }
+    document.querySelectorAll("[data-msync]").forEach(b=>b.onclick=async ev=>{ ev.preventDefault(); if(busy) return; busy=!0; q(!1); try{ await Mo({mode:"sync"}); MG=await Mo({mode:"get"}); ST={...ST,docs:(MG.docs||[]).length,exps:(MG.exps||[]).length,error:null}; f("סונכרן ממורנינג"); }catch(e){ ST={...ST,error:X(e)}; f(X(e)); } busy=!1; q(!1); }); };
+  const NAMES={"glow-annual":"טבלה שנתית","glow-cash":"תזרים מזומנים","glow-invoices":"סגירת חשבוניות","glow-map":"מפת חשבונות"};
+  PAGES.forEach(p=>{ z[p]=hook; Ga[p]=["Glow House",NAMES[p]]; });
+  // the leads board follows the chosen business
+  const oldLD=k["leads-dash"]; k["leads-dash"]=()=>{ const b=window.crmF&&window.crmF.biz; if(!b) return oldLD(); const keep=v.leads; v.leads=keep.filter(x=>x.biz===b); try{ return `<div class="small muted" style="margin-bottom:8px">מוצגים רק הלידים של ${l(b==="אישי"?"העסק שלי":b)}</div>`+oldLD(); } finally { v.leads=keep; } };
 })();
