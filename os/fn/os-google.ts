@@ -295,7 +295,71 @@ async function sendApproved() {
   return { done: done.length };
 }
 
-const SCOPES_GLOW = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"].join(" ");
+const SCOPES_GLOW = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/drive.readonly"].join(" ");
+
+// ---------- Glow House post agent: takes new photos/videos from Rinat's marketing folders in Drive and drafts Instagram posts ----------
+// Only the folders listed in settings are read (not her whole Drive). Nothing is published: each draft waits in the content factory for Karin's approval.
+const GLOW_FOLDER = "1FHwZoDtgFxEdMn4l62Efe32VcGIGz3oA";
+async function glowPosts(n = 1) {
+  const SL = "google_glow";
+  const { data: st } = await db.from("os_settings").select("key,value").in("key", ["main", "models", "content_lessons", "glow_drive_used", "meta_lessons"]);
+  const S: any = Object.fromEntries((st || []).map((x: any) => [x.key, x.value]));
+  const folders: string[] = [GLOW_FOLDER, ...((S.main?.glowFolders || []) as string[])].filter((x, i, a) => /^[\w-]{10,80}$/.test(x) && a.indexOf(x) === i);
+  const used: string[] = S.glow_drive_used?.ids || [];
+  let files: any[] = [];
+  for (const f of folders) {
+    const q = encodeURIComponent(`'${f}' in parents and trashed = false and (mimeType contains 'image/' or mimeType contains 'video/')`);
+    const r: any = await gapi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,mimeType,thumbnailLink,size,createdTime,videoMediaMetadata(durationMillis))&pageSize=200&orderBy=createdTime%20desc&supportsAllDrives=true&includeItemsFromAllDrives=true`, {}, 0, SL);
+    files = files.concat(r.files || []);
+  }
+  const fresh = files.filter((f) => !used.includes(f.id) && !(f.mimeType.startsWith("video/") && (+f.size > 60e6 || +(f.videoMediaMetadata?.durationMillis || 0) > 90000)));
+  const made: any[] = [];
+  const tok = await accessToken(SL);
+  const model = S.models?.content || S.models?.chat || "claude-sonnet-5-5";
+  const lessons = [...((S.content_lessons?.glow) || []), ...((S.content_lessons?.all) || [])];
+  for (const f of fresh.slice(0, n)) {
+    try {
+      const isVid = f.mimeType.startsWith("video/");
+      // photos go through Drive's rendered JPEG (iPhone HEIC included); videos are copied as they are
+      const thumb = f.thumbnailLink ? String(f.thumbnailLink).replace(/=s\d+(-c)?$/, "=s1600") : "";
+      const imgRes = thumb ? await fetch(thumb, { headers: { Authorization: `Bearer ${tok}` } }) : null;
+      const img = imgRes && imgRes.ok ? new Uint8Array(await imgRes.arrayBuffer()) : null;
+      if (!img) throw new Error("no preview");
+      const base = `glow-drive/${f.id}`;
+      await db.storage.from("os-media").upload(`${base}.jpg`, img, { contentType: "image/jpeg", upsert: true });
+      const imgUrl = db.storage.from("os-media").getPublicUrl(`${base}.jpg`).data.publicUrl;
+      let vidUrl = "";
+      if (isVid) {
+        const vr = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${tok}` } });
+        if (!vr.ok) throw new Error("video download " + vr.status);
+        const ext = f.mimeType.includes("quicktime") ? "mov" : "mp4";
+        await db.storage.from("os-media").upload(`videos/glow/drive-${f.id}.${ext}`, new Uint8Array(await vr.arrayBuffer()), { contentType: f.mimeType, upsert: true });
+        vidUrl = db.storage.from("os-media").getPublicUrl(`videos/glow/drive-${f.id}.${ext}`).data.publicUrl;
+      }
+      let b64 = ""; for (let i = 0; i < img.length; i += 32768) b64 += String.fromCharCode(...img.subarray(i, i + 32768)); b64 = btoa(b64);
+      const prompt = `את/ה ליה, מנהלת התוכן של Glow House (רינת קוסמטיקס — קליניקת יופי בנווה ים, ראשון לציון: שיזוף בהתזה, הסרת שיער בלייזר, גבות). ${S.main?.brandVoice ? "קול המותג: " + S.main.brandVoice : "קול חם, נשי, מקצועי ובגובה העיניים."}
+זה ${isVid ? "פריים מסרטון" : "תמונה"} מהתיקייה של רינת. כתוב/י פוסט לאינסטגרם שמתאים בדיוק למה שרואים בה. הוק בשורה הראשונה, ערך קצר, וקריאה לפעולה לשלוח הודעה בוואטסאפ ולשריין תור. בלי להמציא מחירים או מבצעים שלא ידועים.
+${S.meta_lessons?.summary ? "מה עבד במודעות בעבר: " + String(S.meta_lessons.summary).slice(0, 500) : ""}
+${lessons.length ? "כללים שקרין לימדה: " + lessons.join(" | ") : ""}
+אם התמונה לא מתאימה לפרסום (פרטית, מטושטשת, לא קשורה לקליניקה) החזר/י {"skip":true,"why":"..."}.
+אחרת החזר/י JSON בלבד בלי מירכאות כפולות בתוך הטקסט: {"title":"כותרת פנימית קצרה","caption":"הכיתוב המלא","hashtags":["#..."],"why":"משפט: למה הפוסט הזה ומתי כדאי להעלות אותו"}`;
+      const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": AKEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model, max_tokens: 16000, output_config: { effort: "low" }, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } }, { type: "text", text: prompt }] }] }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j?.error?.message || "claude");
+      const t = (j.content || []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+      const o = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+      used.push(f.id);
+      if (o.skip) { made.push({ file: f.name, skipped: o.why }); continue; }
+      const caption = `${o.caption}\n\n${(o.hashtags || []).join(" ")}`.trim();
+      const { data: row } = await db.from("os_videos").insert({ account: "glow", topic: `מהדרייב של רינת: ${f.name}`, notes: o.why || null, style: "explainer", format: isVid ? "reel" : "carousel", length_s: 30,
+        status: "review", script: { title: o.title || "פוסט מהדרייב", why: o.why || "", drive_id: f.id }, caption, slides: isVid ? null : [imgUrl], video_url: isVid ? vidUrl : imgUrl, cover_url: imgUrl, auto: true, source: "drive" }).select("id").single();
+      made.push({ file: f.name, id: row?.id });
+    } catch (e) { made.push({ file: f.name, error: String((e as Error).message).slice(0, 200) }); }
+  }
+  await db.from("os_settings").upsert({ key: "glow_drive_used", value: { ids: used.slice(-2000), at: new Date().toISOString(), last: made } });
+  return { found: files.length, fresh: fresh.length, made };
+}
+
 function consentUrl(s: string, glow = false) {
   const u = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   Object.entries({ client_id: CID, redirect_uri: SELF, response_type: "code", scope: glow ? SCOPES_GLOW : SCOPES, access_type: "offline", prompt: "consent", state: s }).forEach(([k, v]) => u.searchParams.set(k, v));
@@ -345,10 +409,18 @@ Deno.serve(async (req) => {
     // Rinat's Glow House mailbox: status, read-only search/read, disconnect
     if (body.acct === "glow") {
       const SL = "google_glow";
-      if (body.mode === "status") { const g: any = await vget(SL); return json({ connected: !!g?.refresh_token && !g?.broken, email: g?.email || null, since: g?.connected_at || null, broken: !!g?.broken }); }
+      if (body.mode === "status") { const g: any = await vget(SL); return json({ connected: !!g?.refresh_token && !g?.broken, drive: /auth\/drive/.test(String(g?.scope || "")), email: g?.email || null, since: g?.connected_at || null, broken: !!g?.broken }); }
       if (body.mode === "mail_search") { try { return json({ items: await mailSearch(String(body.q || "in:inbox newer_than:3d").slice(0, 300), +body.n || 10, SL) }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
       if (body.mode === "mail_read") { try { return json(await mailRead(String(body.id || ""), SL)); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
       if (body.mode === "disconnect") { await vset(SL, {}); return json({ ok: true }); }
+      if (body.mode === "status_drive") { const g: any = await vget(SL); return json({ drive: /auth\/drive/.test(String(g?.scope || "")) }); }
+      if (body.mode === "drive") {
+        const folder = String(body.folder || GLOW_FOLDER); if (!/^[\w-]{10,80}$/.test(folder)) return json({ error: "bad folder" }, 400);
+        try { const q = encodeURIComponent(`'${folder}' in parents and trashed = false`); const pt = body.pageToken ? `&pageToken=${encodeURIComponent(String(body.pageToken))}` : "";
+          const r: any = await gapi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webViewLink,size,createdTime,videoMediaMetadata(durationMillis))&pageSize=100&orderBy=createdTime%20desc&supportsAllDrives=true&includeItemsFromAllDrives=true${pt}`, {}, 0, SL);
+          return json({ files: r.files || [], next: r.nextPageToken || null }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); }
+      }
+      if (body.mode === "posts") { try { return json(await glowPosts(Math.min(5, +body.n || 1))); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
       return json({ error: "unknown mode" }, 400);
     }
     if (body.mode === "status") {
