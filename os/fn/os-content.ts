@@ -405,11 +405,18 @@ Deno.serve(async (req) => {
           try {
             const camps = (await graph(`act_${a.account_id}/insights?level=campaign&date_preset=maximum&fields=campaign_name,objective,spend,impressions,reach,clicks,ctr,cpc,cpm,actions,date_start,date_stop&limit=80`, tok)).data || [];
             const ads = ((await graph(`act_${a.account_id}/insights?level=ad&date_preset=maximum&fields=ad_id,ad_name,campaign_name,adset_name,spend,impressions,clicks,ctr,cpc,actions&limit=150`, tok)).data || []).sort((x: any, y: any) => (+y.spend || 0) - (+x.spend || 0)).slice(0, 30);
-            const ids = ads.map((x: any) => x.ad_id).filter(Boolean).join(",");
-            if (ids) try {
-              const cr = await graph(`?ids=${ids}&fields=creative{body,title,call_to_action_type},adset{optimization_goal,targeting}`, tok);
-              for (const x of ads) { const c = cr[x.ad_id]; if (c) { x.text = String(c.creative?.body || "").slice(0, 400); x.title = c.creative?.title; x.cta = c.creative?.call_to_action_type; const t = c.adset?.targeting || {}; x.targeting = { age: [t.age_min, t.age_max], genders: t.genders, cities: (t.geo_locations?.cities || []).map((y: any) => y.name), regions: (t.geo_locations?.regions || []).map((y: any) => y.name), countries: t.geo_locations?.countries }; x.goal = c.adset?.optimization_goal; } }
-            } catch (e) { row.note = "לא הצלחתי לקרוא את נוסח המודעות והקהלים: " + String((e as Error).message).slice(0, 140); }
+            // one small call per ad (the multi-id lookup is no longer supported): the ad's text and who it was aimed at
+            let miss = 0;
+            await Promise.all(ads.map(async (x: any) => { if (!x.ad_id) return; try {
+              const c = await graph(`${x.ad_id}?fields=creative{body,title,call_to_action_type},adset{optimization_goal,targeting}`, tok);
+              x.text = String(c.creative?.body || "").slice(0, 400); x.title = c.creative?.title; x.cta = c.creative?.call_to_action_type; const t = c.adset?.targeting || {};
+              x.targeting = { age: [t.age_min, t.age_max], genders: t.genders, cities: (t.geo_locations?.cities || []).map((y: any) => y.name + (y.radius ? ` +${y.radius}km` : "")), regions: (t.geo_locations?.regions || []).map((y: any) => y.name), countries: t.geo_locations?.countries, custom: (t.custom_audiences || []).map((y: any) => y.name) }; x.goal = c.adset?.optimization_goal;
+            } catch { miss++; } }));
+            if (miss) row.note = `לא הצלחתי לקרוא נוסח וקהל של ${miss} מתוך ${ads.length} מודעות`;
+            // who actually responded: results split by age and gender, and by region
+            const seg = (x: any) => ({ age: x.age, gender: x.gender, region: x.region, spend: +x.spend || 0, impressions: +x.impressions || 0, clicks: +x.clicks || 0, results: act(x) });
+            try { row.by_age_gender = ((await graph(`act_${a.account_id}/insights?date_preset=maximum&breakdowns=age,gender&fields=spend,impressions,clicks,actions&limit=100`, tok)).data || []).map(seg); } catch (e) { row.seg_note = String((e as Error).message).slice(0, 140); }
+            try { row.by_region = ((await graph(`act_${a.account_id}/insights?date_preset=maximum&breakdowns=region&fields=spend,impressions,clicks,actions&limit=60`, tok)).data || []).map(seg).sort((x: any, y: any) => y.spend - x.spend).slice(0, 15); } catch { /* optional */ }
             row.campaigns = camps.map(slim); row.ads = ads.map(slim);
           } catch (e) { row.error = String((e as Error).message); }
           accounts.push(row);
@@ -421,8 +428,8 @@ Deno.serve(async (req) => {
         const s = await settings();
         try {
           lessons = await claudeJSON(`את מנהלת קמפיינים בכירה. לפנייך כל ההיסטוריה של חשבונות המודעות במטא (קמפיינים ומודעות, מצטבר לכל התקופה). נתחי אותה בעברית פשוטה, בלי ז'רגון, רק לפי המספרים שכאן. אל תמציאי נתונים. אם אין מספיק נתונים כדי לקבוע משהו — כתבי זאת.
-החזירי JSON בלבד: {"summary":"3-4 משפטים: כמה הוצא, מה התקבל, ומה השורה התחתונה","worked":[{"what":"מה עבד (קמפיין/מודעה/קהל/נוסח)","numbers":"המספרים שמראים את זה","why":"למה כנראה"}],"failed":[{"what":"","numbers":"","why":""}],"rules":["כלל קצר לקמפיין הבא, נגזר מהנתונים"],"next":[{"name":"שם לקמפיין מוצע","goal":"מטרה","audience":"קהל","creative":"איזו מודעה","daily_budget":"תקציב יומי מוצע ולמה"}]}
-עד 5 פריטים בכל רשימה.
+החזירי JSON בלבד: {"summary":"3-4 משפטים: כמה הוצא, מה התקבל, ומה השורה התחתונה","worked":[{"what":"מה עבד (קמפיין/מודעה/קהל/נוסח)","numbers":"המספרים שמראים את זה","why":"למה כנראה"}],"failed":[{"what":"","numbers":"","why":""}],"segments":[{"who":"פלח (גיל/מגדר/אזור)","numbers":"הוצאה, שיחות ועלות לשיחה","verdict":"להגדיל / להשאיר / לצמצם ולמה"}],"rules":["כלל קצר לקמפיין הבא, נגזר מהנתונים"],"next":[{"name":"שם לקמפיין מוצע","goal":"מטרה","audience":"קהל","creative":"איזו מודעה","daily_budget":"תקציב יומי מוצע ולמה"}]}
+עד 5 פריטים בכל רשימה (ב-segments עד 6). by_age_gender ו-by_region הם מי שהגיב בפועל; targeting הוא למי כוונה המודעה.
 הנתונים:
 ${JSON.stringify(accounts).slice(0, 60000)}`, s.model);
         } catch (e) { lessonsError = String((e as Error).message).slice(0, 200); }
