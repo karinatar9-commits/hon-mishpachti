@@ -301,6 +301,45 @@ Deno.serve(async (req) => {
       if (body.mode === "daily") { if (!AKEY) return json({ error: "no_key" }, 400); bg(dailyPlan(!!body.force).then((r) => console.log("daily", JSON.stringify(r)))); return json({ ok: true }); }
       if (body.mode === "script_one") { await db.from("os_videos").update({ status: "scripting" }).eq("id", body.id).eq("status", "scripting"); bg(scriptJob(String(body.id))); return json({ ok: true }); }
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
+      // Build one campaign in Glow House's ad account, everything PAUSED (nothing is spent until Karin turns it on in Ads Manager).
+      // The ad set is copied from the best ad set the account ever had, so WhatsApp destination, page and placements stay as they were.
+      if (body.mode === "ads_build") {
+        const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
+        const b = body.spec || {}; const log: any[] = []; const out: any = { at: now(), log };
+        const post = async (path: string, params: Record<string, unknown>) => {
+          const f = new URLSearchParams(); for (const [k, v] of Object.entries(params)) if (v !== undefined) f.set(k, typeof v === "string" ? v : JSON.stringify(v));
+          f.set("access_token", tok);
+          const r = await fetch(`${G}/${path}`, { method: "POST", body: f }); const j = await r.json();
+          if (j.error) throw new Error(`${path}: ${j.error.error_user_msg || j.error.message}`); return j;
+        };
+        const step = async (name: string, fn: () => Promise<any>) => { try { const r = await fn(); log.push({ step: name, ok: true }); return r; } catch (e) { log.push({ step: name, ok: false, error: String((e as Error).message).slice(0, 400) }); throw e; } };
+        try {
+          const act = `act_${b.account}`;
+          const camp = await step("campaign", () => post(`${act}/campaigns`, { name: b.name, objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
+          out.campaign_id = camp.id;
+          const cp = await step("adset_copy", () => post(`${b.from_adset}/copies`, { campaign_id: camp.id, deep_copy: false, status_option: "PAUSED", rename_options: { rename_strategy: "NO_RENAME" } }));
+          const adset = cp.copied_adset_id || cp.ad_object_ids?.[0]?.copied_id; out.adset_id = adset;
+          const old = await graph(`${adset}?fields=targeting`, tok);
+          let geo = old.targeting?.geo_locations;
+          if (b.city) {
+            const g = await graph(`search?type=adgeolocation&location_types=["city"]&q=${encodeURIComponent(b.city)}&country_code=IL&limit=5`, tok);
+            const c = (g.data || [])[0]; if (c) { geo = { cities: [{ key: c.key, radius: b.radius || 15, distance_unit: "kilometer" }], location_types: ["home", "recent"] }; out.city = c.name; }
+          }
+          const t = { ...old.targeting, age_min: b.age_min, age_max: b.age_max, genders: [2], geo_locations: geo };
+          await step("adset_update", () => post(adset, { name: b.adset_name, daily_budget: b.daily_budget, targeting: t }));
+          const vid = await step("video_upload", () => post(`${act}/advideos`, { file_url: b.video_url, name: b.name }));
+          out.video_id = vid.id;
+          let thumb = "";
+          for (let i = 0; i < 20 && !thumb; i++) { await new Promise((r) => setTimeout(r, 4000)); try { const th = await graph(`${vid.id}/thumbnails?fields=uri,is_preferred`, tok); thumb = (th.data || []).find((x: any) => x.is_preferred)?.uri || th.data?.[0]?.uri || ""; } catch { /* still processing */ } }
+          if (!thumb) throw new Error("הסרטון עדיין בעיבוד אצל מטא — להריץ שוב בעוד כמה דקות");
+          const cr = await step("creative", () => post(`${act}/adcreatives`, { name: b.name, object_story_spec: { page_id: b.page_id, instagram_user_id: b.ig_id, video_data: { video_id: vid.id, image_url: thumb, message: b.text, title: b.headline, call_to_action: { type: "WHATSAPP_MESSAGE", value: { app_destination: "WHATSAPP" } } } } }));
+          out.creative_id = cr.id;
+          const ad = await step("ad", () => post(`${act}/ads`, { name: b.ad_name, adset_id: adset, creative: { creative_id: cr.id }, status: "PAUSED" }));
+          out.ad_id = ad.id; out.ok = true;
+        } catch (e) { out.ok = false; out.error = String((e as Error).message).slice(0, 400); }
+        await db.from("os_settings").upsert({ key: "glow_campaign_build", value: out, updated_at: now() });
+        return json(out);
+      }
       // read-only look at how the ad account is built (accounts, page, the settings of existing campaigns), kept for building the campaign screen
       if (body.mode === "ads_probe") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
