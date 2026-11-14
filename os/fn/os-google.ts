@@ -45,25 +45,26 @@ async function isCron(req: Request) {
   return !!data?.value?.k && data.value.k === k;
 }
 
-async function accessToken(): Promise<string> {
-  const g: any = await vget("google");
+// "google" = Karin's account; "google_glow" = Rinat's Glow House mailbox (read-only, nothing is ever sent from it)
+async function accessToken(slot = "google"): Promise<string> {
+  const g: any = await vget(slot);
   if (!g?.refresh_token) throw new Error("not_connected");
   if (g.access_token && g.expires_at > Date.now() + 60000) return g.access_token;
   const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: CID, client_secret: CSECRET, refresh_token: g.refresh_token, grant_type: "refresh_token" }) });
   const j = await r.json();
-  if (!r.ok) { if (j.error === "invalid_grant") await vset("google", { ...g, broken: true }); throw new Error("google_token: " + (j.error_description || j.error)); }
-  await vset("google", { ...g, access_token: j.access_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, broken: false });
+  if (!r.ok) { if (j.error === "invalid_grant") await vset(slot, { ...g, broken: true }); throw new Error("google_token: " + (j.error_description || j.error)); }
+  await vset(slot, { ...g, access_token: j.access_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, broken: false });
   return j.access_token;
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-async function gapi(path: string, init: RequestInit = {}, tries = 0): Promise<any> {
-  const t = await accessToken();
+async function gapi(path: string, init: RequestInit = {}, tries = 0, slot = "google"): Promise<any> {
+  const t = await accessToken(slot);
   const r = await fetch(path.startsWith("http") ? path : `https://gmail.googleapis.com/gmail/v1/users/me/${path}`, { ...init, headers: { ...(init.headers || {}), Authorization: `Bearer ${t}` } });
   const j = r.status === 204 ? {} : await r.json();
   if (!r.ok) {
     const msg = String(j?.error?.message || "");
-    if ((r.status === 429 || (r.status === 403 && /quota|rate/i.test(msg))) && tries < 4 && (init.method || "GET") === "GET") { await sleep(1500 * (tries + 1)); return gapi(path, init, tries + 1); }
+    if ((r.status === 429 || (r.status === 403 && /quota|rate/i.test(msg))) && tries < 4 && (init.method || "GET") === "GET") { await sleep(1500 * (tries + 1)); return gapi(path, init, tries + 1, slot); }
     throw new Error(`google ${r.status}: ${msg}`);
   }
   return j;
@@ -214,14 +215,14 @@ async function findAttachments(q: string, thread: string) {
 }
 
 // mail search / read for agents (read-only)
-async function mailSearch(q: string, n = 10) {
-  const l: any = await gapi(`messages?q=${encodeURIComponent(q)}&maxResults=${Math.min(n, 15)}`);
-  const ms = await Promise.all((l.messages || []).map((m: any) => gapi(`messages/${m.id}?format=full`).catch(() => null)));
+async function mailSearch(q: string, n = 10, slot = "google") {
+  const l: any = await gapi(`messages?q=${encodeURIComponent(q)}&maxResults=${Math.min(n, 15)}`, {}, 0, slot);
+  const ms = await Promise.all((l.messages || []).map((m: any) => gapi(`messages/${m.id}?format=full`, {}, 0, slot).catch(() => null)));
   return ms.filter(Boolean).map((m: any) => ({ id: m.id, thread: m.threadId, from: hdr(m, "From"), to: hdr(m, "To"), subject: hdr(m, "Subject"), date: hdr(m, "Date"),
     snippet: String(m.snippet || "").slice(0, 300), attachments: attParts(m.payload).map((a: any) => ({ filename: a.filename, mimeType: a.mimeType, size: a.size, attachment_id: a.attachment_id })) }));
 }
-async function mailRead(id: string) {
-  const m: any = await gapi(`messages/${id}?format=full`);
+async function mailRead(id: string, slot = "google") {
+  const m: any = await gapi(`messages/${id}?format=full`, {}, 0, slot);
   return { id: m.id, thread: m.threadId, from: hdr(m, "From"), to: hdr(m, "To"), cc: hdr(m, "Cc"), subject: hdr(m, "Subject"), date: hdr(m, "Date"),
     text: (bodyText(m.payload) || m.snippet || "").replace(/\n{3,}/g, "\n\n").slice(0, 7000), attachments: attParts(m.payload) };
 }
@@ -294,9 +295,10 @@ async function sendApproved() {
   return { done: done.length };
 }
 
-function consentUrl(s: string) {
+const SCOPES_GLOW = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly"].join(" ");
+function consentUrl(s: string, glow = false) {
   const u = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-  Object.entries({ client_id: CID, redirect_uri: SELF, response_type: "code", scope: SCOPES, access_type: "offline", prompt: "consent", state: s }).forEach(([k, v]) => u.searchParams.set(k, v));
+  Object.entries({ client_id: CID, redirect_uri: SELF, response_type: "code", scope: glow ? SCOPES_GLOW : SCOPES, access_type: "offline", prompt: "consent", state: s }).forEach(([k, v]) => u.searchParams.set(k, v));
   return u.toString();
 }
 
@@ -325,19 +327,29 @@ Deno.serve(async (req) => {
       if (!r.ok || !j.refresh_token) return new Response("גוגל לא החזיר הרשאה קבועה (" + (j.error || "no_refresh_token") + ") — נסי שוב מהקישור", { status: 400, headers: { "content-type": "text/plain; charset=utf-8" } });
       let email = "";
       try { const p = JSON.parse(atob(j.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); email = p.email || ""; } catch (_) { /* */ }
-      await vset("google", { refresh_token: j.refresh_token, access_token: j.access_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, email, scope: j.scope, connected_at: new Date().toISOString() });
+      const slot = st.slot === "google_glow" ? "google_glow" : "google";
+      await vset(slot, { refresh_token: j.refresh_token, access_token: j.access_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, email, scope: j.scope, connected_at: new Date().toISOString() });
       await vset("google_state", { s: "", exp: 0 });
       await vset("google_start", {});
-      return Response.redirect(APP + "?google=ok#home", 302);
+      return Response.redirect(APP + (slot === "google_glow" ? "?google=ok#settings-conn" : "?google=ok#home"), 302);
     }
     const body = await req.json().catch(() => ({}));
     const cron = await isCron(req);
     if (!cron && !(await isKarin(req))) return json({ error: "forbidden" }, 403);
     if (body.mode === "auth_url") {
       if (!CID || !CSECRET) return json({ error: "no_client" }, 400);
-      const s = crypto.randomUUID().replace(/-/g, "");
-      await vset("google_state", { s, exp: Date.now() + 15 * 60e3 });
-      return json({ url: consentUrl(s) });
+      const s = crypto.randomUUID().replace(/-/g, ""), glow = body.acct === "glow";
+      await vset("google_state", { s, exp: Date.now() + 15 * 60e3, slot: glow ? "google_glow" : "google" });
+      return json({ url: consentUrl(s, glow) });
+    }
+    // Rinat's Glow House mailbox: status, read-only search/read, disconnect
+    if (body.acct === "glow") {
+      const SL = "google_glow";
+      if (body.mode === "status") { const g: any = await vget(SL); return json({ connected: !!g?.refresh_token && !g?.broken, email: g?.email || null, since: g?.connected_at || null, broken: !!g?.broken }); }
+      if (body.mode === "mail_search") { try { return json({ items: await mailSearch(String(body.q || "in:inbox newer_than:3d").slice(0, 300), +body.n || 10, SL) }); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
+      if (body.mode === "mail_read") { try { return json(await mailRead(String(body.id || ""), SL)); } catch (e) { return json({ error: String((e as Error).message || e) }, 500); } }
+      if (body.mode === "disconnect") { await vset(SL, {}); return json({ ok: true }); }
+      return json({ error: "unknown mode" }, 400);
     }
     if (body.mode === "status") {
       const g: any = await vget("google");
