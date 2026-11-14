@@ -240,7 +240,8 @@ async function glowDaily() {
     const F = "campaign_name,spend,reach,impressions,clicks,actions";
     await safe("yesterday", async () => ((await graph(`${GLOW.act}/insights?level=campaign&date_preset=yesterday&fields=${F}&limit=50`, tok)).data || []).map(row));
     await safe("week", async () => ((await graph(`${GLOW.act}/insights?level=campaign&date_preset=last_7d&fields=${F}&limit=50`, tok)).data || []).map(row));
-    await safe("running", async () => ((await graph(`${GLOW.act}/ads?fields=name,effective_status,campaign{name,daily_budget},adset{name,daily_budget,targeting{age_min,age_max}}&effective_status=["ACTIVE","PENDING_REVIEW","DISAPPROVED","WITH_ISSUES","IN_PROCESS"]&limit=50`, tok)).data || [])
+    await safe("running", async () => ((await graph(`${GLOW.act}/ads?fields=name,effective_status,campaign{name,daily_budget,effective_status},adset{name,daily_budget,targeting{age_min,age_max}}&effective_status=["ACTIVE","PENDING_REVIEW","DISAPPROVED","WITH_ISSUES","IN_PROCESS"]&limit=50`, tok)).data || [])
+      .filter((a: any) => ["ACTIVE", "IN_PROCESS", "PENDING_REVIEW"].includes(a.effective_status) || a.campaign?.effective_status === "ACTIVE")
       .map((a: any) => ({ ad: a.name, status: a.effective_status, campaign: a.campaign?.name, budget: Math.round((+a.adset?.daily_budget || +a.campaign?.daily_budget || 0) / 100), age: a.adset?.targeting ? `${a.adset.targeting.age_min}-${a.adset.targeting.age_max}` : "" })));
     let ptok = "";
     await safe("page", async () => { const p = await graph(`${GLOW.page}?fields=name,fan_count,followers_count,access_token`, tok); ptok = p.access_token || ""; return { followers: p.followers_count, fans: p.fan_count }; });
@@ -262,12 +263,12 @@ async function glowDaily() {
     const p = `את/ה דניאל, מנהל השיווק של Glow House (רינת קוסמטיקס, קליניקת יופי בראשון לציון: שיזוף בהתזה, הסרת שיער, גבות). כתוב/י לקרין תמונת בוקר קצרה בעברית פשוטה.
 היא לא אוהבת טבלאות מספרים — כל מספר בתוך משפט שמסביר מה הוא אומר ולמה זה חשוב. קצר, ענייני, בלי הקדמות.
 מדדי ייחוס מהעבר של החשבון: שיחת וואטסאפ עולה בממוצע כ-14 ₪; מתחת ל-12 ₪ מצוין, מעל 15 ₪ צריך לשנות; שיזוף בגילאי 25-54 עבד הכי טוב. ${lessons?.summary ? "לקחים מהעבר: " + String(lessons.summary).slice(0, 600) : ""}
-כללים: קמפיין בשלושת הימים הראשונים נמצא בלמידה — לא להמליץ לשנות בו כלום. אם מודעה נדחתה (DISAPPROVED) או בבעיה — זו התראה ראשונה. אל תמציא/י נתונים שאין; אם משהו חסר (למשל אינסטגרם לא נגיש) תגיד/י את זה במשפט אחד.
+כללים: קמפיינים ששמם מתחיל ב-"Glow OS" הם של קרין; את השאר מנהל אבינועם (שותף שיווק) — עליהם מדווחים, וכל שינוי ממליצים "לתאם עם אבינועם". קמפיין בשלושת הימים הראשונים נמצא בלמידה — לא להמליץ לשנות בו כלום. אם מודעה נדחתה (DISAPPROVED) או בבעיה — זו התראה ראשונה. אל תמציא/י נתונים שאין; אם משהו חסר (למשל אינסטגרם לא נגיש) תגיד/י את זה במשפט אחד.
 נתוני היום: ${JSON.stringify({ ...out, errors: undefined })}
 שגיאות גישה: ${JSON.stringify(out.errors)}
 אתמול-שלשום (להשוואה): ${pv ? JSON.stringify({ yesterday: pv.yesterday, ig: pv.ig?.followers, page: pv.page, leads: pv.leads }) : "אין"}
-החזר/י JSON בלבד: {"headline":"משפט אחד — הדבר הכי חשוב הבוקר","status":"good|watch|alert","story":["2-4 משפטים: מה קרה אתמול ומה זה אומר"],"campaigns":[{"name":"...","line":"משפט על מצבו"}],"social":"משפט על אינסטגרם/פייסבוק","actions":["עד 3 דברים לעשות היום, הכי חשוב ראשון"]}`;
-    try { out.brief = await claudeJSON(p, s.model); } catch (e) { out.errors.push("brief: " + String((e as Error).message).slice(0, 160)); }
+החזר/י JSON תקין בלבד, בלי מירכאות כפולות בתוך הטקסט (כתוב/י ₪ ולא ש"ח): {"headline":"משפט אחד — הדבר הכי חשוב הבוקר","status":"good|watch|alert","story":["2-4 משפטים: מה קרה אתמול ומה זה אומר"],"campaigns":[{"name":"...","line":"משפט על מצבו"}],"social":"משפט על אינסטגרם/פייסבוק","actions":["עד 3 דברים לעשות היום, הכי חשוב ראשון"]}`;
+    for (let i = 0; i < 2 && !out.brief; i++) { try { out.brief = await claudeJSON(p, s.model); } catch (e) { if (i) out.errors.push("brief: " + String((e as Error).message).slice(0, 160)); } }
   }
   const raw = { yesterday: out.yesterday, week: out.week, running: out.running, page: out.page, posts: out.posts, ig: out.ig, leads: out.leads };
   await db.from("os_settings").upsert({ key: "glow_daily", value: { at: out.at, brief: out.brief || null, raw, errors: out.errors }, updated_at: now() });
