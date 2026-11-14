@@ -871,7 +871,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     <div class="card" style="margin-bottom:14px"><h3>מה עושים עכשיו</h3><div class="acts" style="flex-wrap:wrap"><button class="btn" data-go="mkt-factory">🎬 ליצור תוכן ל-Glow House</button><button class="btn ghost" data-go="mkt-meta">📢 קמפיינים ומודעות</button><button class="btn ghost" data-go="leads">🧲 הלידים</button><button class="btn ghost" data-act="newLead">＋ ליד ידני</button></div></div>
     <div class="card"><h3>מה מחובר</h3>
       ${conn(!!E.igGlow,"אינסטגרם של Glow House",E.igGlow?`מחובר${E.handleGlow?" · "+l(E.handleGlow):""} — תוכן שמאושר עולה ישירות`:"לא מחובר — תוכן נוצר כאן אבל מעלים אותו ידנית","mkt-factory")}
-      ${conn(!1,"מנהל המודעות של מטא","לא מחובר. צריך אפליקציית מטא עם הרשאת מודעות וגישה לחשבון המודעות של Glow House. עד אז המעקב ידני.","mkt-meta")}
+      ${conn(!!(M&&(M.meta||M.metaGlow)),"מנהל המודעות של מטא",M&&(M.meta||M.metaGlow)?"מחובר — נתוני הקמפיינים והלקחים מהעבר במסך הקמפיינים":"לא מחובר. ההוראות לחיבור נמצאות במסך הקמפיינים.","mkt-meta")}
       ${conn(!1,"לידים ממודעות","לא מחובר. אחרי חיבור מטא, כל ליד מטופס מודעה ייכנס לכאן אוטומטית עם השיוך ל-Glow House.","leads")}
       ${conn(!1,"הבוט בוואטסאפ","רץ בנפרד (Railway) ועדיין לא מוצג או מנוהל מהמסך הזה.","")}
     </div>`;
@@ -879,4 +879,37 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   Ga["glow-hub"]=["Glow House","מרכז השיווק"];
   try{ document.head.insertAdjacentHTML("beforeend",`<style>#bizSw{flex:none;position:sticky;top:61px;z-index:4;display:flex;gap:8px;padding:8px 24px;overflow-x:auto;background:rgba(10,12,17,.92);border-bottom:2px solid var(--bz,transparent);scrollbar-width:none}#bizSw button{flex:none;white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#11141b;color:#aab1c2;font:inherit;font-size:13px;cursor:pointer}#bizSw button.on{background:#fff;color:#0a0c11;border-color:#fff;font-weight:700}@media(max-width:800px){#bizSw{padding:8px 12px;position:static}}</style>`); }catch(_){ }
   apply(); bar(); setTimeout(()=>{ try{ bar(); d("#view").__route&&q(!0); }catch(_){ } },0);
+})();
+
+;(()=>{
+  // ---------- Meta ads: what past campaigns teach us (read from the ad accounts, analysed, kept for the next campaign) ----------
+  let LS=null, busy=!1;
+  const oldV=k["mkt-meta"], oldZ=z["mkt-meta"];
+  const li=(a,f)=>(a||[]).map(f).join("");
+  const steps=`<div class="card" style="margin-bottom:14px;border-top:3px solid #fbbf24"><h3>🔌 מטא עדיין לא מחוברת</h3><ol class="small" style="line-height:1.9;padding-inline-start:18px;margin:0">
+    <li>נכנסים ל-<a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener">developers.facebook.com/apps</a> עם הפייסבוק שמנהל את המודעות, ומשלימים הרשמה כמפתחת (אימות טלפון).</li>
+    <li>יוצרים אפליקציה מסוג Business, ומוסיפים לה את המוצר Marketing API.</li>
+    <li>ב-Marketing API ← Tools מסמנים ads_read, ads_management, pages_show_list, pages_read_engagement, leads_retrieval, business_management ולוחצים Get Token.</li>
+    <li>ב-Supabase ← Edge Functions ← Secrets מוסיפים סוד בשם <b>META_TOKEN</b> ומדביקים את הטוקן. (לחשבון נפרד של Glow House: <b>META_TOKEN_GLOW</b>.)</li>
+    <li>חוזרים לכאן ולוחצים "לנתח את כל הקמפיינים".</li></ol></div>`;
+  const view=()=>{
+    if(!M) return "";
+    if(!M.meta&&!M.metaGlow) return steps;
+    const L=LS&&LS.lessons, when=LS&&LS.at?new Date(LS.at).toLocaleString("he-IL",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+    const errs=LS?li((LS.accounts||[]).filter(a=>a.error),a=>`<div class="small" style="color:var(--red)">${l(a.name)}: ${l(a.error)}</div>`):"";
+    return `<div class="card" style="margin-bottom:14px;border-top:3px solid #a78bfa"><h3>🧠 מה למדנו מהקמפיינים הקודמים<span class="r"><button class="btn sm" id="adsLearn" ${busy?"disabled":""}>${busy?"מנתח… כדקה":L?"לנתח מחדש":"לנתח את כל הקמפיינים"}</button></span></h3>
+      ${errs}${LS&&LS.lessonsError?`<div class="small" style="color:var(--red)">הניתוח נכשל: ${l(LS.lessonsError)}</div>`:""}
+      ${L?`<p style="margin:6px 0 12px">${l(L.summary||"")}</p>
+        <div class="grid g2"><div><b style="color:#3ddc84">✓ מה עבד</b>${li(L.worked,x=>`<div style="margin:8px 0"><b>${l(x.what)}</b><div class="small">${l(x.numbers||"")}</div><div class="small muted">${l(x.why||"")}</div></div>`)||'<div class="small muted">—</div>'}</div>
+        <div><b style="color:#f87171">✗ מה לא עבד</b>${li(L.failed,x=>`<div style="margin:8px 0"><b>${l(x.what)}</b><div class="small">${l(x.numbers||"")}</div><div class="small muted">${l(x.why||"")}</div></div>`)||'<div class="small muted">—</div>'}</div></div>
+        ${(L.rules||[]).length?`<div style="margin-top:12px"><b>כללים לקמפיין הבא</b><ul class="small" style="margin:6px 0;padding-inline-start:18px">${li(L.rules,r=>`<li>${l(r)}</li>`)}</ul></div>`:""}
+        ${(L.next||[]).length?`<div style="margin-top:12px"><b>קמפיינים שכדאי להריץ עכשיו</b>${li(L.next,n=>`<div class="card" style="margin-top:8px;background:#11141b"><b>${l(n.name)}</b><div class="small">מטרה: ${l(n.goal||"")} · קהל: ${l(n.audience||"")}</div><div class="small">מודעה: ${l(n.creative||"")}</div><div class="small muted">תקציב: ${l(n.daily_budget||"")}</div></div>`)}</div>`:""}
+        <div class="small muted" style="margin-top:10px">נותח ב-${when} · ${(LS.accounts||[]).reduce((s,a)=>s+(a.campaigns||[]).length,0)} קמפיינים ב-${(LS.accounts||[]).length} חשבונות. ההצעות הן טיוטה — שום קמפיין לא עולה מכאן בלי אישור שלך.</div>`
+      :LS&&(LS.accounts||[]).length&&!errs?'<div class="small muted">לא נמצאו קמפיינים קודמים בחשבונות שהטוקן רואה.</div>':'<div class="small muted">לחיצה אחת קוראת את כל הקמפיינים והמודעות שרצו אי פעם בחשבון, ומסכמת מה הביא תוצאות ומה שרף כסף.</div>'}</div>`;
+  };
+  k["mkt-meta"]=()=>view()+oldV();
+  z["mkt-meta"]=()=>{ oldZ&&oldZ();
+    if(M&&(M.meta||M.metaGlow)&&LS===null){ LS={}; J({mode:"ads_lessons"}).then(r=>{ LS=r||{}; O==="mkt-meta"&&q(!1); }).catch(()=>{}); }
+    const b=d("#adsLearn"); b&&(b.onclick=async()=>{ busy=!0; q(!1); try{ LS=await J({mode:"ads_history"}); f("הניתוח מוכן"); }catch(e){ f(X(e)); } busy=!1; O==="mkt-meta"&&q(!1); });
+  };
 })();

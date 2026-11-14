@@ -381,6 +381,51 @@ Deno.serve(async (req) => {
       }
       return json({ accounts: acc });
     }
+    if (m === "ads_lessons") {
+      const { data } = await db.from("os_settings").select("value").eq("key", "meta_lessons").maybeSingle();
+      return json(data?.value || {});
+    }
+    // Everything the ad accounts ever ran (lifetime), then a plain-language read of what worked and what did not.
+    if (m === "ads_history") {
+      if (!META && !META_GLOW) return json({ error: "no_meta" }, 400);
+      const act = (x: any) => { const o: any = {}; for (const a of x.actions || []) if (/lead|messaging_conversation_started|link_click|landing_page_view/.test(a.action_type)) o[a.action_type.replace("onsite_conversion.", "")] = +a.value; return o; };
+      const slim = (x: any) => ({ name: x.campaign_name, ad: x.ad_name, adset: x.adset_name, objective: x.objective, from: x.date_start, to: x.date_stop, spend: +x.spend || 0, impressions: +x.impressions || 0, reach: +x.reach || undefined, clicks: +x.clicks || 0, ctr: +(+x.ctr || 0).toFixed(2), cpc: +(+x.cpc || 0).toFixed(2), cpm: +(+x.cpm || 0).toFixed(2), results: act(x), text: x.text, title: x.title, cta: x.cta, targeting: x.targeting, goal: x.goal });
+      const seen = new Set<string>(); const accounts: any[] = [];
+      for (const tok of [META_GLOW, META].filter(Boolean)) {
+        let acc: any[] = [];
+        try { acc = (await graph("me/adaccounts?fields=name,account_id,currency,amount_spent&limit=20", tok)).data || []; } catch (e) { accounts.push({ name: "חשבון מודעות", error: String((e as Error).message) }); continue; }
+        for (const a of acc.slice(0, 6)) {
+          if (seen.has(a.account_id)) continue; seen.add(a.account_id);
+          const row: any = { name: a.name, id: a.account_id, currency: a.currency, spent: (+a.amount_spent || 0) / 100 };
+          try {
+            const camps = (await graph(`act_${a.account_id}/insights?level=campaign&date_preset=maximum&fields=campaign_name,objective,spend,impressions,reach,clicks,ctr,cpc,cpm,actions,date_start,date_stop&limit=80`, tok)).data || [];
+            const ads = ((await graph(`act_${a.account_id}/insights?level=ad&date_preset=maximum&fields=ad_id,ad_name,campaign_name,adset_name,spend,impressions,clicks,ctr,cpc,actions&limit=150`, tok)).data || []).sort((x: any, y: any) => (+y.spend || 0) - (+x.spend || 0)).slice(0, 30);
+            const ids = ads.map((x: any) => x.ad_id).filter(Boolean).join(",");
+            if (ids) try {
+              const cr = await graph(`?ids=${ids}&fields=creative{body,title,call_to_action_type},adset{optimization_goal,targeting}`, tok);
+              for (const x of ads) { const c = cr[x.ad_id]; if (c) { x.text = String(c.creative?.body || "").slice(0, 400); x.title = c.creative?.title; x.cta = c.creative?.call_to_action_type; const t = c.adset?.targeting || {}; x.targeting = { age: [t.age_min, t.age_max], genders: t.genders, cities: (t.geo_locations?.cities || []).map((y: any) => y.name), regions: (t.geo_locations?.regions || []).map((y: any) => y.name), countries: t.geo_locations?.countries }; x.goal = c.adset?.optimization_goal; } }
+            } catch (e) { row.note = "לא הצלחתי לקרוא את נוסח המודעות והקהלים: " + String((e as Error).message).slice(0, 140); }
+            row.campaigns = camps.map(slim); row.ads = ads.map(slim);
+          } catch (e) { row.error = String((e as Error).message); }
+          accounts.push(row);
+        }
+      }
+      const has = accounts.some((a) => (a.campaigns || []).length);
+      let lessons: any = null, lessonsError = "";
+      if (has) {
+        const s = await settings();
+        try {
+          lessons = await claudeJSON(`את מנהלת קמפיינים בכירה. לפנייך כל ההיסטוריה של חשבונות המודעות במטא (קמפיינים ומודעות, מצטבר לכל התקופה). נתחי אותה בעברית פשוטה, בלי ז'רגון, רק לפי המספרים שכאן. אל תמציאי נתונים. אם אין מספיק נתונים כדי לקבוע משהו — כתבי זאת.
+החזירי JSON בלבד: {"summary":"3-4 משפטים: כמה הוצא, מה התקבל, ומה השורה התחתונה","worked":[{"what":"מה עבד (קמפיין/מודעה/קהל/נוסח)","numbers":"המספרים שמראים את זה","why":"למה כנראה"}],"failed":[{"what":"","numbers":"","why":""}],"rules":["כלל קצר לקמפיין הבא, נגזר מהנתונים"],"next":[{"name":"שם לקמפיין מוצע","goal":"מטרה","audience":"קהל","creative":"איזו מודעה","daily_budget":"תקציב יומי מוצע ולמה"}]}
+עד 5 פריטים בכל רשימה.
+הנתונים:
+${JSON.stringify(accounts).slice(0, 60000)}`, s.model);
+        } catch (e) { lessonsError = String((e as Error).message).slice(0, 200); }
+      }
+      const value = { at: now(), accounts, lessons, lessonsError };
+      await db.from("os_settings").upsert({ key: "meta_lessons", value, updated_at: now() });
+      return json(value);
+    }
     return json({ error: "unknown mode" }, 400);
   } catch (e) {
     return json({ error: String((e as Error)?.message || e) }, 500);
