@@ -301,6 +301,23 @@ Deno.serve(async (req) => {
       if (body.mode === "daily") { if (!AKEY) return json({ error: "no_key" }, 400); bg(dailyPlan(!!body.force).then((r) => console.log("daily", JSON.stringify(r)))); return json({ ok: true }); }
       if (body.mode === "script_one") { await db.from("os_videos").update({ status: "scripting" }).eq("id", body.id).eq("status", "scripting"); bg(scriptJob(String(body.id))); return json({ ok: true }); }
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
+      // read-only look at how the ad account is built (accounts, page, the settings of existing campaigns), kept for building the campaign screen
+      if (body.mode === "ads_probe") {
+        const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
+        const out: any = { at: now() }; const tryG = async (k: string, path: string) => { try { out[k] = await graph(path, tok); } catch (e) { out[k] = { error: String((e as Error).message).slice(0, 300) }; } };
+        await tryG("perms", "me/permissions");
+        await tryG("pages", "me/accounts?fields=name,id,instagram_business_account{id,username},connected_instagram_account{id,username}&limit=20");
+        await tryG("accounts", "me/adaccounts?fields=name,account_id,currency,account_status,timezone_name,min_daily_budget,spend_cap,amount_spent,funding_source_details,business{id,name}&limit=20");
+        const acc = (out.accounts?.data || []).find((a: any) => +a.amount_spent > 0) || (out.accounts?.data || [])[0];
+        if (acc) {
+          const A = `act_${acc.account_id}`;
+          await tryG("campaigns", `${A}/campaigns?fields=name,objective,status,effective_status,buying_type,special_ad_categories,daily_budget,lifetime_budget,bid_strategy,created_time&limit=30`);
+          await tryG("adsets", `${A}/adsets?fields=name,campaign_id,status,effective_status,optimization_goal,billing_event,bid_strategy,destination_type,promoted_object,daily_budget,lifetime_budget,targeting,attribution_spec,created_time&limit=40`);
+          await tryG("ads", `${A}/ads?fields=name,adset_id,status,effective_status,creative{id,name,object_type,object_story_id,effective_object_story_id,instagram_user_id,call_to_action_type,object_story_spec,asset_feed_spec,body,title,video_id,image_hash}&limit=40`);
+        }
+        await db.from("os_settings").upsert({ key: "meta_probe", value: out, updated_at: now() });
+        return json({ ok: true, keys: Object.keys(out) });
+      }
       return json({ error: "unknown mode" }, 400);
     }
     const token = (req.headers.get("Authorization") || "").replace("Bearer ", "");
