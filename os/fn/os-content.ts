@@ -315,18 +315,20 @@ Deno.serve(async (req) => {
         const step = async (name: string, fn: () => Promise<any>) => { try { const r = await fn(); log.push({ step: name, ok: true }); return r; } catch (e) { log.push({ step: name, ok: false, error: String((e as Error).message).slice(0, 400) }); throw e; } };
         try {
           const act = `act_${b.account}`;
-          const camp = await step("campaign", () => post(`${act}/campaigns`, { name: b.name, objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
+          const camp = b.campaign_id ? { id: b.campaign_id } : await step("campaign", () => post(`${act}/campaigns`, { name: b.name, objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
           out.campaign_id = camp.id;
-          const cp = await step("adset_copy", () => post(`${b.from_adset}/copies`, { campaign_id: camp.id, deep_copy: false, status_option: "PAUSED", rename_options: { rename_strategy: "NO_RENAME" } }));
-          const adset = cp.copied_adset_id || cp.ad_object_ids?.[0]?.copied_id; out.adset_id = adset;
-          const old = await graph(`${adset}?fields=targeting`, tok);
+          // settings of the best ad set ever (read only), reused for the new one
+          const old = await graph(`${b.from_adset}?fields=targeting,optimization_goal,billing_event,destination_type,promoted_object,bid_strategy`, tok);
           let geo = old.targeting?.geo_locations;
           if (b.city) {
             const g = await graph(`search?type=adgeolocation&location_types=["city"]&q=${encodeURIComponent(b.city)}&country_code=IL&limit=5`, tok);
             const c = (g.data || [])[0]; if (c) { geo = { cities: [{ key: c.key, radius: b.radius || 15, distance_unit: "kilometer" }], location_types: ["home", "recent"] }; out.city = c.name; }
           }
           const t = { ...old.targeting, age_min: b.age_min, age_max: b.age_max, genders: [2], geo_locations: geo };
-          await step("adset_update", () => post(adset, { name: b.adset_name, daily_budget: b.daily_budget, targeting: t }));
+          const as = await step("adset", () => post(`${act}/adsets`, { name: b.adset_name, campaign_id: camp.id, status: "PAUSED", daily_budget: b.daily_budget, targeting: t,
+            optimization_goal: old.optimization_goal || "CONVERSATIONS", billing_event: old.billing_event || "IMPRESSIONS", destination_type: old.destination_type || "WHATSAPP",
+            promoted_object: { page_id: b.page_id }, bid_strategy: old.bid_strategy || "LOWEST_COST_WITHOUT_CAP", attribution_spec: [{ event_type: "CLICK_THROUGH", window_days: 1 }] }));
+          const adset = as.id; out.adset_id = adset;
           const vid = await step("video_upload", () => post(`${act}/advideos`, { file_url: b.video_url, name: b.name }));
           out.video_id = vid.id;
           let thumb = "";
