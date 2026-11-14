@@ -301,6 +301,17 @@ Deno.serve(async (req) => {
       if (body.mode === "daily") { if (!AKEY) return json({ error: "no_key" }, 400); bg(dailyPlan(!!body.force).then((r) => console.log("daily", JSON.stringify(r)))); return json({ ok: true }); }
       if (body.mode === "script_one") { await db.from("os_videos").update({ status: "scripting" }).eq("id", body.id).eq("status", "scripting"); bg(scriptJob(String(body.id))); return json({ ok: true }); }
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
+      // read-only: results of chosen campaigns split by age and gender (lifetime)
+      if (body.mode === "ads_breakdown") {
+        const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
+        const out: any = {};
+        for (const id of (body.campaigns || []).slice(0, 10)) {
+          try { out[id] = ((await graph(`${id}/insights?date_preset=maximum&breakdowns=age,gender&fields=campaign_name,spend,actions&limit=100`, tok)).data || []).map((x: any) => ({ c: x.campaign_name, age: x.age, g: x.gender, spend: +x.spend || 0, conv: +((x.actions || []).find((a: any) => a.action_type === "onsite_conversion.messaging_conversation_started_7d")?.value || 0) })); }
+          catch (e) { out[id] = { error: String((e as Error).message).slice(0, 200) }; }
+        }
+        await db.from("os_settings").upsert({ key: "meta_breakdown", value: { at: now(), out }, updated_at: now() });
+        return json({ ok: true });
+      }
       // Build one campaign in Glow House's ad account, everything PAUSED (nothing is spent until Karin turns it on in Ads Manager).
       // The ad set is copied from the best ad set the account ever had, so WhatsApp destination, page and placements stay as they were.
       if (body.mode === "ads_build") {
