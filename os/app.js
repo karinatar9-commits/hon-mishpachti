@@ -831,3 +831,52 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     document.querySelectorAll("[data-fxh]").forEach(b=>b.onclick=()=>{ const t=d("#vT"); if(!t) return; t.value=(t.value.trim()?t.value.trim()+" — ":"סרטון על … ")+b.dataset.fxh; t.focus(); });
     const dt2=d("#hubCfg"); if(dt2){ dt2.ontoggle=()=>{ window.__hubCfg=dt2.open; }; const go=d("#hubCfgGo"); go&&(go.onclick=()=>{ dt2.open=!0; dt2.scrollIntoView({behavior:"smooth"}); }); } };
 })();
+
+;(()=>{
+  // ---------- business switcher: one click at the top picks which business the whole system shows ----------
+  const BIZ=[["all","הכל","🌐"],["me","העסק שלי","🚀"],["glow","Glow House","✨"],["x4","4X","🏢"],["benhur","בן-חור","🏭"]];
+  const LEAD={me:"אישי",glow:"Glow House",x4:"4X",benhur:"בן-חור"}, HOME={all:"home",me:"leads",glow:"glow-hub",x4:"biz-x4",benhur:"biz-benhur"}, COLOR={me:"#a78bfa",glow:"#f472b6",x4:"#5aa9ff",benhur:"#fbbf24"};
+  let BZ=BIZ.some(b=>b[0]===Pa("biz"))?Pa("biz"):"all";
+  const base=kt.map(g=>({g:g.g,items:[...g.items]})), all={}; base.forEach(g=>g.items.forEach(i=>all[i[0]]=i));
+  const it=(id,ic,label)=>[id,ic||(all[id]||[])[1]||"•",label||(all[id]||[])[2]||id];
+  const MENU={
+    me:{g:"העסק שלי · Goldchain AI",items:[it("leads"),it("mkt-factory"),it("quotes","📄","הצעות מחיר"),it("agent-biz")]},
+    glow:{g:"Glow House",items:[it("glow-hub","✨","מרכז השיווק"),it("mkt-factory","🎬","תוכן וסרטונים"),it("mkt-meta","📢","קמפיינים ומודעות"),it("leads"),it("mkt-ig","📸","אינסטגרם"),it("biz-glow","📊","תמונת מצב")]},
+    x4:{g:"4X",items:[it("biz-x4","🏢","תמונת מצב"),it("w-hold","📊","אחזקות"),it("fin-map","🕸️","מפת חשבונות")]},
+    benhur:{g:"בן-חור",items:[it("biz-benhur","🏭","תמונת מצב"),it("leads"),it("quotes","📄","הצעות מחיר"),it("agent-benhur"),it("fin-invoices","🧾","סגירת חשבוניות"),it("fin-cash","📈","תזרים מזומנים")]}
+  };
+  const mine=t=>BZ==="me"?(t.agent==="biz"||/goldchain|סוכני ai|שירותי ai/i.test(t.title+" "+(t.notes||""))):(ot[BZ].agent&&t.agent===ot[BZ].agent)||ot[BZ].words.some(w=>(t.title+" "+(t.notes||"")).toLowerCase().includes(w));
+  const apply=()=>{
+    kt.length=0;
+    if(BZ==="all") kt.push(...base.map(g=>({g:g.g,items:[...g.items]})));
+    else { const today=base.find(g=>g.g==="היום"), set=base.find(g=>g.g==="הגדרות"); today&&kt.push(today); kt.push(MENU[BZ]); set&&kt.push(set); MENU[BZ].items.forEach(i=>{ Ga[i[0]]=[MENU[BZ].g,i[2]]; }); }
+    window.crmF=window.crmF||{biz:"",stage:"",q:"",closed:!1}; window.crmF.biz=LEAD[BZ]||"";
+    document.documentElement.style.setProperty("--bz",COLOR[BZ]||"transparent");
+  };
+  const bar=()=>{ let el=d("#bizSw"); if(!el){ d(".top").insertAdjacentHTML("afterend",'<div id="bizSw"></div>'); el=d("#bizSw"); }
+    el.innerHTML=BIZ.map(([id,n,ic])=>`<button data-bz="${id}" class="${BZ===id?"on":""}">${ic} ${l(n)}</button>`).join(""); };
+  document.addEventListener("click",e=>{ const b=e.target.closest("[data-bz]"); if(!b) return; BZ=b.dataset.bz; Ha("biz",BZ); apply(); bar(); location.hash!=="#"+HOME[BZ]?location.hash=HOME[BZ]:q(!0); });
+  // tasks: in a business view show only that business's tasks
+  const oldTasks=k.tasks; k.tasks=()=>{ if(BZ==="all") return oldTasks(); const keep=v.tasks; v.tasks=keep.filter(mine); try{ return `<div class="small muted" style="margin-bottom:8px">מוצגות רק המשימות של ${l(BIZ.find(b=>b[0]===BZ)[1])} · <a href="#" data-bz="all">להציג הכל</a></div>`+oldTasks(); } finally { v.tasks=keep; } };
+  // content factory: the account follows the chosen business
+  const oldFacV=k["mkt-factory"], oldFacZ=z["mkt-factory"];
+  k["mkt-factory"]=()=>{ const acc=BZ==="glow"?"glow":BZ==="me"?"karin":null; if(!acc) return oldFacV(); const keep=U; U=keep.filter(x=>x.account===acc); try{ return oldFacV(); } finally { U=keep; } };
+  z["mkt-factory"]=()=>{ oldFacZ&&oldFacZ(); const a=d("#vA"); if(a&&(BZ==="glow"||BZ==="me")) a.value=BZ==="glow"?"glow":"karin"; };
+  // Glow House: one screen for content, campaigns, leads and the bot
+  k["glow-hub"]=()=>{
+    const leads=v.leads.filter(x=>x.biz==="Glow House"&&!["won","lost"].includes(x.stage)), vids=(U||[]).filter(x=>x.account==="glow"), rev=vids.filter(x=>x.status==="review"), pub=vids.filter(x=>x.status==="published");
+    const card=(n,t,go)=>`<div class="card" data-go="${go}" style="cursor:pointer"><div class="muted small">${t}</div><div class="big">${n}</div></div>`;
+    const conn=(ok,t,sub,go)=>`<div class="row" style="padding:10px 0;border-bottom:1px solid var(--line)"><span class="dot ${ok?"ok":"warn"}"></span><span style="flex:1"><b>${t}</b><div class="small muted">${sub}</div></span>${go?`<button class="btn ghost sm" data-go="${go}">לפתוח</button>`:""}</div>`;
+    return `<div class="grid g3" style="margin-bottom:14px">${card(leads.length,"לידים פתוחים","leads")}${card(rev.length,"תוכן שמחכה לאישור","mkt-factory")}${card(pub.length,"פורסם","mkt-factory")}</div>
+    <div class="card" style="margin-bottom:14px"><h3>מה עושים עכשיו</h3><div class="acts" style="flex-wrap:wrap"><button class="btn" data-go="mkt-factory">🎬 ליצור תוכן ל-Glow House</button><button class="btn ghost" data-go="mkt-meta">📢 קמפיינים ומודעות</button><button class="btn ghost" data-go="leads">🧲 הלידים</button><button class="btn ghost" data-act="newLead">＋ ליד ידני</button></div></div>
+    <div class="card"><h3>מה מחובר</h3>
+      ${conn(!!E.igGlow,"אינסטגרם של Glow House",E.igGlow?`מחובר${E.handleGlow?" · "+l(E.handleGlow):""} — תוכן שמאושר עולה ישירות`:"לא מחובר — תוכן נוצר כאן אבל מעלים אותו ידנית","mkt-factory")}
+      ${conn(!1,"מנהל המודעות של מטא","לא מחובר. צריך אפליקציית מטא עם הרשאת מודעות וגישה לחשבון המודעות של Glow House. עד אז המעקב ידני.","mkt-meta")}
+      ${conn(!1,"לידים ממודעות","לא מחובר. אחרי חיבור מטא, כל ליד מטופס מודעה ייכנס לכאן אוטומטית עם השיוך ל-Glow House.","leads")}
+      ${conn(!1,"הבוט בוואטסאפ","רץ בנפרד (Railway) ועדיין לא מוצג או מנוהל מהמסך הזה.","")}
+    </div>`;
+  };
+  Ga["glow-hub"]=["Glow House","מרכז השיווק"];
+  try{ document.head.insertAdjacentHTML("beforeend",`<style>#bizSw{position:sticky;top:61px;z-index:4;display:flex;gap:8px;padding:8px 24px;overflow-x:auto;background:rgba(10,12,17,.92);border-bottom:2px solid var(--bz,transparent);scrollbar-width:none}#bizSw button{flex:none;white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#11141b;color:#aab1c2;font:inherit;font-size:13px;cursor:pointer}#bizSw button.on{background:#fff;color:#0a0c11;border-color:#fff;font-weight:700}@media(max-width:800px){#bizSw{padding:8px 12px;position:static}}</style>`); }catch(_){ }
+  apply(); bar(); setTimeout(()=>{ try{ bar(); d("#view").__route&&q(!0); }catch(_){ } },0);
+})();
