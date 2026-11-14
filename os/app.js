@@ -877,6 +877,6 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     </div>`;
   };
   Ga["glow-hub"]=["Glow House","מרכז השיווק"];
-  try{ document.head.insertAdjacentHTML("beforeend",`<style>#bizSw{position:sticky;top:61px;z-index:4;display:flex;gap:8px;padding:8px 24px;overflow-x:auto;background:rgba(10,12,17,.92);border-bottom:2px solid var(--bz,transparent);scrollbar-width:none}#bizSw button{flex:none;white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#11141b;color:#aab1c2;font:inherit;font-size:13px;cursor:pointer}#bizSw button.on{background:#fff;color:#0a0c11;border-color:#fff;font-weight:700}@media(max-width:800px){#bizSw{padding:8px 12px;position:static}}</style>`); }catch(_){ }
+  try{ document.head.insertAdjacentHTML("beforeend",`<style>#bizSw{flex:none;position:sticky;top:61px;z-index:4;display:flex;gap:8px;padding:8px 24px;overflow-x:auto;background:rgba(10,12,17,.92);border-bottom:2px solid var(--bz,transparent);scrollbar-width:none}#bizSw button{flex:none;white-space:nowrap;padding:6px 14px;border-radius:20px;border:1px solid var(--line);background:#11141b;color:#aab1c2;font:inherit;font-size:13px;cursor:pointer}#bizSw button.on{background:#fff;color:#0a0c11;border-color:#fff;font-weight:700}@media(max-width:800px){#bizSw{padding:8px 12px;position:static}}</style>`); }catch(_){ }
   apply(); bar(); setTimeout(()=>{ try{ bar(); d("#view").__route&&q(!0); }catch(_){ } },0);
 })();
