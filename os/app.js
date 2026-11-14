@@ -916,3 +916,32 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
     const b=d("#adsLearn"); b&&(b.onclick=async()=>{ busy=!0; q(!1); try{ LS=await J({mode:"ads_history"}); f("הניתוח מוכן"); }catch(e){ f(X(e)); } busy=!1; O==="mkt-meta"&&q(!1); });
   };
 })();
+
+;(()=>{
+  // ---------- Glow House: the marketing materials folder in Google Drive, shown inside the hub (read-only) ----------
+  const FOLDER="1FHwZoDtgFxEdMn4l62Efe32VcGIGz3oA";
+  let GS=null, DR=null, busy=!1;
+  const oldV=k["glow-hub"];
+  const mb=n=>n?(+n/1048576).toFixed(+n>10485760?0:1)+" MB":"";
+  const card=()=>{
+    const folder=(E&&E.glowDrive)||FOLDER, head=`<h3>📁 חומרים מהדרייב<span class="r small"><a href="https://drive.google.com/drive/folders/${l(folder)}" target="_blank" rel="noopener">לפתוח את התיקייה ↗</a></span></h3>`;
+    if(!GS) return `<div class="card" style="margin-top:14px">${head}<div class="small muted">בודק חיבור…</div></div>`;
+    if(!GS.connected||!GS.drive) return `<div class="card" style="margin-top:14px">${head}<div class="small muted" style="margin-bottom:10px">החיבור לגוגל כולל כרגע מייל ויומן בלבד. כדי לראות כאן את התמונות והסרטונים מהתיקייה "תכנים לממומן של רינת" צריך לאשר מחדש את גוגל, הפעם עם הרשאת קריאה מהדרייב. המערכת רק קוראת — לא משנה ולא מוחקת.</div><button class="btn sm" id="drOn">🔗 לחבר את הדרייב</button></div>`;
+    if(!DR) return `<div class="card" style="margin-top:14px">${head}<div class="small muted">טוען את הקבצים…</div></div>`;
+    if(DR.error) return `<div class="card" style="margin-top:14px">${head}<div class="small" style="color:var(--red)">${l(DR.error)}</div><div class="small muted" style="margin-top:6px">אם כתוב שה-Drive API לא מופעל: צריך להפעיל אותו פעם אחת בפרויקט של גוגל (Google Cloud ← APIs ← Google Drive API ← Enable).</div></div>`;
+    const fs=DR.files||[], vids=fs.filter(x=>/^video\//.test(x.mimeType)).length, imgs=fs.filter(x=>/^image\//.test(x.mimeType)).length;
+    return `<div class="card" style="margin-top:14px">${head}<div class="small muted" style="margin-bottom:10px">${fs.length}${DR.next?"+":""} קבצים · ${vids} סרטונים · ${imgs} תמונות</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">${fs.map(x=>{ const isF=x.mimeType==="application/vnd.google-apps.folder"; return `<a href="${l(x.webViewLink||"#")}" target="_blank" rel="noopener" style="display:block;text-decoration:none;color:inherit;background:#11141b;border:1px solid var(--line);border-radius:10px;overflow:hidden">
+        <div style="aspect-ratio:1;background:#0a0c11;display:grid;place-items:center;font-size:30px;overflow:hidden">${x.thumbnailLink?`<img src="${l(x.thumbnailLink)}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover">`:(isF?"📁":/^video\//.test(x.mimeType)?"🎬":"📄")}</div>
+        <div class="small" style="padding:6px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${/^video\//.test(x.mimeType)?"🎬 ":""}${l(x.name)}</div><div class="small muted" style="padding:0 8px 6px">${I((x.createdTime||"").slice(0,10))}${x.size?" · "+mb(x.size):""}</div></a>`; }).join("")}</div>
+      ${DR.next?`<div class="acts" style="margin-top:10px"><button class="btn ghost sm" id="drMore" ${busy?"disabled":""}>עוד קבצים</button></div>`:""}</div>`;
+  };
+  k["glow-hub"]=()=>oldV()+card();
+  const load=async tok=>{ const folder=(E&&E.glowDrive)||FOLDER; try{ const r=await Bt({mode:"drive",folder,pageToken:tok||void 0}); DR=tok&&DR&&DR.files?{files:[...DR.files,...(r.files||[])],next:r.next}:r; }catch(e){ DR={error:X(e)}; } O==="glow-hub"&&q(!1); };
+  z["glow-hub"]=()=>{
+    if(!GS){ if(!z["glow-hub"].asked){ z["glow-hub"].asked=!0; Bt({mode:"status"}).then(s=>{ GS=s||{}; O==="glow-hub"&&q(!1); }).catch(()=>{ GS={connected:!1}; O==="glow-hub"&&q(!1); }); } }
+    else if(GS.drive&&!DR&&!busy){ busy=!0; load().finally(()=>{ busy=!1; }); }
+    const on=d("#drOn"); on&&(on.onclick=async()=>{ on.disabled=!0; on.textContent="פותח את גוגל…"; try{ const s=await Bt({mode:"auth_url"}); location.href=s.url; }catch(e){ f(X(e)); on.disabled=!1; on.textContent="🔗 לחבר את הדרייב"; } });
+    const more=d("#drMore"); more&&(more.onclick=async()=>{ busy=!0; q(!1); await load(DR.next); busy=!1; q(!1); });
+  };
+})();

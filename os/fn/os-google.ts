@@ -19,7 +19,7 @@ const CSECRET = (Deno.env.get("GOOGLE_CLIENT_SECRET") || "").trim().replace(/^["
 const AKEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
 const SELF = `${SB_URL}/functions/v1/os-google`;
 const APP = "https://karinatar9-commits.github.io/hon-mishpachti/os/";
-const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/calendar.events"].join(" ");
+const SCOPES = ["openid", "email", "https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/drive.readonly"].join(" ");
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-key", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Jerusalem" });
@@ -342,7 +342,17 @@ Deno.serve(async (req) => {
     if (body.mode === "status") {
       const g: any = await vget("google");
       const ld: any = await vget("google_last_digest");
-      return json({ client: !!(CID && CSECRET), cid_ok: CID.endsWith(".apps.googleusercontent.com"), connected: !!g?.refresh_token && !g?.broken, email: g?.email || null, since: g?.connected_at || null, broken: !!g?.broken, redirect: SELF, last_digest: ld || null });
+      return json({ client: !!(CID && CSECRET), cid_ok: CID.endsWith(".apps.googleusercontent.com"), connected: !!g?.refresh_token && !g?.broken, drive: !!g?.refresh_token && /auth\/drive/.test(String(g?.scope || "")), email: g?.email || null, since: g?.connected_at || null, broken: !!g?.broken, redirect: SELF, last_digest: ld || null });
+    }
+    // read-only listing of one Drive folder (the marketing materials folder); nothing is copied or changed
+    if (body.mode === "drive") {
+      const folder = String(body.folder || ""); if (!/^[\w-]{10,80}$/.test(folder)) return json({ error: "bad folder" }, 400);
+      try {
+        const q = encodeURIComponent(`'${folder}' in parents and trashed = false`);
+        const pt = body.pageToken ? `&pageToken=${encodeURIComponent(String(body.pageToken))}` : "";
+        const r: any = await gapi(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id,name,mimeType,thumbnailLink,webViewLink,size,createdTime,videoMediaMetadata(durationMillis))&pageSize=100&orderBy=createdTime%20desc&supportsAllDrives=true&includeItemsFromAllDrives=true${pt}`);
+        return json({ files: r.files || [], next: r.nextPageToken || null });
+      } catch (e) { return json({ error: String((e as Error).message || e) }, 500); }
     }
     if (body.mode === "contacts") {
       const job = (async () => { try { const r = await buildContacts(); await vset("google_last_contacts", { at: new Date().toISOString(), ok: true, r }); } catch (e) { await vset("google_last_contacts", { at: new Date().toISOString(), ok: false, error: String((e as Error).message || e) }); } })();
