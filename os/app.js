@@ -988,3 +988,33 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   // the leads board follows the chosen business
   const oldLD=k["leads-dash"]; k["leads-dash"]=()=>{ const b=window.crmF&&window.crmF.biz; if(!b) return oldLD(); const keep=v.leads; v.leads=keep.filter(x=>x.biz===b); try{ return `<div class="small muted" style="margin-bottom:8px">מוצגים רק הלידים של ${l(b==="אישי"?"העסק שלי":b)}</div>`+oldLD(); } finally { v.leads=keep; } };
 })();
+
+// ---------- Glow House: the morning snapshot from the marketing agent (campaigns, Instagram, page, leads) ----------
+(()=>{
+  let GD=null, asked=!1, busy=!1;
+  const tone={good:["#34d399","הכל טוב"],watch:["#fbbf24","לשים לב"],alert:["#f87171","דורש טיפול"]};
+  const card=()=>{
+    const b=GD&&GD.brief;
+    if(!GD) return `<div class="card" style="margin-bottom:14px"><h3>☀️ תמונת הבוקר</h3><div class="muted small">טוען…</div></div>`;
+    const when=GD.at?new Date(GD.at).toLocaleString("he-IL",{timeZone:"Asia/Jerusalem",day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"";
+    const btn=`<button class="btn ghost sm" id="gdNow" ${busy?"disabled":""}>${busy?"מכין…":"↻ לרענן עכשיו"}</button>`;
+    if(!b) return `<div class="card" style="margin-bottom:14px"><div class="row" style="justify-content:space-between"><h3>☀️ תמונת הבוקר</h3>${btn}</div><div class="muted small">עדיין אין תמונה. היא נוצרת כל בוקר ב-07:15, או עכשיו בלחיצה.</div></div>`;
+    const t=tone[b.status]||tone.watch, R=GD.raw||{};
+    const chips=[R.ig&&R.ig.followers!=null?`📸 ${Number(R.ig.followers).toLocaleString("he-IL")} עוקבים באינסטגרם`:"",R.page&&R.page.followers!=null?`👍 ${Number(R.page.followers).toLocaleString("he-IL")} בפייסבוק`:"",R.leads?`🧲 ${R.leads.waiting} לידים מחכים`:""].filter(Boolean);
+    return `<div class="card" style="margin-bottom:14px;border-right:4px solid ${t[0]}">
+      <div class="row" style="justify-content:space-between;align-items:flex-start"><div><div class="small" style="color:${t[0]}">☀️ תמונת הבוקר · ${t[1]} · ${l(when)}</div><h3 style="margin:6px 0">${l(b.headline||"")}</h3></div>${btn}</div>
+      ${(b.story||[]).map(x=>`<p style="margin:6px 0;line-height:1.7">${l(x)}</p>`).join("")}
+      ${(b.campaigns||[]).length?`<div style="margin-top:12px"><b>📢 הקמפיינים</b>${b.campaigns.map(c=>`<div style="margin:6px 0;line-height:1.6"><b>${l(c.name)}</b> — ${l(c.line)}</div>`).join("")}</div>`:""}
+      ${b.social?`<div style="margin-top:10px;line-height:1.6"><b>📸 רשתות:</b> ${l(b.social)}</div>`:""}
+      ${(b.actions||[]).length?`<div style="margin-top:12px"><b>✅ מה לעשות היום</b><ol style="margin:6px 0;padding-inline-start:20px;line-height:1.7">${b.actions.map(a=>`<li>${l(a)}</li>`).join("")}</ol></div>`:""}
+      ${chips.length?`<div class="small muted" style="margin-top:10px">${chips.join(" · ")}</div>`:""}
+    </div>`;
+  };
+  const load=async()=>{ try{ GD=await J({mode:"glow_daily_get"}); }catch(_){ GD={}; } O==="glow-hub"&&q(!1); };
+  const oldV=k["glow-hub"], oldZ=z["glow-hub"];
+  k["glow-hub"]=()=>card()+oldV();
+  z["glow-hub"]=()=>{ oldZ&&oldZ(); if(!asked){ asked=!0; load(); }
+    const b=d("#gdNow"); b&&(b.onclick=async()=>{ busy=!0; q(!1); try{ await J({mode:"glow_daily_now"}); f("מכין תמונה חדשה — דקה בערך"); setTimeout(async()=>{ await load(); busy=!1; q(!1); },60000); }catch(e){ busy=!1; f(X(e)); q(!1); } }); };
+  // Meta Business Suite links on the Instagram screen open Rinat's real page, not the empty second page
+  const oldIG=k["mkt-ig"]; if(oldIG) k["mkt-ig"]=()=>{ const h=oldIG(); if(Pa("biz")!=="glow") return h; return h.replace(/https:\/\/business\.facebook\.com\/latest\/([a-z_\/0-9]+)(\?[^"'`\s]*)?/g,(m,p)=>`https://business.facebook.com/latest/${p}?asset_id=111564514515729&business_id=313332126192796`); };
+})();
