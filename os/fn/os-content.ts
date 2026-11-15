@@ -284,6 +284,42 @@ async function glowDaily() {
   return { ok: !!b, errors: out.errors };
 }
 
+
+// ---------- Goldchain idea scout: every 48h, research + ideas + weekly corner, learns from Karin's votes ----------
+async function ideasScout() {
+  const s = await settings();
+  const get = async (k: string) => (await db.from("os_settings").select("value").eq("key", k).maybeSingle()).data?.value;
+  const prev: any = (await get("ideas_digest")) || {};
+  const fb: any[] = ((await get("ideas_feedback")) || {}).items || [];
+  const brief: any = (await db.from("os_briefs").select("answers").eq("agent", "biz").maybeSingle()).data?.answers || {};
+  const lessons = (brief.goldchain_lessons || []).filter((l: any) => ["ideas", "orchestrator", "copywriting"].includes(l.skill)).map((l: any) => l.lesson);
+  const lastCorner = prev.corner_at ? Date.parse(prev.corner_at) : 0;
+  const wantCorner = Date.now() - lastCorner > 6 * 86400000;
+  const kinds = ["tip", "mistake", "risk"]; const ck = kinds[(prev.corner_n || 0) % 3];
+  const used = (prev.history || []).flatMap((h: any) => h.titles || []).slice(-40);
+  const p = `את/ה סקאוט הרעיונות של Goldchain AI — העסק של קרין עטר: הטמעת סוכני AI ואוטומציות בתוך המערכות הקיימות של עסקים קטנים ובינוניים בישראל (כספים וגבייה, חשבוניות, לידים ומכירות, שירות, ייעול תפעולי — Morning, Priority, בנקים, וואטסאפ, Gmail, Sheets). המטרה שלה: להיכנס לעסק ולפתור לבעלים את הכאב הכי גדול שלו, ולהכניס סדר, שליטה והגנה. הקהל: בעלי עסקים קטנים ובינוניים, עצמאים, מנהלי כספים ותפעול בישראל — לא טכנולוגיים, עמוסים, חשדניים כלפי הייפ.
+מחקר (השתמש/י בחיפוש, עד 7 חיפושים, ממוקדים): 1) חדשות AI ואוטומציה מהיומיים האחרונים שרלוונטיות לעסקים קטנים (כלים חדשים, שינויים ב-OpenAI/Anthropic/Google/Meta/WhatsApp, רגולציה ופרטיות בישראל). 2) מתחרים ויוצרי תוכן בנישה (סוכנויות אוטומציה ו-AI לעסקים בישראל ובעולם, יוצרי אינסטגרם/לינקדאין/יוטיוב על אוטומציה לעסקים) — מה הם מפרסמים עכשיו ומה תופס. 3) כאבים אמיתיים של בעלי עסקים: שאלות בקבוצות, כתבות בגלובס/כלכליסט/TheMarker/ynet על עסקים קטנים, פורומים, Reddit (r/smallbusiness, r/automation).
+אסור להמציא: כל עובדה עם מקור (קישור). אין לך גישה למספרי לייקים של מתחרים — אל תמציא/י מספרים; תאר/י מה בולט במילים. לא לחזור על רעיונות קודמים: ${JSON.stringify(used)}.
+${lessons.length ? "כללים שקרין לימדה (חובה):\n- " + lessons.slice(-20).join("\n- ") : ""}
+${fb.length ? "החלטות קודמות של קרין על רעיונות (למד/י מה עובד אצלה):\n" + fb.slice(-25).map((f: any) => `${f.vote === "up" ? "✔ בחרה" : "✘ פסלה"}: ${f.title}${f.why ? " — " + f.why : ""}`).join("\n") : ""}
+${wantCorner ? `הפינה השבועית הקבועה השבוע: ${ck === "tip" ? "טיפ שבועי מעשי ל-AI בעסק" : ck === "mistake" ? "טעות נפוצה של מי שמתחיל להשתמש ב-AI בעסק" : "סיכון של שימוש ב-AI בלי הבנה (פרטיות, הזיות, הרשאות, תלות, עלויות)"} — כתוב/י אותה כטקסט מוכן לפוסט/קרוסלה, עם דוגמה מעסק ישראלי ומה לעשות במקום.` : ""}
+כתוב/י בעברית פשוטה, מספרים בתוך משפטים. החזר/י JSON תקין בלבד, בלי מירכאות כפולות בתוך הטקסט:
+{"headline":"משפט אחד — מה הכי חשוב היום","news":[{"title":"","why":"למה זה חשוב לבעל עסק ולקרין","url":""}],"creators":[{"name":"יוצר/מתחרה","what":"מה פרסם","standout":"מה בולט ולמה זה עובד","url":""}],"pains":[{"pain":"הכאב במילים של בעל העסק","evidence":"איפה ראית","url":""}],"ideas":[{"title":"","format":"רילס|קרוסלה|פוסט לינקדאין|סטורי","hook":"משפט פתיחה","angle":"מה הערך ולמה זה מתאים לקהל שלה","source":""}]${wantCorner ? `,"corner":{"type":"${ck}","title":"","body":"4-8 משפטים מוכנים לפרסום","cta":""}` : ""}}
+עד 4 חדשות, עד 4 יוצרים, עד 4 כאבים, בדיוק 5 רעיונות.`;
+  let d: any = null, err = "";
+  for (let i = 0; i < 2 && !d; i++) { try { d = await claudeJSON(p, s.model, 7); } catch (e) { err = String((e as Error).message).slice(0, 200); } }
+  if (!d) return { ok: false, error: err };
+  d.ideas = (d.ideas || []).map((x: any, i: number) => ({ ...x, id: Date.now().toString(36) + i }));
+  const at = now();
+  const val = { ...d, at, corner_at: d.corner ? at : prev.corner_at || null, corner_n: (prev.corner_n || 0) + (d.corner ? 1 : 0), corner_last: d.corner || prev.corner_last || null,
+    history: [...(prev.history || []), { at, titles: (d.ideas || []).map((x: any) => x.title) }].slice(-10) };
+  await db.from("os_settings").upsert({ key: "ideas_digest", value: val, updated_at: at });
+  const L = (a: any[], f: (x: any) => string) => (a || []).map(f).join("\n");
+  const body = `${d.headline}\n\n💡 5 רעיונות\n${L(d.ideas, (x) => `• ${x.title} (${x.format})\n  הוק: ${x.hook}\n  ${x.angle}`)}\n\n${d.corner ? `📌 הפינה השבועית — ${d.corner.title}\n${d.corner.body}\n${d.corner.cta || ""}\n\n` : ""}📰 מה חדש\n${L(d.news, (x) => `• ${x.title} — ${x.why} ${x.url || ""}`)}\n\n👀 מה קורה אצל היוצרים\n${L(d.creators, (x) => `• ${x.name}: ${x.what} — ${x.standout} ${x.url || ""}`)}\n\n😣 מה כואב לבעלי עסקים\n${L(d.pains, (x) => `• ${x.pain} (${x.evidence}) ${x.url || ""}`)}\n\nלבחור ולפסול רעיונות (והסוכן לומד): https://karinatar9-commits.github.io/hon-mishpachti/os/#ideas`;
+  await db.from("os_actions").insert({ agent: "biz", type: "email", title: "Goldchain · רעיונות", payload: { to: "karinatar9@gmail.com", subject: `💡 Goldchain · ${d.headline}`.slice(0, 140), body }, status: "approved", decided_at: at });
+  return { ok: true, ideas: d.ideas.length, corner: !!d.corner };
+}
+
 // ---------- renderer API (GitHub Actions, OIDC) ----------
 async function renderApi(body: any) {
   const s = await settings();
@@ -359,6 +395,7 @@ Deno.serve(async (req) => {
       if (body.mode === "script_one") { await db.from("os_videos").update({ status: "scripting" }).eq("id", body.id).eq("status", "scripting"); bg(scriptJob(String(body.id))); return json({ ok: true }); }
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
       if (body.mode === "glow_daily") { const r = await glowDaily(); return json(r); }
+      if (body.mode === "ideas") { if (!AKEY) return json({ error: "no_key" }, 400); bg(ideasScout().then((r) => console.log("ideas", JSON.stringify(r)))); return json({ ok: true }); }
       // read-only: results of chosen campaigns split by age and gender (lifetime)
       if (body.mode === "ads_breakdown") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
@@ -474,6 +511,16 @@ Deno.serve(async (req) => {
     }
     if (m === "glow_daily_get") { const { data } = await db.from("os_settings").select("value").eq("key", "glow_daily").maybeSingle(); return json(data?.value || {}); }
     if (m === "glow_daily_now") { bg(glowDaily()); return json({ ok: true }); }
+    if (m === "ideas_get") { const { data } = await db.from("os_settings").select("value").eq("key", "ideas_digest").maybeSingle(); const { data: f } = await db.from("os_settings").select("value").eq("key", "ideas_feedback").maybeSingle(); return json({ ...(data?.value || {}), history: undefined, votes: (f?.value?.items || []).slice(-60) }); }
+    if (m === "ideas_now") { if (!AKEY) return json({ error: "no_key" }, 400); bg(ideasScout()); return json({ ok: true }); }
+    if (m === "ideas_vote") {
+      const { data: f } = await db.from("os_settings").select("value").eq("key", "ideas_feedback").maybeSingle();
+      const items = (f?.value?.items || []).filter((x: any) => x.id !== body.id);
+      items.push({ id: String(body.id || ""), title: String(body.title || "").slice(0, 200), vote: body.vote === "up" ? "up" : "down", why: String(body.why || "").slice(0, 400), at: now() });
+      await db.from("os_settings").upsert({ key: "ideas_feedback", value: { items: items.slice(-80) }, updated_at: now() });
+      if (body.why) await db.from("os_items").insert({ kind: "notes", data: { skill: "ideas", lesson: `${body.vote === "up" ? "רעיון שקרין בחרה" : "רעיון שקרין פסלה"} (${String(body.title || "").slice(0, 80)}): ${String(body.why).slice(0, 300)}`, by: "קרין" } });
+      return json({ ok: true });
+    }
     if (m === "daily_now") { if (!AKEY) return json({ error: "no_key" }, 400); bg(dailyPlan(true)); return json({ ok: true }); }
     if (m === "revise") {
       const fb = String(body.feedback || "").slice(0, 4000);
