@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>עוזר אישי AI לעסק · 3 שלבים | Goldchain AI</title>
+<meta name="description" content="3 שלבים, 3 טקסטים להעתקה, ו-Claude בונה לכם עוזר אישי לעסק.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0F1A;--card:#141A2B;--line:#262E45;--acc:#A78BFA;--txt:#fff;--sub:#D5D9E3;--wa:#25D366}
+*{box-sizing:border-box;margin:0}
+body{background:radial-gradient(circle at 90% -10%,rgba(167,139,250,.25),transparent 45%),var(--bg);color:var(--txt);font-family:Heebo,system-ui,sans-serif;line-height:1.6;min-height:100vh}
+.wrap{max-width:680px;margin:0 auto;padding:28px 20px 120px}
+.brand{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--sub)}
+.brand b{color:var(--txt)}
+h1{font-size:40px;line-height:1.15;font-weight:800;margin:36px 0 12px}
+h1 span,.acc{color:var(--acc)}
+.lead{font-size:18px;color:var(--sub)}
+.step{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px 22px;margin-top:26px}
+.num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--acc);color:var(--bg);font-weight:800;font-size:20px;margin-left:10px}
+h2{display:flex;align-items:center;font-size:24px;font-weight:800}
+.step p{color:var(--sub);margin:10px 0 0;font-size:17px}
+.box{position:relative;margin-top:16px;background:#0E1322;border:1px dashed var(--acc);border-radius:16px;padding:18px 16px 16px;white-space:pre-wrap;font-size:16px;line-height:1.75;color:#fff}
+.copy{display:block;width:100%;margin-top:12px;background:var(--acc);color:var(--bg);border:0;border-radius:14px;padding:14px;font:800 18px Heebo,sans-serif;cursor:pointer}
+.copy.ok{background:#3ddc84}
+.tip{margin-top:12px;font-size:15px;color:var(--sub);background:rgba(167,139,250,.08);border-radius:12px;padding:10px 14px}
+.wa{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--wa);color:#06260f;text-decoration:none;font-weight:800;font-size:18px;border-radius:16px;padding:14px;margin-top:18px}
+.end{text-align:center;margin-top:34px}
+.end h2{justify-content:center;font-size:28px}
+.float{position:fixed;bottom:16px;left:16px;right:16px;max-width:648px;margin:0 auto;z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.ov{position:fixed;inset:0;background:rgba(5,7,14,.82);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.ov.hide{display:none}
+.pop{background:var(--card);border:2px solid var(--acc);border-radius:26px;padding:30px 24px;max-width:420px;text-align:center;box-shadow:0 0 60px rgba(167,139,250,.4)}
+.pop img{width:120px;height:120px;border-radius:50%;border:3px solid var(--acc);object-fit:cover}
+.pop h3{font-size:26px;font-weight:800;margin:14px 0 6px;line-height:1.25}
+.pop p{color:var(--sub);font-size:16px}
+.skip{background:none;border:0;color:var(--sub);font:400 15px Heebo;margin-top:12px;cursor:pointer;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="ov" id="ov">
+  <div class="pop">
+    <img src="karin.jpg" alt="קרין">
+    <h3>רגע לפני שמתחילים 👋</h3>
+    <p>בקהילת הוואטסאפ אני משתפת עוד פורמטים מוכנים להעתקה, עדכונים, ועונה על שאלות. בחינם.</p>
+    <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 להצטרפות לקהילה בוואטסאפ</a>
+    <button class="skip" id="skip">אחר כך, קודם המדריך</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="brand"><b dir="ltr">@goldchain_ai</b><span>קרין עטר · Goldchain AI</span></div>
+  <h1>עוזר אישי AI לעסק<br><span>ב-3 שלבים</span></h1>
+  <p class="lead">בלי ידע טכני. מעתיקים, מדביקים ב-Claude, והוא בונה את זה בשבילכם.</p>
+
+  <div class="step">
+    <h2><span class="num">1</span>ספרו על העסק</h2>
+    <p>העתיקו, מלאו במילים שלכם. אין תשובות נכונות. ככל שתכתבו יותר, העוזר יהיה טוב יותר.</p>
+    <div class="box" id="t1">על העסק שלי:
+מה העסק עושה:
+מי הלקוחות שלי:
+באילו מערכות אני עובד/ת (מייל, יומן, וואטסאפ, מורנינג, אקסל…):
+מה גוזל לי הכי הרבה זמן ביום-יום:
+מה הייתי רוצה שהעוזר יעשה בשבילי:
+איך אני אוהב/ת שמדברים איתי (קצר או מפורט):</div>
+    <button class="copy" data-t="t1">📋 להעתקה</button>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">2</span>תנו ל-Claude לבנות</h2>
+    <p>פתחו שיחה חדשה ב-Claude, הדביקו את הטקסט הזה, ומתחתיו את מה שמילאתם בשלב 1.</p>
+    <div class="box" id="t2">אתה הולך להיות העוזר האישי של העסק שלי. מתחת להודעה הזאת כתבתי על העסק.
+
+1. סכם במשפט אחד מה הבנת, ומה הכאב הכי גדול שלי.
+2. שאל אותי עד 3 שאלות קצרות, רק אם חסר לך משהו חשוב.
+3. אחרי שאענה, כתוב "הוראות עבודה" קבועות לעוזר: מי אני, מה העסק, מה חשוב לי, איך לדבר איתי, ומה אסור לעשות בלי אישור שלי.
+4. הצע 3 משימות קבועות שתעשה בשבילי כל יום או כל שבוע, מהקלה לקשה.
+
+כללים: לא שולחים, לא מוחקים ולא משנים שום דבר בשמי בלי אישור. אם לא בטוח, שואלים.
+
+—
+(הדביקו כאן את שלב 1)</div>
+    <button class="copy" data-t="t2">📋 להעתקה</button>
+    <div class="tip">💡 את "הוראות העבודה" שהוא יכתוב, שמרו בפרויקט קבוע ב-Claude, ככה הוא זוכר אתכם בכל שיחה.</div>
+  </div>
+
+  <div class="step">
+    <h2><span class="num">3</span>מתחילים לעבוד איתו</h2>
+    <p>כל בוקר, הדביקו את זה. אם חיברתם ל-Claude את המייל והיומן, הוא יעבור עליהם בעצמו.</p>
+    <div class="box" id="t3">בוקר טוב. תן לי תמונת מצב קצרה להיום:
+1. מה הכי דחוף (עד 3 דברים)
+2. מי מחכה לתשובה ממני
+3. טיוטות תשובה קצרות למה שדחוף. לא לשלוח, רק להכין.</div>
+    <button class="copy" data-t="t3">📋 להעתקה</button>
+  </div>
+
+  <div class="end step">
+    <h2>רוצים שנבנה לכם את זה <span class="acc">עד הסוף</span>?</h2>
+    <p>מחובר למערכות שלכם, עובד לבד, ואתם רק מאשרים.<br>שלחו לי הודעה באינסטגרם <b dir="ltr" style="color:#fff">@goldchain_ai</b></p>
+    <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 ובינתיים, הצטרפו לקהילה בוואטסאפ</a>
+  </div>
+</div>
+<a class="wa float js-wa" href="#" target="_blank" rel="noopener">💬 לקהילה בוואטסאפ</a>
+
+<script>
+// community invite link — one place to update
+const COMMUNITY="";
+document.querySelectorAll(".js-wa").forEach(a=>{ if(COMMUNITY) a.href=COMMUNITY; else a.addEventListener("click",e=>{e.preventDefault();alert("הקהילה נפתחת ממש בקרוב");}); });
+const ov=document.getElementById("ov");
+try{ if(sessionStorage.getItem("seenPop")) ov.classList.add("hide"); }catch(_){}
+const close=()=>{ ov.classList.add("hide"); try{sessionStorage.setItem("seenPop","1")}catch(_){} };
+document.getElementById("skip").onclick=close;
+ov.querySelectorAll(".js-wa").forEach(a=>a.addEventListener("click",close));
+document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{
+  const t=document.getElementById(b.dataset.t).innerText;
+  try{ await navigator.clipboard.writeText(t); }catch(_){ const r=document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.t)); const s=getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); }
+  const o=b.textContent; b.textContent="✔ הועתק!"; b.classList.add("ok"); setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); },1800);
+});
+</script>
+</body>
+</html>
