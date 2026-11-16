@@ -35,16 +35,46 @@ h2{display:flex;align-items:center;font-size:24px;font-weight:800}
 .pop h3{font-size:26px;font-weight:800;margin:14px 0 6px;line-height:1.25}
 .pop p{color:var(--sub);font-size:16px}
 .skip{background:none;border:0;color:var(--sub);font:400 15px Heebo;margin-top:12px;cursor:pointer;text-decoration:underline}
+.pop{position:relative;text-align:right;width:100%}
+.x{position:absolute;top:14px;left:16px;background:none;border:0;color:#7d8aa5;font-size:24px;cursor:pointer}
+.kick{color:#8a93b0;letter-spacing:2px;font-weight:800;font-size:13px}
+.pop h3{text-align:right}
+.sub{color:var(--sub);font-size:16px;margin-top:4px}
+#lf{margin-top:18px;display:flex;flex-direction:column;gap:12px}
+.row2{display:flex;gap:10px}.row2 input{flex:1;min-width:0}
+#lf input:not([type=checkbox]){background:#05080F;border:1.5px solid var(--line);border-radius:14px;color:#fff;font:400 17px Heebo,sans-serif;padding:15px 16px;outline:none}
+#lf input:focus{border-color:var(--acc)}
+#f3{text-align:left}
+.cb{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--sub);cursor:pointer}
+.cb input{width:22px;height:22px;margin-top:2px;accent-color:#A78BFA;flex:none}
+.send{background:var(--acc);color:var(--bg);border:0;border-radius:14px;padding:16px;font:800 19px Heebo,sans-serif;cursor:pointer;margin-top:4px}
+.send:disabled{opacity:.6}
+.err{color:#f87171;font-size:14px;min-height:0}
+.hide2{display:none}#done{text-align:center}#done h3{text-align:center}
 </style>
 </head>
 <body>
 <div class="ov" id="ov">
   <div class="pop">
-    <div class="ic">💬</div>
-    <h3>רגע לפני שמתחילים 👋</h3>
-    <p>בקהילת הוואטסאפ אני משתפת עוד פורמטים מוכנים להעתקה, עדכונים, ועונה על שאלות. בחינם.</p>
-    <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 להצטרפות לקהילה בוואטסאפ</a>
-    <button class="skip" id="skip">אחר כך, קודם המדריך</button>
+    <button class="x" id="skip" aria-label="סגירה">✕</button>
+    <div class="kick">GOLDCHAIN AI · מדריך חינם</div>
+    <h3>עוזר אישי AI לעסק ב-3 שלבים</h3>
+    <p class="sub">השאירו פרטים והמדריך נפתח לכם מיד.</p>
+    <form id="lf" novalidate>
+      <div class="row2"><input id="f1" placeholder="שם פרטי" autocomplete="given-name" required><input id="f2" placeholder="שם משפחה" autocomplete="family-name"></div>
+      <input id="f3" type="email" dir="ltr" placeholder="אימייל" autocomplete="email" required>
+      <input id="hp" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px">
+      <label class="cb"><input type="checkbox" id="f4"><span>אני מאשר/ת קבלת עדכונים ותוכן מ-Goldchain AI. אפשר להסיר את עצמי בכל עת.</span></label>
+      <div class="err" id="er"></div>
+      <button class="send" id="sb">פתחו לי את המדריך</button>
+    </form>
+    <div id="done" class="hide2">
+      <div style="font-size:44px">🎉</div>
+      <h3>המדריך פתוח!</h3>
+      <p class="sub">ועוד דבר קטן: בקהילה אני משתפת עוד פורמטים מוכנים להעתקה.</p>
+      <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 להצטרפות לקהילה בוואטסאפ</a>
+      <button class="skip" id="go">למדריך ←</button>
+    </div>
   </div>
 </div>
 
@@ -107,10 +137,20 @@ h2{display:flex;align-items:center;font-size:24px;font-weight:800}
 const COMMUNITY="";
 document.querySelectorAll(".js-wa").forEach(a=>{ if(COMMUNITY) a.href=COMMUNITY; else a.addEventListener("click",e=>{e.preventDefault();alert("הקהילה נפתחת ממש בקרוב");}); });
 const ov=document.getElementById("ov");
-try{ if(sessionStorage.getItem("seenPop")) ov.classList.add("hide"); }catch(_){}
-const close=()=>{ ov.classList.add("hide"); try{sessionStorage.setItem("seenPop","1")}catch(_){} };
-document.getElementById("skip").onclick=close;
-ov.querySelectorAll(".js-wa").forEach(a=>a.addEventListener("click",close));
+try{ if(localStorage.getItem("gcLead")) ov.classList.add("hide"); }catch(_){}
+const close=()=>ov.classList.add("hide");
+document.getElementById("skip").onclick=close; document.getElementById("go").onclick=close;
+document.getElementById("lf").addEventListener("submit",async e=>{ e.preventDefault();
+  const v=id=>document.getElementById(id).value.trim(), er=document.getElementById("er"), sb=document.getElementById("sb");
+  if(!v("f1")) return er.textContent="נא למלא שם פרטי";
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v("f3"))) return er.textContent="נא למלא אימייל תקין";
+  if(!document.getElementById("f4").checked) return er.textContent="צריך לאשר קבלת עדכונים כדי לקבל את המדריך";
+  er.textContent=""; sb.disabled=true; sb.textContent="שולח…";
+  try{ const r=await fetch("https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/guide-lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({first:v("f1"),last:v("f2"),email:v("f3"),consent:true,website:v("hp"),guide:"עוזר אישי"})});
+    if(!r.ok) throw 0; try{localStorage.setItem("gcLead","1")}catch(_){}
+    document.getElementById("lf").classList.add("hide2"); document.querySelector(".pop>.kick").style.display="none"; document.querySelectorAll(".pop>h3,.pop>.sub").forEach(x=>x.style.display="none"); document.getElementById("done").classList.remove("hide2");
+  }catch(_){ er.textContent="משהו השתבש, נסו שוב"; sb.disabled=false; sb.textContent="פתחו לי את המדריך"; }
+});
 document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{
   const t=document.getElementById(b.dataset.t).innerText;
   try{ await navigator.clipboard.writeText(t); }catch(_){ const r=document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.t)); const s=getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); }
