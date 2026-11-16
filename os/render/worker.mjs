@@ -33,7 +33,7 @@ function caps(text, d) {
   return { start: 0.25, end: 0.25 + d, words: ws.map((w, i) => { const t0 = t; t += len[i] / tot * span; return { w: w.replace(/[״"]/g, ''), t0: +t0.toFixed(3), t1: +t.toFixed(3) }; }) };
 }
 // b-roll library that ships with the repo (os/media/broll/<tag>.mp4, seamless loops)
-const FXT = ['graph', 'route', 'breakdown', 'stick', 'shapes']; // scenes that draw their own full-screen animation
+const FXT = ['graph', 'route', 'breakdown', 'stick', 'shapes', 'demo']; // scenes that draw their own full-screen animation
 const BROLL = path.join(dir, 'media', 'broll');
 const lib = fs.existsSync(BROLL) ? fs.readdirSync(BROLL).filter(f => f.endsWith('.mp4')).sort() : [];
 function pickClip(job, i, sc, used) {
