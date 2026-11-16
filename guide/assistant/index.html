@@ -24,9 +24,9 @@ h2{display:flex;align-items:center;font-size:23px;font-weight:800;line-height:1.
 .box{margin-top:16px;background:#0E1322;border:1px dashed var(--acc);border-radius:16px;padding:18px 16px;white-space:pre-wrap;font-size:16px;line-height:1.75;color:#fff;max-height:340px;overflow:auto}
 .copy{display:block;width:100%;margin-top:12px;background:var(--acc);color:var(--bg);border:0;border-radius:14px;padding:14px;font:800 18px Heebo,sans-serif;cursor:pointer}
 .copy.ok{background:#3ddc84}
-.wa{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--wa);color:#06260f;text-decoration:none;font-weight:800;font-size:18px;border-radius:16px;padding:14px;margin-top:18px}
+.wa{display:flex;align-items:center;justify-content:center;gap:10px;background:rgba(167,139,250,.08);color:var(--sub);text-decoration:none;font-weight:600;font-size:16px;border:1.5px solid rgba(167,139,250,.45);border-radius:14px;padding:12px;margin-top:18px;transition:.2s}.wa:hover{background:rgba(167,139,250,.16);color:#fff}.wa svg{width:20px;height:20px;fill:currentColor;opacity:.9}
 .end{text-align:center}.end h2{justify-content:center;font-size:26px}
-.float{position:fixed;bottom:16px;left:16px;right:16px;max-width:648px;margin:0 auto;z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+.float{position:fixed;bottom:18px;left:18px;margin:0;z-index:5;padding:10px 16px;font-size:14px;border-radius:999px;background:rgba(20,26,43,.92);backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
 .locked .float{display:none}
 .ghost{filter:blur(7px);opacity:.5;pointer-events:none;user-select:none}
 .ov{position:fixed;inset:0;background:rgba(5,7,14,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;z-index:10}
@@ -80,10 +80,10 @@ h2{display:flex;align-items:center;font-size:23px;font-weight:800;line-height:1.
   <div class="end step">
     <h2>רוצים שנבנה לכם את זה <span class="acc">עד הסוף</span>?</h2>
     <p>מחובר למערכות שלכם, עובד לבד, ואתם רק מאשרים.<br>שלחו לי הודעה באינסטגרם <b dir="ltr" style="color:#fff">@goldchain_ai</b></p>
-    <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 הצטרפו לקהילה בוואטסאפ</a>
+    <a class="wa js-wa" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>הצטרפו לקהילה בוואטסאפ</a>
   </div>
 </div>
-<a class="wa float js-wa" href="#" target="_blank" rel="noopener">💬 לקהילה בוואטסאפ</a>
+<a class="wa float js-wa" href="#" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1 2.7c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>לקהילה</a>
 
 <script>
 const API="https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/guide-lead", GUIDE="assistant", KEY="gc_"+GUIDE;
@@ -91,7 +91,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
 function community(url){ document.querySelectorAll(".js-wa").forEach(a=>{ if(url){ a.href=url; a.onclick=null; } else a.onclick=e=>{ e.preventDefault(); alert("הקהילה נפתחת ממש בקרוב"); }; }); }
 function render(c){
-  $("steps").innerHTML=(c.steps||[]).map((s,i)=>`<div class="step"><h2><span class="num">${i+1}</span>${esc(s.title)}</h2><p>${esc(s.desc)}</p><div class="box" id="t${i}">${esc(s.text)}</div><button class="copy" data-t="t${i}">📋 להעתקה</button>${i===0?`<a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 שאלות? הצטרפו לקהילה בוואטסאפ</a>`:""}</div>`).join("");
+  $("steps").innerHTML=(c.steps||[]).map((s,i)=>`<div class="step"><h2><span class="num">${i+1}</span>${esc(s.title)}</h2><p>${esc(s.desc)}</p><div class="box" id="t${i}">${esc(s.text)}</div><button class="copy" data-t="t${i}">📋 להעתקה</button></div>`).join("");
   community(c.community||"");
   document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{ const el=$(b.dataset.t), t=el.innerText;
     try{ await navigator.clipboard.writeText(t); }catch(_){ const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); }
