@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7efe6">
+<title>קביעת תור · Glow House</title>
+<meta name="description" content="קביעת תור אונליין ל-Glow House · רינת קוסמטיקס, ראשון לציון">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7efe6;--card:#fffaf4;--ink:#2e2218;--mu:#8a7868;--ln:#eadccd;--ac:#a8743f;--ac-d:#7d5227;--gold:#d9a85b;--soft:#f1e3d2;--ok:#3f7d55;--bad:#b2452f;--r:18px}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font-family:Heebo,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100dvh}
+.wrap{max-width:520px;margin:0 auto;padding:0 16px calc(120px + env(safe-area-inset-bottom))}
+header{padding:28px 4px 18px;text-align:center}
+.logo{font-family:"Frank Ruhl Libre",serif;font-size:34px;font-weight:700;letter-spacing:.5px;color:var(--ac-d);line-height:1.1}
+.logo small{display:block;font-family:Heebo,sans-serif;font-size:13px;font-weight:500;letter-spacing:3px;color:var(--mu);margin-top:6px}
+.addr{font-size:13px;color:var(--mu);margin-top:8px}
+.steps{display:flex;gap:6px;margin:6px 0 18px}
+.steps i{flex:1;height:4px;border-radius:4px;background:var(--ln);transition:background .25s}
+.steps i.on{background:var(--ac)}
+h1{font-size:22px;font-weight:800;margin:0 0 4px}
+.sub{color:var(--mu);font-size:14px;margin:0 0 16px}
+.cat{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--ac);margin:20px 4px 8px}
+.svc{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:right;font:inherit;color:inherit;background:var(--card);border:1.5px solid var(--ln);border-radius:var(--r);padding:16px;margin-bottom:10px;cursor:pointer;transition:border-color .15s,transform .1s}
+.svc:active{transform:scale(.985)}
+.svc:hover,.svc:focus-visible{border-color:var(--ac);outline:none}
+.svc b{display:block;font-size:17px;font-weight:700}
+.svc span{font-size:13px;color:var(--mu)}
+.svc em{font-style:normal;font-weight:700;color:var(--ac-d);white-space:nowrap}
+.svc .arr{color:var(--ac);font-size:20px;line-height:1}
+.chosen{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--soft);border-radius:14px;padding:12px 14px;margin-bottom:18px;font-size:14px}
+.chosen b{font-size:15px}
+.link{appearance:none;background:none;border:0;font:inherit;color:var(--ac-d);font-weight:700;text-decoration:underline;cursor:pointer;padding:4px}
+.days{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;margin:0 -16px;padding-inline:16px;scrollbar-width:none;scroll-snap-type:x proximity}
+.days::-webkit-scrollbar{display:none}
+.day{flex:none;width:66px;font:inherit;color:inherit;background:var(--card);border:1.5px solid var(--ln);border-radius:16px;padding:10px 0;text-align:center;cursor:pointer;scroll-snap-align:start}
+.day small{display:block;font-size:12px;color:var(--mu)}
+.day b{display:block;font-size:22px;font-weight:800;line-height:1.2}
+.day u{display:block;text-decoration:none;font-size:11px;color:var(--mu)}
+.day.on{background:var(--ac);border-color:var(--ac);color:#fff}
+.day.on small,.day.on u{color:#f6e6d1}
+.part{font-size:13px;font-weight:700;color:var(--mu);margin:14px 4px 8px}
+.times{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.time{font:inherit;font-weight:700;font-size:16px;color:inherit;background:var(--card);border:1.5px solid var(--ln);border-radius:12px;padding:12px 0;cursor:pointer;font-variant-numeric:tabular-nums}
+.time.on{background:var(--ink);border-color:var(--ink);color:#fff}
+label{display:block;font-size:14px;font-weight:700;margin:16px 2px 6px}
+input[type=text],input[type=tel]{width:100%;font:inherit;font-size:17px;padding:14px 16px;border:1.5px solid var(--ln);border-radius:14px;background:#fff;color:var(--ink)}
+input:focus{outline:none;border-color:var(--ac)}
+.hp{position:absolute;left:-9999px;opacity:0;height:0;width:0}
+.sum{background:var(--card);border:1.5px solid var(--ln);border-radius:var(--r);padding:16px;margin-bottom:6px}
+.sum div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:15px}
+.sum div span{color:var(--mu)}
+.sum div b{text-align:left}
+.bar{position:fixed;inset:auto 0 0 0;background:rgba(247,239,230,.94);backdrop-filter:blur(10px);border-top:1px solid var(--ln);padding:12px 16px calc(12px + env(safe-area-inset-bottom));z-index:5}
+.bar .in{max-width:488px;margin:0 auto}
+.btn{appearance:none;display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:16px;padding:16px 18px;font:inherit;font-size:17px;font-weight:800;cursor:pointer;background:var(--ac);color:#fff;text-decoration:none;transition:opacity .15s}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn.ghost{background:var(--soft);color:var(--ink)}
+.btn.wa{background:#1faa59}
+.btn.danger{background:#fff;color:var(--bad);border:1.5px solid #e6c4bb}
+.btn+.btn{margin-top:10px}
+.err{background:#fbe9e4;color:var(--bad);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:500;margin:14px 0}
+.center{text-align:center;padding:48px 12px}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--ln);border-top-color:var(--ac);margin:0 auto 14px;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.done{width:76px;height:76px;border-radius:50%;background:var(--ok);color:#fff;font-size:40px;display:flex;align-items:center;justify-content:center;margin:8px auto 16px}
+.done.x{background:var(--mu)}
+.note{font-size:13px;color:var(--mu);text-align:center;margin:14px 6px}
+.preview{background:#2e2218;color:#fff;text-align:center;font-size:13px;padding:8px}
+@media (max-width:360px){.times{grid-template-columns:repeat(3,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="pv"></div>
+<div class="wrap">
+  <header><div class="logo">Glow House<small>רינת קוסמטיקס</small></div><div class="addr" id="addr"></div></header>
+  <main id="app"><div class="center"><div class="spin"></div>טוען…</div></main>
+</div>
+<div class="bar" id="bar" hidden><div class="in" id="barin"></div></div>
+<script>
+const FN='https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/glow-booking';
+const KEY='sb_publishable_qOxby8FAtaYFziBdLXIuUg_WB5Kp7lQ';
+const P=new URLSearchParams(location.search), CANCEL=P.get('c')||'', PREVIEW=P.get('preview')==='1';
+let ADMIN='';try{ADMIN=PREVIEW?(localStorage.getItem('glow_admin')||''):''}catch(e){}
+const $=s=>document.querySelector(s), app=$('#app'), bar=$('#bar'), barin=$('#barin');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'], MON=['ינו׳','פבר׳','מרץ','אפר׳','מאי','יוני','יולי','אוג׳','ספט׳','אוק׳','נוב׳','דצמ׳'];
+const ERR={taken:'השעה הזאת נתפסה בינתיים. בחרי שעה אחרת.',name:'צריך שם מלא (אותיות בלבד).',phone:'מספר הטלפון לא תקין. צריך מספר נייד ישראלי, למשל 050-1234567.',too_many:'כבר יש לך כמה תורים עתידיים. לשינוי, דברי עם רינת.',rate:'יותר מדי ניסיונות. נסי שוב בעוד כמה דקות.',calendar:'אי אפשר לבדוק את היומן כרגע. נסי שוב בעוד רגע.',closed:'קביעת התורים אונליין סגורה כרגע.',late:'כבר אי אפשר לבטל אונליין כל כך קרוב לתור. דברי עם רינת.',already:'התור הזה כבר בוטל.',not_found:'לא מצאנו את התור הזה.'};
+const msg=e=>ERR[e]||'משהו השתבש. נסי שוב.';
+async function call(body){
+  const h={'Content-Type':'application/json',apikey:KEY}; if(ADMIN){h['x-admin-token']=ADMIN; body.preview=true}
+  const r=await fetch(FN,{method:'POST',headers:h,body:JSON.stringify(body)}); const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw Object.assign(new Error(j.error||'server'),{data:j}); return j;
+}
+const st={cfg:null,svc:null,days:[],date:'',time:'',name:'',phone:'',busy:false,err:''};
+try{st.name=localStorage.getItem('glow_name')||'';st.phone=localStorage.getItem('glow_phone')||''}catch(e){}
+function setBar(html){ if(html){barin.innerHTML=html;bar.hidden=false}else{bar.hidden=true;barin.innerHTML=''} }
+function steps(n){return `<div class="steps" aria-hidden="true">${[1,2,3].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')}</div>`}
+const durTxt=m=>m<60?`${m} דק׳`:m%60?`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')} שעות`:m===60?'שעה':m===120?'שעתיים':`${m/60} שעות`;
+const dParts=d=>{const [y,m,dd]=d.split('-').map(Number);return{y,m,d:dd,wd:new Date(Date.UTC(y,m-1,dd)).getUTCDay()}};
+const waBtn=(text,label)=>st.cfg&&st.cfg.whatsapp?`<a class="btn wa" href="https://wa.me/${st.cfg.whatsapp}?text=${encodeURIComponent(text)}" target="_blank" rel="noopener">${label}</a>`:'';
+
+function viewClosed(){
+  setBar('');
+  app.innerHTML=`<div class="center"><h1>קביעת תורים אונליין תיפתח בקרוב</h1><p class="sub">בינתיים אפשר לקבוע תור בהודעה.</p>${waBtn('היי, אשמח לקבוע תור ✨','לקביעת תור בווצאפ')}</div>`;
+}
+function viewServices(){
+  setBar(''); st.svc=null; st.date=st.time=''; st.err='';
+  const cats=[]; for(const s of st.cfg.services){ let c=cats.find(x=>x.n===s.cat); if(!c){c={n:s.cat,l:[]};cats.push(c)} c.l.push(s) }
+  app.innerHTML=steps(1)+`<h1>איזה טיפול תרצי?</h1><p class="sub">בוחרים טיפול, ואז רואים את השעות הפנויות.</p>`+
+    cats.map(c=>`${c.n?`<div class="cat">${esc(c.n)}</div>`:''}${c.l.map(s=>`<button class="svc" data-s="${esc(s.id)}"><span><b>${esc(s.name)}</b><span>${durTxt(s.min)}</span></span>${s.price!=null?`<em>${s.price} ₪</em>`:'<span class="arr">‹</span>'}</button>`).join('')}`).join('');
+  app.querySelectorAll('.svc').forEach(b=>b.onclick=()=>pick(b.dataset.s));
+  scrollTo(0,0);
+}
+async function pick(id){
+  st.svc=st.cfg.services.find(s=>s.id===id); st.err='';
+  app.innerHTML=steps(2)+`<div class="center"><div class="spin"></div>בודקת שעות פנויות…</div>`; setBar('');
+  try{ const j=await call({mode:'slots',service:id}); st.days=j.days||[]; if(!st.days.some(d=>d.date===st.date)){st.date=st.days[0]?.date||'';st.time=''} viewSlots(); }
+  catch(e){ app.innerHTML=steps(2)+`<div class="err">${msg(e.message)}</div><button class="btn ghost" id="rt">לנסות שוב</button><button class="btn ghost" id="bk">חזרה לטיפולים</button>`; $('#rt').onclick=()=>pick(id); $('#bk').onclick=viewServices; }
+}
+function viewSlots(){
+  const s=st.svc, day=st.days.find(d=>d.date===st.date);
+  let h=steps(2)+`<div class="chosen"><span><b>${esc(s.name)}</b> · ${durTxt(s.min)}</span><button class="link" id="chg">החלפה</button></div>`;
+  if(!st.days.length){ h+=`<div class="center"><h1>אין כרגע שעות פנויות</h1><p class="sub">נסי טיפול אחר, או כתבי לרינת.</p>${waBtn(`היי, רציתי לקבוע תור ל${s.name} ולא מצאתי שעה פנויה`,'הודעה בווצאפ')}</div>`; app.innerHTML=h; $('#chg').onclick=viewServices; setBar(''); return }
+  h+=`<h1>מתי נוח לך?</h1><p class="sub">מוצגות רק שעות שפנויות אצל רינת.</p>${st.err?`<div class="err">${st.err}</div>`:''}<div class="days" role="listbox" aria-label="בחירת יום">`+
+    st.days.map(d=>{const p=dParts(d.date);return `<button class="day ${d.date===st.date?'on':''}" data-d="${d.date}" role="option" aria-selected="${d.date===st.date}"><small>${DAYS[p.wd]}</small><b>${p.d}</b><u>${MON[p.m-1]}</u></button>`}).join('')+`</div>`;
+  const parts=[['בוקר',0,720],['צהריים',720,960],['אחר הצהריים וערב',960,1440]];
+  for(const [n,a,z] of parts){ const l=day.times.filter(t=>{const m=+t.slice(0,2)*60+ +t.slice(3);return m>=a&&m<z}); if(l.length) h+=`<div class="part">${n}</div><div class="times">${l.map(t=>`<button class="time ${t===st.time?'on':''}" data-t="${t}">${t}</button>`).join('')}</div>` }
+  app.innerHTML=h;
+  $('#chg').onclick=viewServices;
+  app.querySelectorAll('.day').forEach(b=>b.onclick=()=>{st.date=b.dataset.d;st.time='';st.err='';viewSlots()});
+  app.querySelectorAll('.time').forEach(b=>b.onclick=()=>{st.time=b.dataset.t;st.err='';viewSlots()});
+  const on=app.querySelector('.day.on'); if(on) on.scrollIntoView({inline:'center',block:'nearest'});
+  setBar(`<button class="btn" id="nx" ${st.time?'':'disabled'}>${st.time?`המשך · ${whenTxt()}`:'בחרי שעה'}</button>`);
+  $('#nx').onclick=()=>st.time&&viewDetails();
+}
+const whenTxt=()=>{const p=dParts(st.date);return `יום ${DAYS[p.wd]} ${p.d}.${p.m} · ${st.time}`};
+function viewDetails(){
+  const s=st.svc;
+  app.innerHTML=steps(3)+`<h1>רק עוד פרט קטן</h1><p class="sub">כדי שרינת תדע מי מגיעה.</p>
+  <div class="sum"><div><span>טיפול</span><b>${esc(s.name)}</b></div><div><span>מתי</span><b>${whenTxt()}</b></div><div><span>משך</span><b>${durTxt(s.min)}</b></div>${s.price!=null?`<div><span>מחיר</span><b>${s.price} ₪</b></div>`:''}</div>
+  <button class="link" id="bk">שינוי יום או שעה</button>
+  ${st.err?`<div class="err" role="alert">${st.err}</div>`:''}
+  <form id="f" novalidate><label for="nm">שם מלא</label><input id="nm" type="text" autocomplete="name" maxlength="40" value="${esc(st.name)}" required>
+  <label for="ph">טלפון נייד</label><input id="ph" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="050-1234567" dir="ltr" style="text-align:right" value="${esc(st.phone)}" required>
+  <input class="hp" type="text" id="ws" tabindex="-1" autocomplete="off" aria-hidden="true"></form>
+  <p class="note">הפרטים נשמרים רק לצורך התור ונמסרים לרינת בלבד.</p>`;
+  $('#bk').onclick=()=>{st.err='';viewSlots()};
+  setBar(`<button class="btn" id="go">${st.busy?'קובעת…':'לקבוע את התור'}</button>`);
+  $('#go').disabled=st.busy; $('#go').onclick=submit; $('#f').onsubmit=e=>{e.preventDefault();submit()};
+}
+async function submit(){
+  if(st.busy) return;
+  st.name=$('#nm').value.trim(); st.phone=$('#ph').value.trim();
+  const d=st.phone.replace(/\D/g,'').replace(/^972/,'0');
+  if(st.name.replace(/[^\p{L}]/gu,'').length<2){st.err=ERR.name;return viewDetails()}
+  if(!/^05\d{8}$/.test(d)){st.err=ERR.phone;return viewDetails()}
+  st.busy=true; st.err=''; viewDetails();
+  try{
+    const j=await call({mode:'book',service:st.svc.id,start:`${st.date}T${st.time}`,name:st.name,phone:d,website:$('#ws').value});
+    try{localStorage.setItem('glow_name',st.name);localStorage.setItem('glow_phone',st.phone)}catch(e){}
+    st.busy=false; viewDone(j.booking);
+  }catch(e){
+    st.busy=false; st.err=msg(e.message);
+    if(e.message==='taken'){ st.time=''; try{const j=await call({mode:'slots',service:st.svc.id}); st.days=j.days||[]; if(!st.days.some(x=>x.date===st.date)) st.date=st.days[0]?.date||''}catch(_){} return viewSlots() }
+    viewDetails();
+  }
+}
+const gdate=iso=>iso.replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+function calLinks(b){
+  const title=`${b.service} · Glow House`, loc=st.cfg?.address||'';
+  const g=`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${gdate(b.start)}/${gdate(b.end)}&location=${encodeURIComponent(loc)}`;
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Glow House//Booking//HE','BEGIN:VEVENT',`UID:${(b.token||Date.now())}@glowhouse`,`DTSTAMP:${gdate(new Date().toISOString())}`,`DTSTART:${gdate(b.start)}`,`DTEND:${gdate(b.end)}`,`SUMMARY:${title}`,`LOCATION:${loc.replace(/,/g,'\\,')}`,'BEGIN:VALARM','TRIGGER:-PT2H','ACTION:DISPLAY','DESCRIPTION:תור ב-Glow House','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  return {g,ics:'data:text/calendar;charset=utf-8,'+encodeURIComponent(ics)};
+}
+function viewDone(b){
+  setBar(''); const l=calLinks(b), manage=`${location.origin}${location.pathname}?c=${b.token}`;
+  app.innerHTML=`<div class="center" style="padding-top:12px"><div class="done">✓</div><h1>התור נקבע!</h1><p class="sub">${esc(b.name)}, מחכים לך ב-Glow House.</p></div>
+  <div class="sum"><div><span>טיפול</span><b>${esc(b.service)}</b></div><div><span>מתי</span><b>${esc(b.when)}</b></div>${st.cfg.address?`<div><span>איפה</span><b>${esc(st.cfg.address)}</b></div>`:''}</div>
+  <a class="btn" href="${l.g}" target="_blank" rel="noopener">הוספה ליומן גוגל</a>
+  <a class="btn ghost" href="${l.ics}" download="glow-house.ics">הוספה ליומן באייפון</a>
+  <button class="btn ghost" id="cp">העתקת קישור לביטול התור</button>
+  <p class="note">${b.wa_sent?'שלחנו לך אישור בווצאפ. ':''}אפשר לבטל אונליין עד ${st.cfg.cancel_hours} שעות לפני התור, דרך הקישור. כדאי לשמור אותו.</p>
+  <button class="link" id="again" style="display:block;margin:0 auto">קביעת תור נוסף</button>`;
+  $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(manage);$('#cp').textContent='הקישור הועתק ✓'}catch(e){prompt('העתיקי את הקישור:',manage)}};
+  $('#again').onclick=viewServices; scrollTo(0,0);
+}
+async function viewManage(){
+  setBar('');
+  try{
+    const j=await call({mode:'booking',token:CANCEL}); const b=j.booking; st.cfg={...(st.cfg||{}),address:j.address,whatsapp:j.whatsapp};
+    const head=b.status==='cancelled'?`<div class="done x">✕</div><h1>התור בוטל</h1>`:b.past?`<h1>התור הזה כבר עבר</h1>`:`<h1>התור שלך</h1>`;
+    app.innerHTML=`<div class="center" style="padding:12px 0 8px">${head}</div><div class="sum"><div><span>טיפול</span><b>${esc(b.service)}</b></div><div><span>מתי</span><b>${esc(b.when)}</b></div><div><span>על שם</span><b>${esc(b.name)}</b></div></div><div id="act"></div><a class="btn ghost" href="${location.pathname}" style="margin-top:10px">קביעת תור חדש</a>`;
+    const act=$('#act');
+    if(b.can_cancel){ act.innerHTML=`<button class="btn danger" id="cx">ביטול התור</button>`; $('#cx').onclick=async()=>{ if($('#cx').dataset.sure!=='1'){$('#cx').dataset.sure='1';$('#cx').textContent='בטוחה? לחצי שוב לביטול';return} $('#cx').disabled=true;$('#cx').textContent='מבטלת…'; try{await call({mode:'cancel',token:CANCEL});viewManage()}catch(e){act.innerHTML=`<div class="err">${msg(e.message)}</div>`} } }
+    else if(b.status==='confirmed'&&!b.past){ act.innerHTML=`<p class="note">אפשר לבטל אונליין עד ${b.cancel_hours} שעות לפני התור. לשינוי עכשיו, דברי עם רינת.</p>${waBtn(`היי רינת, אני צריכה לשנות את התור שלי (${b.service}, ${b.when})`,'הודעה לרינת בווצאפ')}` }
+  }catch(e){ app.innerHTML=`<div class="center"><h1>${msg(e.message)}</h1><a class="btn" href="${location.pathname}" style="margin-top:16px">קביעת תור חדש</a></div>` }
+}
+(async()=>{
+  if(PREVIEW&&ADMIN) $('#pv').innerHTML='<div class="preview">תצוגה מקדימה · הלקוחות עדיין לא רואות את הדף</div>';
+  try{
+    st.cfg=await call({mode:'config'}); if(st.cfg.address) $('#addr').textContent=st.cfg.address;
+    if(CANCEL) return viewManage();
+    if(!st.cfg.open||!st.cfg.services.length) return viewClosed();
+    viewServices();
+  }catch(e){ app.innerHTML=`<div class="center"><div class="err">לא הצלחנו לטעון את הדף. בדקי את החיבור ונסי שוב.</div><button class="btn ghost" onclick="location.reload()">לנסות שוב</button></div>` }
+})();
+</script>
+</body>
+</html>

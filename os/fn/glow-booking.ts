@@ -115,7 +115,7 @@ function normPhone(v: unknown) {
 }
 // The name ends up in a calendar title that another automation reads, so only letters, spaces, ' and - are kept.
 function normName(v: unknown) {
-  return String(v ?? "").normalize("NFC").replace(/[^\p{L}\p{M} '\-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 40);
+  return String(v ?? "").normalize("NFC").replace(/[^\p{L}\p{M} '\-]/gu, " ").replace(/\s+/g, " ").trim().split(" ").slice(0, 4).join(" ").slice(0, 30).trim();
 }
 async function sha(s: string) { const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join(""); }
 const ipOf = (req: Request) => (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";

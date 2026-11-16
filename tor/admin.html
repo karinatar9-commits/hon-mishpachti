@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#f7efe6">
+<title>ניהול תורים · Glow House</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&family=Frank+Ruhl+Libre:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f7efe6;--card:#fffaf4;--ink:#2e2218;--mu:#8a7868;--ln:#eadccd;--ac:#a8743f;--ac-d:#7d5227;--soft:#f1e3d2;--ok:#3f7d55;--bad:#b2452f;--warn:#b7791f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:Heebo,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:640px;margin:0 auto;padding:0 14px calc(110px + env(safe-area-inset-bottom))}
+header{padding:22px 4px 10px}
+header b{font-family:"Frank Ruhl Libre",serif;font-size:26px;color:var(--ac-d)}
+header span{display:block;color:var(--mu);font-size:14px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:10px -14px 14px;padding:0 14px;scrollbar-width:none;position:sticky;top:0;background:var(--bg);z-index:4;padding-block:8px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;font:inherit;font-weight:700;font-size:14px;border:1.5px solid var(--ln);background:var(--card);color:var(--ink);border-radius:99px;padding:8px 14px;cursor:pointer}
+.tab.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.card{background:var(--card);border:1.5px solid var(--ln);border-radius:18px;padding:16px;margin-bottom:12px}
+.card h2{font-size:17px;margin:0 0 4px}
+.card p.h{color:var(--mu);font-size:13px;margin:0 0 12px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--ln);flex-wrap:wrap}
+.row:first-of-type{border-top:0}
+.row .g{flex:1;min-width:0}
+.row .g b{display:block}
+.row .g small{color:var(--mu);display:block}
+input,select{font:inherit;color:var(--ink);background:#fff;border:1.5px solid var(--ln);border-radius:10px;padding:9px 10px;min-width:0}
+input:focus,select:focus{outline:none;border-color:var(--ac)}
+input[type=time]{width:112px}input[type=number]{width:84px}input[type=date]{width:150px}
+input.w{width:100%}
+label.f{display:block;font-size:13px;font-weight:700;margin:10px 0 4px}
+.sw{position:relative;width:48px;height:28px;flex:none}
+.sw input{position:absolute;inset:0;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+.sw i{position:absolute;inset:0;border-radius:99px;background:#d8c9b8;transition:background .15s}
+.sw i:after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s}
+.sw input:checked+i{background:var(--ok)}
+.sw input:checked+i:after{transform:translateX(-20px)}
+.btn{appearance:none;border:0;border-radius:14px;padding:13px 16px;font:inherit;font-weight:800;cursor:pointer;background:var(--ac);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.btn.full{width:100%;font-size:17px}.btn.ghost{background:var(--soft);color:var(--ink)}.btn.sm{padding:8px 12px;font-size:14px;border-radius:10px}
+.btn.del{background:none;color:var(--bad);padding:6px 8px;font-size:14px}
+.btn[disabled]{opacity:.5}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:99px;padding:3px 10px}
+.pill.ok{background:#dcefe2;color:var(--ok)}.pill.bad{background:#fbe9e4;color:var(--bad)}.pill.warn{background:#fbf0d9;color:var(--warn)}
+.box{border-radius:12px;padding:12px 14px;font-size:14px;margin:10px 0}
+.box.bad{background:#fbe9e4;color:#7a2a1a}.box.ok{background:#dcefe2;color:#234d33}.box.warn{background:#fbf0d9;color:#6b4710}
+.box ol{margin:6px 0 0;padding-inline-start:20px}
+.bar{position:fixed;inset:auto 0 0 0;background:rgba(247,239,230,.95);backdrop-filter:blur(10px);border-top:1px solid var(--ln);padding:10px 14px calc(10px + env(safe-area-inset-bottom));z-index:5}
+.bar .in{max-width:612px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.bar small{color:var(--mu);flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.day{font-size:12px;font-weight:800;letter-spacing:1px;color:var(--ac);margin:14px 2px 2px}
+.muted{color:var(--mu);font-size:14px}
+.center{text-align:center;padding:60px 16px}
+.cx{text-decoration:line-through;color:var(--mu)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header><b>Glow House</b><span>ניהול זימון התורים</span></header>
+<div id="app"><div class="center muted">טוען…</div></div>
+</div>
+<div class="bar" id="bar" hidden><div class="in"><small id="dirty"></small><button class="btn" id="save">שמירה</button></div></div>
+<script>
+const FN='https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/glow-booking';
+const KEY='sb_publishable_qOxby8FAtaYFziBdLXIuUg_WB5Kp7lQ';
+// the secret key arrives once in the link (#k=...), is kept on this device, and is removed from the address bar
+let T='';try{const m=/[#&]k=([a-f0-9]{32,})/.exec(location.hash);if(m){localStorage.setItem('glow_admin',m[1]);history.replaceState(null,'',location.pathname)}T=localStorage.getItem('glow_admin')||''}catch(e){}
+const $=s=>document.querySelector(s), app=$('#app');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAYS=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+async function call(body){const r=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY,'x-admin-token':T},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'server');return j}
+let D=null,V=null,tab='today',dirty=false;
+const uid=()=>Math.random().toString(36).slice(2,10);
+function mark(){dirty=true;$('#bar').hidden=false;$('#dirty').textContent='יש שינויים שלא נשמרו'}
+const fmtD=d=>{const [y,m,dd]=d.split('-');return `${+dd}.${+m}.${y.slice(2)}`};
+const todayStr=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Jerusalem'});
+
+function render(){
+  const c=D.calendar, live=V.live;
+  let h=`<div class="tabs">${[['today','תורים'],['hours','שעות עבודה'],['blocks','חסימות'],['svc','טיפולים'],['more','הגדרות']].map(([k,n])=>`<button class="tab ${tab===k?'on':''}" data-tab="${k}">${n}</button>`).join('')}</div>`;
+  if(tab==='today'){
+    h+=`<div class="card"><div class="row"><div class="g"><b>קביעת תורים אונליין</b><small>${live?'פתוח. לקוחות יכולות לקבוע תור מהקישור.':'סגור. הלקוחות רואות "ייפתח בקרוב".'}</small></div><label class="sw"><input type="checkbox" id="live" ${live?'checked':''} ${!c.ok||!c.write?'disabled':''}><i></i></label></div>`;
+    if(!c.ok) h+=`<div class="box bad"><b>היומן עוד לא מחובר</b>, ולכן אי אפשר לפתוח את הקביעה.<ol><li>פותחים את יומן גוגל במחשב, עם החשבון ${esc(V.calendar_id)}</li><li>ליד שם היומן: שלוש נקודות ← "הגדרות ושיתוף"</li><li>ב"שיתוף עם אנשים ספציפיים" מוסיפים: <b dir="ltr">karinatar9@gmail.com</b></li><li>הרשאה: <b>"ביצוע שינויים באירועים"</b></li></ol><button class="btn sm ghost" id="recheck" style="margin-top:8px">בדיקה מחדש</button></div>`;
+    else if(!c.write) h+=`<div class="box warn"><b>היומן משותף לקריאה בלבד.</b> כדי שתורים ייכנסו ליומן צריך לשנות את ההרשאה ל"ביצוע שינויים באירועים". <button class="btn sm ghost" id="recheck">בדיקה מחדש</button></div>`;
+    else h+=`<div class="box ok">היומן מחובר ✓ כל מה שתפוס ביומן שלך נחסם אוטומטית לקביעה, ותורים חדשים נכנסים אליו מיד.</div>`;
+    h+=`<div class="row"><div class="g"><b>הקישור ללקוחות</b><small dir="ltr" style="text-align:right;word-break:break-all">${esc(D.page)}</small></div><button class="btn sm ghost" id="copy">העתקה</button><a class="btn sm ghost" href="${esc(D.page)}?preview=1" target="_blank">תצוגה מקדימה</a></div>
+    <div class="row"><div class="g"><b>התראות על תור חדש</b><small>${D.whatsapp_ready&&V.notify_phone?'בווצאפ':V.notify_email?'במייל ל-'+esc(V.notify_email)+' (ווצאפ עוד לא מחובר)':'לא מוגדר'}</small></div></div></div>`;
+    const up=D.bookings.filter(b=>new Date(b.ends_at)>new Date(Date.now()-3600e3));
+    h+=`<div class="card"><h2>תורים שנקבעו אונליין</h2><p class="h">רק תורים שנקבעו דרך הקישור. את כל היומן רואים ביומן גוגל.</p>`;
+    if(!up.length) h+=`<div class="muted">עוד אין תורים.</div>`;
+    let last='';
+    for(const b of up){ const d=new Date(b.starts_at).toLocaleDateString('sv-SE',{timeZone:'Asia/Jerusalem'}); if(d!==last){last=d;h+=`<div class="day">${d===todayStr()?'היום · ':''}יום ${DAYS[new Date(d+'T12:00:00Z').getUTCDay()]} ${fmtD(d)}</div>`}
+      const tm=new Date(b.starts_at).toLocaleTimeString('he-IL',{timeZone:'Asia/Jerusalem',hour:'2-digit',minute:'2-digit'}), x=b.status!=='confirmed';
+      h+=`<div class="row"><div class="g ${x?'cx':''}"><b>${tm} · ${esc(b.name)}</b><small>${esc(b.service_name)} · ${b.duration_min} דק׳ · <a href="tel:${esc(b.phone)}" dir="ltr">${esc(b.phone)}</a></small></div>${x?`<span class="pill bad">בוטל${b.cancelled_by==='client'?' ע״י הלקוחה':b.cancelled_by==='calendar'?' (נמחק מהיומן)':''}</span>`:`<button class="btn del" data-cancel="${b.id}">ביטול</button>`}</div>` }
+    h+=`</div>`;
+  }
+  if(tab==='hours'){
+    h+=`<div class="card"><h2>שעות עבודה</h2><p class="h">בשעות האלה לקוחות יכולות לקבוע. מה שתפוס ביומן שלך נחסם ממילא.</p>${DAYS.map((n,d)=>{const x=V.hours[d];return `<div class="row"><label class="sw"><input type="checkbox" data-h="${d}" data-k="on" ${x.on?'checked':''}><i></i></label><div class="g"><b>${n}</b></div><span ${x.on?'':'hidden'}><input type="time" data-h="${d}" data-k="from" value="${x.from}" aria-label="משעה"> עד <input type="time" data-h="${d}" data-k="to" value="${x.to}" aria-label="עד שעה"></span><span class="muted" ${x.on?'hidden':''}>סגור</span></div>`}).join('')}</div>
+    <div class="card"><h2>הפסקה קבועה</h2><p class="h">שעות שחסומות כל שבוע, למשל הפסקת צהריים.</p>${V.weekly.map(b=>`<div class="row"><div class="g"><b>יום ${DAYS[b.wd]} · ${b.from}–${b.to}</b><small>${esc(b.note)}</small></div><button class="btn del" data-delw="${b.id}">מחיקה</button></div>`).join('')||'<div class="muted">אין הפסקות קבועות.</div>'}
+    <div class="row"><select id="w_wd">${DAYS.map((n,i)=>`<option value="${i}">${n}</option>`).join('')}</select><input type="time" id="w_f" value="13:00"> עד <input type="time" id="w_t" value="14:00"><button class="btn sm" id="w_add">הוספה</button></div></div>`;
+  }
+  if(tab==='blocks'){
+    const t=todayStr(), list=V.blocks.filter(b=>b.to_date>=t).sort((a,b)=>a.from_date.localeCompare(b.from_date));
+    h+=`<div class="card"><h2>חסימה חדשה</h2><p class="h">חופשה, חג, או כמה שעות שאת לא זמינה. אפשר גם פשוט ליצור אירוע ביומן גוגל וזה ייחסם לבד.</p>
+    <div class="grid2"><div><label class="f">מתאריך</label><input type="date" class="w" id="b_fd" min="${t}" value="${t}"></div><div><label class="f">עד תאריך</label><input type="date" class="w" id="b_td" min="${t}" value="${t}"></div></div>
+    <div class="row"><div class="g"><b>כל היום</b></div><label class="sw"><input type="checkbox" id="b_all" checked><i></i></label></div>
+    <div id="b_hrs" hidden class="row"><input type="time" id="b_f" value="09:00"> עד <input type="time" id="b_t" value="13:00"></div>
+    <label class="f">הערה (רק בשבילך)</label><input type="text" class="w" id="b_n" maxlength="80" placeholder="למשל: חופשה באילת">
+    <button class="btn full" id="b_add" style="margin-top:12px">הוספת חסימה</button></div>
+    <div class="card"><h2>חסימות קרובות</h2>${list.map(b=>`<div class="row"><div class="g"><b>${fmtD(b.from_date)}${b.to_date!==b.from_date?' – '+fmtD(b.to_date):''} · ${b.all_day?'כל היום':b.from+'–'+b.to}</b><small>${esc(b.note)}</small></div><button class="btn del" data-delb="${b.id}">מחיקה</button></div>`).join('')||'<div class="muted">אין חסימות.</div>'}</div>`;
+  }
+  if(tab==='svc'){
+    h+=`<div class="card"><h2>טיפולים</h2><p class="h">משך הטיפול קובע כמה זמן נחסם ביומן. טיפול כבוי לא מוצג ללקוחות.</p>${V.services.map((s,i)=>`<div class="row"><label class="sw"><input type="checkbox" data-s="${i}" data-k="on" ${s.on?'checked':''}><i></i></label><div class="g"><input type="text" class="w" data-s="${i}" data-k="name" value="${esc(s.name)}" maxlength="60" aria-label="שם הטיפול"><small>${esc(s.cat)}</small></div><span><input type="number" data-s="${i}" data-k="min" value="${s.min}" min="5" max="600" step="5" aria-label="דקות"> דק׳</span><span><input type="number" data-s="${i}" data-k="price" value="${s.price??''}" min="0" aria-label="מחיר"> ₪</span></div>`).join('')}
+    <div class="row"><div class="g"><b>להציג מחירים ללקוחות</b></div><label class="sw"><input type="checkbox" data-v="show_prices" ${V.show_prices?'checked':''}><i></i></label></div>
+    <button class="btn ghost full" id="s_add" style="margin-top:10px">+ טיפול חדש</button></div>`;
+  }
+  if(tab==='more'){
+    const num=(k,l,sfx,min,max)=>`<div class="row"><div class="g"><b>${l}</b></div><span><input type="number" data-v="${k}" value="${V[k]}" min="${min}" max="${max}"> ${sfx}</span></div>`;
+    h+=`<div class="card"><h2>כללי קביעה</h2>
+    <div class="row"><div class="g"><b>שעות התחלה כל</b></div><span><select data-v="step_min">${[10,15,20,30,60].map(n=>`<option ${V.step_min===n?'selected':''}>${n}</option>`).join('')}</select> דק׳</span></div>
+    ${num('buffer_min','הפסקה בין תורים','דק׳',0,60)}${num('lead_min','התראה מינימלית לפני תור','דק׳',0,10080)}${num('horizon_days','כמה ימים קדימה אפשר לקבוע','ימים',1,90)}${num('cancel_hours','ביטול אונליין עד','שעות לפני',0,168)}${num('max_per_phone','מקסימום תורים עתידיים ללקוחה','',1,10)}</div>
+    <div class="card"><h2>פרטי העסק</h2><label class="f">שם שמוצג ללקוחות</label><input type="text" class="w" data-v="business" value="${esc(V.business)}" maxlength="80"><label class="f">כתובת</label><input type="text" class="w" data-v="address" value="${esc(V.address)}" maxlength="120">
+    <label class="f">מספר ווצאפ של הקליניקה (לכפתור "הודעה בווצאפ" בדף)</label><input type="tel" class="w" dir="ltr" data-v="whatsapp" value="${esc(V.whatsapp)}" placeholder="0501234567">
+    <label class="f">הנייד שלך לקבלת התראות ווצאפ</label><input type="tel" class="w" dir="ltr" data-v="notify_phone" value="${esc(V.notify_phone)}" placeholder="0501234567"></div>`;
+  }
+  app.innerHTML=h; bind();
+}
+function bind(){
+  app.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render();scrollTo(0,0)});
+  app.querySelectorAll('[data-h]').forEach(i=>i.onchange=()=>{const x=V.hours[i.dataset.h];x[i.dataset.k]=i.type==='checkbox'?i.checked:i.value;mark();if(i.type==='checkbox')render()});
+  app.querySelectorAll('[data-s]').forEach(i=>i.onchange=()=>{const x=V.services[i.dataset.s],k=i.dataset.k;x[k]=i.type==='checkbox'?i.checked:i.type==='number'?(i.value===''?null:+i.value):i.value;mark()});
+  app.querySelectorAll('[data-v]').forEach(i=>i.onchange=()=>{const k=i.dataset.v;V[k]=i.type==='checkbox'?i.checked:(i.type==='number'||i.tagName==='SELECT')?+i.value:i.value;mark()});
+  app.querySelectorAll('[data-delb]').forEach(b=>b.onclick=()=>{V.blocks=V.blocks.filter(x=>x.id!==b.dataset.delb);mark();render()});
+  app.querySelectorAll('[data-delw]').forEach(b=>b.onclick=()=>{V.weekly=V.weekly.filter(x=>x.id!==b.dataset.delw);mark();render()});
+  app.querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='בטוחה? לחצי שוב';return}b.disabled=true;try{await call({mode:'admin_cancel',id:b.dataset.cancel});await load(true)}catch(e){alertBox('הביטול נכשל. נסי שוב.')}});
+  const on=(id,f)=>{const e=$('#'+id);if(e)e.onclick=f};
+  const live=$('#live'); if(live) live.onchange=async()=>{V.live=live.checked;await save()};
+  on('recheck',()=>load(true));
+  on('copy',async()=>{try{await navigator.clipboard.writeText(D.page);$('#copy').textContent='הועתק ✓'}catch(e){}});
+  const all=$('#b_all'); if(all) all.onchange=()=>{$('#b_hrs').hidden=all.checked};
+  on('b_add',()=>{const fd=$('#b_fd').value,td=$('#b_td').value||fd;if(!fd)return;const a=$('#b_all').checked;V.blocks.push({id:uid(),from_date:fd,to_date:td<fd?fd:td,all_day:a,from:a?'':$('#b_f').value,to:a?'':$('#b_t').value,note:$('#b_n').value});save()});
+  on('w_add',()=>{const f=$('#w_f').value,t=$('#w_t').value;if(!f||!t||t<=f)return;V.weekly.push({id:uid(),wd:+$('#w_wd').value,from:f,to:t,note:''});save()});
+  on('s_add',()=>{V.services.push({id:'',cat:'',name:'טיפול חדש',min:30,price:null,on:false});mark();render()});
+}
+function alertBox(t){const d=document.createElement('div');d.className='box bad';d.textContent=t;app.prepend(d);setTimeout(()=>d.remove(),5000)}
+async function save(){
+  const b=$('#save');b.disabled=true;$('#dirty').textContent='שומרת…';$('#bar').hidden=false;
+  try{const j=await call({mode:'admin_save',value:V});V=j.value;D.value=V;dirty=false;$('#dirty').textContent='נשמר ✓';setTimeout(()=>{if(!dirty)$('#bar').hidden=true},1500);render()}
+  catch(e){$('#dirty').textContent='השמירה נכשלה. נסי שוב.'}
+  b.disabled=false;
+}
+$('#save').onclick=save;
+async function load(keep){
+  try{D=await call({mode:'admin_get'});if(!keep||!dirty)V=JSON.parse(JSON.stringify(D.value));render()}
+  catch(e){app.innerHTML=`<div class="center"><h2>${e.message==='forbidden'?'אין גישה':'לא הצלחנו לטעון'}</h2><p class="muted">${e.message==='forbidden'?'צריך להיכנס דרך הקישור האישי שקיבלת מקרין.':'בדקי את החיבור ונסי שוב.'}</p></div>`}
+}
+addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
+load();
+</script>
+</body>
+</html>
