@@ -5,9 +5,10 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const clean = (v: unknown, n: number) => String(v ?? "").replace(/[<>]/g, "").trim().slice(0, n);
-const GUIDES: Record<string, string> = { assistant: "guide_assistant" };
+// every guide lives in os_settings under key guide_<slug>; the site serves goldchain-ai.com/<slug> from one template
+const slugOk = (g: string) => /^[a-z0-9-]{2,30}$/.test(g);
 const SITE = "https://goldchain-ai.com";
-async function content(g: string) { const { data } = await db.from("os_settings").select("value").eq("key", GUIDES[g] || "guide_assistant").maybeSingle(); return data?.value || null; }
+async function content(g: string) { const { data } = await db.from("os_settings").select("value").eq("key", "guide_" + (slugOk(g) ? g : "assistant")).maybeSingle(); return data?.value || null; }
 const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 function mailText(first: string, c: any, link: string) {
   return `היי ${first}!\n\nהמדריך "${c.title}" מחכה לך כאן:\n${link}\n\n${c.community ? "הקהילה בוואטסאפ: " + c.community + "\n\n" : ""}קרין · Goldchain AI`;
@@ -36,6 +37,11 @@ Deno.serve(async (req) => {
   try {
     const b = await req.json().catch(() => ({}));
     const g = clean(b.guide, 30) || "assistant";
+    if (b.mode === "meta") { // public teaser only: titles, never the copy-paste texts
+      if (!slugOk(g)) return json({ error: "guide" }, 404);
+      const c: any = await content(g); if (!c || c.active === false) return json({ error: "guide" }, 404);
+      return json({ ok: true, meta: { title: c.title, h1: c.h1, h2: c.h2, lead: c.lead, popup: c.popup, community: c.community, step_titles: (c.steps || []).map((s: any) => s.title) } });
+    }
     if (b.mode === "get") {
       const tok = clean(b.token, 64); if (tok.length < 20) return json({ error: "token" }, 403);
       const { data } = await db.from("os_items").select("id").eq("kind", "leads").eq("data->>guide_token", tok).limit(1);

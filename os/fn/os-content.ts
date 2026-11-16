@@ -65,6 +65,31 @@ async function claudeJSON(prompt: string | any[], model: string, search = 0) {
   catch { throw new Error(`no JSON (stop=${j.stop_reason}, out=${j.usage?.output_tokens}): ${t.slice(0, 160)}`); }
 }
 
+// ---- Guides: every Goldchain post gets its own locked guide at goldchain-ai.com/<slug> (draft until Karin approves) ----
+const GUIDE_RULES = `אתה כותב מדריך קצר ל-Goldchain AI (קרין) שנשלח למי שמגיב לפוסט. הקהל: בעלי עסקים קטנים-בינוניים בישראל, הנישה: הצד הפיננסי של העסק.
+המדריך הוא 3 שלבים בדיוק:
+1) "ספרו על העסק" — טופס טקסט חופשי להעתקה, עם שדות שהקורא ממלא במילים שלו, שרלוונטיים לנושא הפוסט.
+2) פרומפט מלא להעתקה ל-Claude שבונה בדיוק את מה שהפוסט הראה, כארטיפקט/אפליקציה אחת שעובדת מיד עם נתוני דוגמה מסומנים. מפורט, מדויק טכנית, בלי להבטיח חיבורים שלא קיימים.
+3) "להפוך את זה לאמיתי" — מה מחברים (מערכות, נתונים אמיתיים, אוטומציה) והצעה עדינה לבנות את זה עד הסוף עם Goldchain.
+סגנון: עברית תקנית, חם וענייני, בלי בושה ובלי "אתם לא יודעים", בלי הבטחות כמו "אפס טעויות". לא לפרט את כל הידע — מספיק כדי לבנות גרסה ראשונה.
+החזר JSON בלבד:
+{"slug":"באנגלית קטנה עם מקפים, 2-24 תווים, ייחודי לנושא","keyword":"מילה אחת בעברית שאנשים יכתבו בתגובה","title":"שם המדריך","h1":"כותרת ראשית קצרה","h2":"שורת משנה","lead":"משפט פתיחה לדף","popup":"כותרת לחלון ההרשמה","subtitle":"שורה אחת למייל","steps":[{"title":"","desc":"","text":""},{"title":"","desc":"","text":""},{"title":"","desc":"","text":""}]}`;
+async function guideJob(opts: { videoId?: string; topic?: string; script?: any }) {
+  const s = await settings();
+  let topic = opts.topic || "", script = opts.script;
+  if (opts.videoId) { const { data: v } = await db.from("os_videos").select("topic,script,caption,account").eq("id", opts.videoId).single(); if (!v || v.account !== "karin") return { skip: "not_goldchain" }; topic = v.topic; script = v.script; }
+  const les: string[] = (s.lessons.guides || []).concat(s.lessons.karin || []).slice(-15);
+  const g: any = await claudeJSON(`${GUIDE_RULES}\n\nנושא הפוסט: ${topic}\n${script ? "התסריט: " + JSON.stringify(script).slice(0, 4000) : ""}${les.length ? "\n\nלקחים מקרין:\n- " + les.join("\n- ") : ""}`, s.model);
+  let slug = String(g.slug || "guide").toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/^-+|-+$/g, "").slice(0, 24) || "guide";
+  const { data: ex } = await db.from("os_settings").select("key").like("key", `guide_${slug}%`);
+  if (ex?.length) slug = `${slug}-${ex.length + 1}`;
+  const { data: main } = await db.from("os_settings").select("value").eq("key", "guide_assistant").maybeSingle();
+  const val = { ...g, slug, active: false, community: main?.value?.community || "", video_id: opts.videoId || null, created_at: now() };
+  await db.from("os_settings").upsert({ key: `guide_${slug}`, value: val, updated_at: now() });
+  await db.from("os_items").insert({ kind: "tasks", data: { title: `מדריך חדש מחכה לאישור: ${g.title}`, note: `goldchain-ai.com/${slug} · מילת תגובה: ${g.keyword}. לבדוק שהפרומפט בשלב 2 באמת בונה את מה שבפוסט, ואז לאשר.`, biz: "אישי", by: "מפעל התוכן" } });
+  return { slug, keyword: g.keyword };
+}
+
 async function scriptJob(id: string, feedback?: string) {
   const { data: v } = await db.from("os_videos").select("*").eq("id", id).single();
   try {
@@ -128,6 +153,7 @@ ${SCHEMA.replace("LEN", String(v.length_s))}`;
       } else sc.scenes.forEach((x: any) => { if (x.type === "ai") x.type = "point"; });
     }
     await db.from("os_videos").update({ script: sc, caption, status, error: null, updated_at: now() }).eq("id", id);
+    if (v.account === "karin" && !feedback && s.main.autoGuides !== false) await guideJob({ videoId: id }).catch((e) => console.log("guide", String(e)));
   } catch (e) {
     await db.from("os_videos").update({ status: "failed", error: "כתיבת התסריט נכשלה: " + String(e).slice(0, 300), updated_at: now() }).eq("id", id);
   }
@@ -512,6 +538,11 @@ Deno.serve(async (req) => {
     if (m === "glow_daily_get") { const { data } = await db.from("os_settings").select("value").eq("key", "glow_daily").maybeSingle(); return json(data?.value || {}); }
     if (m === "glow_daily_now") { bg(glowDaily()); return json({ ok: true }); }
     if (m === "ideas_get") { const { data } = await db.from("os_settings").select("value").eq("key", "ideas_digest").maybeSingle(); const { data: f } = await db.from("os_settings").select("value").eq("key", "ideas_feedback").maybeSingle(); return json({ ...(data?.value || {}), history: undefined, votes: (f?.value?.items || []).slice(-60) }); }
+    if (m === "guide_make") { if (!AKEY) return json({ error: "no_key" }, 400); return json(await guideJob({ videoId: body.id, topic: String(body.topic || "").slice(0, 2000) })); }
+    if (m === "guide_list") { const { data } = await db.from("os_settings").select("key,value,updated_at").like("key", "guide\\_%").order("updated_at", { ascending: false }); return json({ guides: (data || []).map((r: any) => ({ slug: r.key.slice(6), title: r.value.title, keyword: r.value.keyword, active: r.value.active !== false, url: "https://goldchain-ai.com/" + r.key.slice(6) + "/", post: r.value.post || null, updated_at: r.updated_at })) }); }
+    if (m === "guide_set") { const k = "guide_" + String(body.slug || "").replace(/[^a-z0-9-]/g, ""); const { data } = await db.from("os_settings").select("value").eq("key", k).maybeSingle(); if (!data) return json({ error: "not_found" }, 404);
+      const v: any = { ...data.value }; if (typeof body.active === "boolean") v.active = body.active; if (body.post) v.post = String(body.post).slice(0, 300); if (body.keyword) v.keyword = String(body.keyword).slice(0, 40);
+      await db.from("os_settings").update({ value: v, updated_at: now() }).eq("key", k); return json({ ok: true }); }
     if (m === "ideas_now") { if (!AKEY) return json({ error: "no_key" }, 400); bg(ideasScout()); return json({ ok: true }); }
     if (m === "ideas_vote") {
       const { data: f } = await db.from("os_settings").select("value").eq("key", "ideas_feedback").maybeSingle();
