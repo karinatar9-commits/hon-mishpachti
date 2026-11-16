@@ -24,6 +24,11 @@ jobs:
             ffmpeg -nostdin -y -loglevel error -i "/tmp/$tag.src.mp4" -filter_complex "[0:v]scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,fps=30,split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[v]" -map "[v]" -an -c:v libx264 -preset slow -crf 27 -pix_fmt yuv420p -movflags +faststart "broll/$tag.mp4"
             echo "built broll/$tag.mp4"
           done
+          mkdir -p raw
+          jq -r '(.raw // {}) | to_entries[] | "\(.key) \(.value)"' sources.json | while read tag url; do
+            [ -f "raw/$tag.mp4" ] && continue
+            curl -sSL --fail -o "raw/$tag.mp4" "$url" && echo "raw/$tag.mp4"
+          done
           jq -r '.music | to_entries[] | "\(.key) \(.value)"' sources.json | while read name url; do
             [ -f "music/$name.mp3" ] && continue
             curl -sSL --fail -o "/tmp/$name.src" "$url"
