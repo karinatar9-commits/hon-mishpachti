@@ -101,8 +101,10 @@ async function scriptJob(id: string, feedback?: string) {
   const { data: v } = await db.from("os_videos").select("*").eq("id", id).single();
   try {
     const s = await settings();
-    const mixed = v.style === "mixed";
+    const mixed0 = v.style === "mixed";
     const car = v.format === "carousel";
+    const film = v.style === "film" && !car && !!HF_KEY;
+    const mixed = mixed0 || film;
     const kit = (s.main.brandKit || {})[v.account] || {};
     const les: string[] = (s.lessons[v.account] || []).concat(s.lessons.all || []);
     const skills = v.account === "karin" ? await gcSkills() : "";
@@ -138,6 +140,18 @@ ${!car ? `סגנון הרילס (חובה): כל סצנה מוצגת על קטע
 ${v.voice && !car ? `קריינות: לכל סצנה הוסף/י שדה "vo" — משפט או שניים בעברית מדוברת וטבעית שהקריינית אומרת בזמן הסצנה (לא לקרוא את הכותרת מילה במילה; להסביר אותה). בלי אימוג'י, בלי סימנים מיוחדים, מספרים במילים, מונחים באנגלית לכתוב באותיות לטיניות. עד 22 מילים לסצנה. dur של כל סצנה = זמן הדיבור של ה-vo (בערך 2.6 מילים לשנייה) ועוד חצי שנייה.` : ""}
 ${gcDir}
 ${SCHEMA.replace("LEN", String(v.length_s))}`;
+    if (film) p = `${skills ? "הסקילים של Goldchain AI שקרין הגדירה (מיצוב וקהל — לא להעמיס מידע):\n" + skills.slice(0, 5000) + "\n\n" : ""}את/ה ליה — במאית של סרטונים קצרים קולנועיים. זה סרט קצר, לא מצגת ולא הרצאה.
+${les.length ? "כללים שקרין לימדה (חובה):\n- " + les.join("\n- ") + "\n" : ""}מותג: ${BRAND[v.account](s.main)}
+נושא: ${v.topic}
+${v.notes ? "דגשים: " + v.notes : ""}
+הסיפור (קרין ביקשה במפורש): סימולציה של בעל/ת עסק בתוך העסק שלו/ה ברגע שהבעיה קורה — רואים את זה, מרגישים את זה. ואז אותו מקום, אותו אדם, כשהפתרון כבר בתוך העסק: מה השתנה ואיך זה משתלב ביום-יום. הסרט צריך להיות מעניין גם בלי קול בכלל.
+מבנה: 6 עד 7 שוטים, כל אחד 5 שניות. שוט 1 = הוק: שבירת דפוס ויזואלית (זווית לא צפויה, תקריב קיצוני, POV, רגע מתוח). שוטים 2-3 = הבעיה מסלימה. שוט 4 = רגע המפנה. שוטים 5-6 = אותו אדם, רגוע, העסק עובד, הפתרון קורה ברקע (טלפון מאיר בהתראה, לקוח מחייך, ערימה נעלמת). שוט אחרון = סיום שקט עם המותג.
+לכל שוט: {"type":"ai","dur":5,"prompt":"תיאור באנגלית לקטע וידאו קולנועי 9:16","headline":"","vo":""}
+- prompt: אותה דמות ואותו מקום בכל השוטים — כתוב/י בכל שוט את אותו תיאור דמות מלא (גיל, מראה, לבוש) ואותו תיאור מקום (סוג העסק, תאורה, צבעים). סגנון: cinematic, shallow depth of field, natural moody light, handheld, realistic, 35mm. לכתוב תנועת מצלמה ומה קורה בדיוק. בלי טקסט בתמונה, בלי מסכים עם כתב קריא, בלי לוגואים, בלי רובוטים.
+- headline: רוב השוטים ריקים. רק בהוק, ברגע המפנה ובסוף — 1 עד 3 מילים חזקות ("עוד אחת?", "3 בלילה.", "ואז זה.").
+- vo: אופציונלי וקצר מאוד (עד 10 מילים), רק איפה שזה מוסיף. אפשר להשאיר הכל ריק — הסרט עובד בלי מילים.
+- שוט אחרון: headline עם מה שבונים בשתי-שלוש מילים, ו-kicker = קריאה לפעולה קצרה (למשל "תגיבו סוכן").
+החזר/י JSON בלבד: {"title":"","anim":"","scenes":[...],"caption":"כיתוב קצר עם הוק, משפט על הפתרון וקריאה לפעולה","hashtags":["#..."]}`;
     if (feedback) p += `\n\nזה התסריט הקודם:\n${JSON.stringify({ ...v.script, caption: v.caption })}\n\nההערות של קרין עליו (חובה ליישם את כולן, ולשמור את מה שלא העירה עליו):\n${feedback}\n\nבנוסף הוסף/י ל-JSON שדה "lessons": 0-3 כללים קצרים וכלליים שאפשר ללמוד מההערות האלה לכל הסרטונים הבאים (למשל "הוק בצורת שאלה", "לא יותר מ-12 מילים בשקף"). רק כללים שחלים גם על נושאים אחרים.`;
     if (v.ref_url) p += `\n\nקרין צירפה תמונה (שרטוט, צילום מסך או סקיצה עם הסבר). קרא/י אותה בעיון: מה שכתוב ומצויר בה הוא ההנחיה — המבנה, הסדר, המסרים והטקסטים שהיא רוצה. פתח/י את זה לסרטון מלא. אפשר לשלב עד 2 סצנות type=image שמציגות את התמונה שלה עצמה על המסך (רק אם היא ראויה להצגה לצופים, למשל צילום מסך או תרשים נקי; סקיצה בכתב יד — לא להציג).`;
     const sc = await claudeJSON(v.ref_url ? [{ type: "image", source: { type: "url", url: v.ref_url } }, { type: "text", text: p }] : p, s.model);
@@ -145,7 +159,7 @@ ${SCHEMA.replace("LEN", String(v.length_s))}`;
     sc.scenes = (sc.scenes || []).slice(0, 14).map((x: any) => ({ ...x, dur: Math.min(8, Math.max(2, +x.dur || 3.5)) }));
     if (car) sc.scenes.forEach((x: any) => { if (x.type === "ai") x.type = "point"; });
     // narration asked for but the writer skipped it on a scene: read the on-screen text instead of leaving silence
-    if (v.voice && !car) sc.scenes.forEach((x: any) => { if (!String(x.vo || "").trim()) x.vo = [x.headline, x.body, ...(x.items || [])].filter(Boolean).join(". ").slice(0, 220); });
+    if (v.voice && !car && !film) sc.scenes.forEach((x: any) => { if (!String(x.vo || "").trim()) x.vo = [x.headline, x.body, ...(x.items || [])].filter(Boolean).join(". ").slice(0, 220); });
     if (kit.accent) sc.palette = { bg1: kit.bg1, bg2: kit.bg2, accent: kit.accent, text: kit.text || "#ffffff" };
     if (Array.isArray(sc.lessons) && sc.lessons.length) {
       const cur: any = s.lessons; const arr: string[] = cur[v.account] || [];
@@ -157,7 +171,7 @@ ${SCHEMA.replace("LEN", String(v.length_s))}`;
     const caption = [sc.caption, (sc.hashtags || []).join(" ")].filter(Boolean).join("\n\n");
     let status = "queued";
     if (sc.scenes.some((x: any) => x.type === "ai")) {
-      const cap = Math.max(0, Math.min(3, +(v.source === "daily" ? (s.main.daily?.clips ?? 1) : 3)));
+      const cap = film ? 8 : Math.max(0, Math.min(3, +(v.source === "daily" ? (s.main.daily?.clips ?? 1) : 3)));
       sc.scenes.filter((x: any) => x.type === "ai").slice(cap).forEach((x: any) => { x.type = "point"; });
       if (mixed && HF_KEY && !car && cap) {
         for (const x of sc.scenes.filter((x: any) => x.type === "ai")) {
@@ -227,7 +241,7 @@ async function liaDaily(force = false) {
   if (!idea) { if (!force) await selfCall({ mode: "ideas" }, s.cron); return { skipped: "no_idea" }; }
   const topic = `${idea.title}${idea.hook ? " — הוק: " + idea.hook : ""}`;
   const notes = [idea.pain && "הכאב: " + idea.pain, idea.before && "לפני: " + idea.before, idea.after && "אחרי: " + idea.after, idea.angle && "זווית: " + idea.angle, idea.source && "מקור: " + idea.source].filter(Boolean).join(" | ");
-  const row = { account: "karin", topic: topic.slice(0, 2000), notes: notes.slice(0, 2000) || null, style: L.clips === 0 || !HF_KEY ? "explainer" : "mixed", format: idea.format && /קרוסל/.test(idea.format) ? "carousel" : "reel", length_s: 35, voice: true, source: "daily" };
+  const row = { account: "karin", topic: topic.slice(0, 2000), notes: notes.slice(0, 2000) || null, style: !HF_KEY ? "explainer" : (L.style || "film"), format: idea.format && /קרוסל/.test(idea.format) ? "carousel" : "reel", length_s: 35, voice: true, source: "daily" };
   const { data } = await db.from("os_videos").insert(row).select("id").single();
   await db.from("os_settings").upsert({ key: "lia_state", value: { day, used: [...used, idea.id].slice(-120), last: { id: data?.id, idea: idea.title, at: now() } }, updated_at: now() });
   if (data?.id) await selfCall({ mode: "script_one", id: data.id }, s.cron);
