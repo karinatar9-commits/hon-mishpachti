@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>עוזר אישי AI לעסק · 3 שלבים | Goldchain AI</title>
-<meta name="description" content="3 שלבים, 3 טקסטים להעתקה, ו-Claude בונה לכם עוזר אישי לעסק.">
+<meta name="description" content="בונים עוזר אישי AI עם דמות מדברת ואוטומציות לעסק, ב-3 שלבים של העתק-הדבק ל-Claude.">
+<meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#0B0F1A;--card:#141A2B;--line:#262E45;--acc:#A78BFA;--txt:#fff;--sub:#D5D9E3;--wa:#25D366}
@@ -13,33 +14,27 @@ body{background:radial-gradient(circle at 90% -10%,rgba(167,139,250,.25),transpa
 .wrap{max-width:680px;margin:0 auto;padding:28px 20px 120px}
 .brand{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--sub)}
 .brand b{color:var(--txt)}
-h1{font-size:40px;line-height:1.15;font-weight:800;margin:36px 0 12px}
+h1{font-size:38px;line-height:1.15;font-weight:800;margin:36px 0 12px}
 h1 span,.acc{color:var(--acc)}
 .lead{font-size:18px;color:var(--sub)}
 .step{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:24px 22px;margin-top:26px}
-.num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--acc);color:var(--bg);font-weight:800;font-size:20px;margin-left:10px}
-h2{display:flex;align-items:center;font-size:24px;font-weight:800}
+.num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%;background:var(--acc);color:var(--bg);font-weight:800;font-size:20px;margin-left:10px;flex:none}
+h2{display:flex;align-items:center;font-size:23px;font-weight:800;line-height:1.3}
 .step p{color:var(--sub);margin:10px 0 0;font-size:17px}
-.box{position:relative;margin-top:16px;background:#0E1322;border:1px dashed var(--acc);border-radius:16px;padding:18px 16px 16px;white-space:pre-wrap;font-size:16px;line-height:1.75;color:#fff}
+.box{margin-top:16px;background:#0E1322;border:1px dashed var(--acc);border-radius:16px;padding:18px 16px;white-space:pre-wrap;font-size:16px;line-height:1.75;color:#fff;max-height:340px;overflow:auto}
 .copy{display:block;width:100%;margin-top:12px;background:var(--acc);color:var(--bg);border:0;border-radius:14px;padding:14px;font:800 18px Heebo,sans-serif;cursor:pointer}
 .copy.ok{background:#3ddc84}
-.tip{margin-top:12px;font-size:15px;color:var(--sub);background:rgba(167,139,250,.08);border-radius:12px;padding:10px 14px}
 .wa{display:flex;align-items:center;justify-content:center;gap:10px;background:var(--wa);color:#06260f;text-decoration:none;font-weight:800;font-size:18px;border-radius:16px;padding:14px;margin-top:18px}
-.end{text-align:center;margin-top:34px}
-.end h2{justify-content:center;font-size:28px}
+.end{text-align:center}.end h2{justify-content:center;font-size:26px}
 .float{position:fixed;bottom:16px;left:16px;right:16px;max-width:648px;margin:0 auto;z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.45)}
-.ov{position:fixed;inset:0;background:rgba(5,7,14,.82);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.locked .float{display:none}
+.ghost{filter:blur(7px);opacity:.5;pointer-events:none;user-select:none}
+.ov{position:fixed;inset:0;background:rgba(5,7,14,.7);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:18px;z-index:10}
 .ov.hide{display:none}
-.pop{background:var(--card);border:2px solid var(--acc);border-radius:26px;padding:30px 24px;max-width:420px;text-align:center;box-shadow:0 0 60px rgba(167,139,250,.4)}
-.ic{width:96px;height:96px;margin:0 auto;border-radius:50%;border:3px solid var(--acc);display:flex;align-items:center;justify-content:center;font-size:46px;background:rgba(167,139,250,.12)}
-.pop h3{font-size:26px;font-weight:800;margin:14px 0 6px;line-height:1.25}
-.pop p{color:var(--sub);font-size:16px}
-.skip{background:none;border:0;color:var(--sub);font:400 15px Heebo;margin-top:12px;cursor:pointer;text-decoration:underline}
-.pop{position:relative;text-align:right;width:100%}
-.x{position:absolute;top:14px;left:16px;background:none;border:0;color:#7d8aa5;font-size:24px;cursor:pointer}
+.pop{position:relative;width:100%;max-width:440px;background:var(--card);border:2px solid var(--acc);border-radius:26px;padding:28px 22px;box-shadow:0 0 60px rgba(167,139,250,.4)}
 .kick{color:#8a93b0;letter-spacing:2px;font-weight:800;font-size:13px}
-.pop h3{text-align:right}
-.sub{color:var(--sub);font-size:16px;margin-top:4px}
+.pop h3{font-size:25px;font-weight:800;margin:10px 0 4px;line-height:1.25}
+.sub{color:var(--sub);font-size:16px}
 #lf{margin-top:18px;display:flex;flex-direction:column;gap:12px}
 .row2{display:flex;gap:10px}.row2 input{flex:1;min-width:0}
 #lf input:not([type=checkbox]){background:#05080F;border:1.5px solid var(--line);border-radius:14px;color:#fff;font:400 17px Heebo,sans-serif;padding:15px 16px;outline:none}
@@ -49,112 +44,77 @@ h2{display:flex;align-items:center;font-size:24px;font-weight:800}
 .cb input{width:22px;height:22px;margin-top:2px;accent-color:#A78BFA;flex:none}
 .send{background:var(--acc);color:var(--bg);border:0;border-radius:14px;padding:16px;font:800 19px Heebo,sans-serif;cursor:pointer;margin-top:4px}
 .send:disabled{opacity:.6}
-.err{color:#f87171;font-size:14px;min-height:0}
-.hide2{display:none}#done{text-align:center}#done h3{text-align:center}
+.err{color:#f87171;font-size:14px}
+.note{font-size:13px;color:#8a93b0;text-align:center}
+.toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:#3ddc84;color:#06260f;font-weight:800;padding:12px 20px;border-radius:14px;z-index:20;display:none}
 </style>
 </head>
-<body>
+<body class="locked">
+<div class="toast" id="toast">✔ המדריך נשלח גם למייל שלך</div>
 <div class="ov" id="ov">
   <div class="pop">
-    <button class="x" id="skip" aria-label="סגירה">✕</button>
     <div class="kick">GOLDCHAIN AI · מדריך חינם</div>
-    <h3>עוזר אישי AI לעסק ב-3 שלבים</h3>
-    <p class="sub">השאירו פרטים והמדריך נפתח לכם מיד.</p>
+    <h3>בונים עוזר אישי AI עם דמות שמדברת, ב-3 שלבים</h3>
+    <p class="sub">השאירו פרטים, המדריך ייפתח כאן מיד ויישלח גם למייל.</p>
     <form id="lf" novalidate>
-      <div class="row2"><input id="f1" placeholder="שם פרטי" autocomplete="given-name" required><input id="f2" placeholder="שם משפחה" autocomplete="family-name"></div>
-      <input id="f3" type="email" dir="ltr" placeholder="אימייל" autocomplete="email" required>
-      <input id="hp" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px">
+      <div class="row2"><input id="f1" placeholder="שם פרטי" autocomplete="given-name"><input id="f2" placeholder="שם משפחה" autocomplete="family-name"></div>
+      <input id="f3" type="email" dir="ltr" placeholder="אימייל" autocomplete="email">
+      <input id="hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px">
       <label class="cb"><input type="checkbox" id="f4"><span>אני מאשר/ת קבלת עדכונים ותוכן מ-Goldchain AI. אפשר להסיר את עצמי בכל עת.</span></label>
       <div class="err" id="er"></div>
-      <button class="send" id="sb">פתחו לי את המדריך</button>
+      <button class="send" id="sb">שלחו לי את המדריך</button>
+      <div class="note">🔒 הפרטים נשמרים רק אצלנו</div>
     </form>
-    <div id="done" class="hide2">
-      <div style="font-size:44px">🎉</div>
-      <h3>המדריך פתוח!</h3>
-      <p class="sub">ועוד דבר קטן: בקהילה אני משתפת עוד פורמטים מוכנים להעתקה.</p>
-      <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 להצטרפות לקהילה בוואטסאפ</a>
-      <button class="skip" id="go">למדריך ←</button>
-    </div>
   </div>
 </div>
 
 <div class="wrap">
-  <div class="brand"><b dir="ltr">@goldchain_ai</b><span>קרין עטר · Goldchain AI</span></div>
-  <h1>עוזר אישי AI לעסק<br><span>ב-3 שלבים</span></h1>
-  <p class="lead">בלי ידע טכני. מעתיקים, מדביקים ב-Claude, והוא בונה את זה בשבילכם.</p>
-
-  <div class="step">
-    <h2><span class="num">1</span>ספרו על העסק</h2>
-    <p>העתיקו, מלאו במילים שלכם. אין תשובות נכונות. ככל שתכתבו יותר, העוזר יהיה טוב יותר.</p>
-    <div class="box" id="t1">על העסק שלי:
-מה העסק עושה:
-מי הלקוחות שלי:
-באילו מערכות אני עובד/ת (מייל, יומן, וואטסאפ, מורנינג, אקסל…):
-מה גוזל לי הכי הרבה זמן ביום-יום:
-מה הייתי רוצה שהעוזר יעשה בשבילי:
-איך אני אוהב/ת שמדברים איתי (קצר או מפורט):</div>
-    <button class="copy" data-t="t1">📋 להעתקה</button>
+  <div class="brand"><b dir="ltr">@goldchain_ai</b><span>Goldchain AI</span></div>
+  <h1>עוזר אישי AI לעסק<br><span>עם דמות שמדברת ב-3 שלבים</span></h1>
+  <p class="lead">כמו בסרטון: דמות שמדברת איתכם, ומסביבה כל הנתונים והאוטומציות של העסק. מעתיקים, מדביקים ב-Claude, והוא בונה.</p>
+  <div id="steps">
+    <div class="step ghost"><h2><span class="num">1</span>ספרו על העסק</h2><div class="box">••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••</div></div>
+    <div class="step ghost"><h2><span class="num">2</span>תנו ל-Claude לבנות את הדמות</h2><div class="box">••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••</div></div>
+    <div class="step ghost"><h2><span class="num">3</span>הפכו אותו לאוטומציה אמיתית</h2><div class="box">••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••</div></div>
   </div>
-
-  <div class="step">
-    <h2><span class="num">2</span>תנו ל-Claude לבנות</h2>
-    <p>פתחו שיחה חדשה ב-Claude, הדביקו את הטקסט הזה, ומתחתיו את מה שמילאתם בשלב 1.</p>
-    <div class="box" id="t2">אתה הולך להיות העוזר האישי של העסק שלי. מתחת להודעה הזאת כתבתי על העסק.
-
-1. סכם במשפט אחד מה הבנת, ומה הכאב הכי גדול שלי.
-2. שאל אותי עד 3 שאלות קצרות, רק אם חסר לך משהו חשוב.
-3. אחרי שאענה, כתוב "הוראות עבודה" קבועות לעוזר: מי אני, מה העסק, מה חשוב לי, איך לדבר איתי, ומה אסור לעשות בלי אישור שלי.
-4. הצע 3 משימות קבועות שתעשה בשבילי כל יום או כל שבוע, מהקלה לקשה.
-
-כללים: לא שולחים, לא מוחקים ולא משנים שום דבר בשמי בלי אישור. אם לא בטוח, שואלים.
-
-—
-(הדביקו כאן את שלב 1)</div>
-    <button class="copy" data-t="t2">📋 להעתקה</button>
-    <div class="tip">💡 את "הוראות העבודה" שהוא יכתוב, שמרו בפרויקט קבוע ב-Claude, ככה הוא זוכר אתכם בכל שיחה.</div>
-  </div>
-
-  <div class="step">
-    <h2><span class="num">3</span>מתחילים לעבוד איתו</h2>
-    <p>כל בוקר, הדביקו את זה. אם חיברתם ל-Claude את המייל והיומן, הוא יעבור עליהם בעצמו.</p>
-    <div class="box" id="t3">בוקר טוב. תן לי תמונת מצב קצרה להיום:
-1. מה הכי דחוף (עד 3 דברים)
-2. מי מחכה לתשובה ממני
-3. טיוטות תשובה קצרות למה שדחוף. לא לשלוח, רק להכין.</div>
-    <button class="copy" data-t="t3">📋 להעתקה</button>
-  </div>
-
   <div class="end step">
     <h2>רוצים שנבנה לכם את זה <span class="acc">עד הסוף</span>?</h2>
     <p>מחובר למערכות שלכם, עובד לבד, ואתם רק מאשרים.<br>שלחו לי הודעה באינסטגרם <b dir="ltr" style="color:#fff">@goldchain_ai</b></p>
-    <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 ובינתיים, הצטרפו לקהילה בוואטסאפ</a>
+    <a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 הצטרפו לקהילה בוואטסאפ</a>
   </div>
 </div>
 <a class="wa float js-wa" href="#" target="_blank" rel="noopener">💬 לקהילה בוואטסאפ</a>
 
 <script>
-// community invite link — one place to update
-const COMMUNITY="";
-document.querySelectorAll(".js-wa").forEach(a=>{ if(COMMUNITY) a.href=COMMUNITY; else a.addEventListener("click",e=>{e.preventDefault();alert("הקהילה נפתחת ממש בקרוב");}); });
-const ov=document.getElementById("ov");
-try{ if(localStorage.getItem("gcLead")) ov.classList.add("hide"); }catch(_){}
-const close=()=>ov.classList.add("hide");
-document.getElementById("skip").onclick=close; document.getElementById("go").onclick=close;
-document.getElementById("lf").addEventListener("submit",async e=>{ e.preventDefault();
-  const v=id=>document.getElementById(id).value.trim(), er=document.getElementById("er"), sb=document.getElementById("sb");
+const API="https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/guide-lead", GUIDE="assistant", KEY="gc_"+GUIDE;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]);
+function community(url){ document.querySelectorAll(".js-wa").forEach(a=>{ if(url){ a.href=url; a.onclick=null; } else a.onclick=e=>{ e.preventDefault(); alert("הקהילה נפתחת ממש בקרוב"); }; }); }
+function render(c){
+  $("steps").innerHTML=(c.steps||[]).map((s,i)=>`<div class="step"><h2><span class="num">${i+1}</span>${esc(s.title)}</h2><p>${esc(s.desc)}</p><div class="box" id="t${i}">${esc(s.text)}</div><button class="copy" data-t="t${i}">📋 להעתקה</button>${i===0?`<a class="wa js-wa" href="#" target="_blank" rel="noopener">💬 שאלות? הצטרפו לקהילה בוואטסאפ</a>`:""}</div>`).join("");
+  community(c.community||"");
+  document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{ const el=$(b.dataset.t), t=el.innerText;
+    try{ await navigator.clipboard.writeText(t); }catch(_){ const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); }
+    const o=b.textContent; b.textContent="✔ הועתק!"; b.classList.add("ok"); setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); },1800); });
+  $("ov").classList.add("hide"); document.body.classList.remove("locked");
+}
+community("");
+// returning visitor on the same device: the guide reopens without the form
+(async()=>{ let t=""; try{ t=localStorage.getItem(KEY)||""; }catch(_){}
+  if(!t) return;
+  try{ const r=await fetch(API,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({mode:"get",token:t,guide:GUIDE})}); const j=await r.json(); if(j.ok&&j.content) render(j.content); }catch(_){}
+})();
+$("lf").addEventListener("submit",async e=>{ e.preventDefault();
+  const v=id=>$(id).value.trim(), er=$("er"), sb=$("sb");
   if(!v("f1")) return er.textContent="נא למלא שם פרטי";
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v("f3"))) return er.textContent="נא למלא אימייל תקין";
-  if(!document.getElementById("f4").checked) return er.textContent="צריך לאשר קבלת עדכונים כדי לקבל את המדריך";
+  if(!$("f4").checked) return er.textContent="צריך לאשר קבלת עדכונים כדי לקבל את המדריך";
   er.textContent=""; sb.disabled=true; sb.textContent="שולח…";
-  try{ const r=await fetch("https://tcnnmbmooynevstasgaj.supabase.co/functions/v1/guide-lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({first:v("f1"),last:v("f2"),email:v("f3"),consent:true,website:v("hp"),guide:"עוזר אישי"})});
-    if(!r.ok) throw 0; try{localStorage.setItem("gcLead","1")}catch(_){}
-    document.getElementById("lf").classList.add("hide2"); document.querySelector(".pop>.kick").style.display="none"; document.querySelectorAll(".pop>h3,.pop>.sub").forEach(x=>x.style.display="none"); document.getElementById("done").classList.remove("hide2");
-  }catch(_){ er.textContent="משהו השתבש, נסו שוב"; sb.disabled=false; sb.textContent="פתחו לי את המדריך"; }
-});
-document.querySelectorAll(".copy").forEach(b=>b.onclick=async()=>{
-  const t=document.getElementById(b.dataset.t).innerText;
-  try{ await navigator.clipboard.writeText(t); }catch(_){ const r=document.createRange(); r.selectNodeContents(document.getElementById(b.dataset.t)); const s=getSelection(); s.removeAllRanges(); s.addRange(r); document.execCommand("copy"); }
-  const o=b.textContent; b.textContent="✔ הועתק!"; b.classList.add("ok"); setTimeout(()=>{ b.textContent=o; b.classList.remove("ok"); },1800);
+  try{ const r=await fetch(API,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({first:v("f1"),last:v("f2"),email:v("f3"),consent:true,website:v("hp"),guide:GUIDE})});
+    const j=await r.json(); if(!j.ok||!j.content) throw 0;
+    try{ localStorage.setItem(KEY,j.token); }catch(_){}
+    render(j.content); const t=$("toast"); t.style.display="block"; setTimeout(()=>t.style.display="none",3500); scrollTo(0,0);
+  }catch(_){ er.textContent="משהו השתבש, נסו שוב"; sb.disabled=false; sb.textContent="שלחו לי את המדריך"; }
 });
 </script>
 </body>
