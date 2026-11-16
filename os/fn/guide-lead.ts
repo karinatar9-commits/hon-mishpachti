@@ -37,6 +37,15 @@ Deno.serve(async (req) => {
   try {
     const b = await req.json().catch(() => ({}));
     const g = clean(b.guide, 30) || "assistant";
+    if (b.mode === "contact") { // consultation request from goldchain-ai.com → lead in Karin OS + a heads-up email to Karin
+      if (b.website) return json({ error: "invalid" }, 400);
+      const name = clean(b.name, 80), phone = clean(b.phone, 30).replace(/[^\d+\-\s]/g, ""), email = clean(b.email, 120).toLowerCase(), biz = clean(b.biz, 120), need = clean(b.need, 800);
+      if (!name || (phone.replace(/\D/g, "").length < 9 && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))) return json({ error: "invalid" }, 400);
+      const at = new Date().toISOString();
+      await db.from("os_items").insert({ kind: "leads", data: { name, phone, email, company: biz, need, biz: "אישי", source: "אתר goldchain-ai.com · בקשת ייעוץ", source_type: "site", stage: "new", consent: b.consent === true, consent_at: b.consent === true ? at : null, by: "האתר" } });
+      await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: "karinatar9@gmail.com", subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
+      return json({ ok: true });
+    }
     if (b.mode === "meta") { // public teaser only: titles, never the copy-paste texts
       if (!slugOk(g)) return json({ error: "guide" }, 404);
       const c: any = await content(g); if (!c || c.active === false) return json({ error: "guide" }, 404);
