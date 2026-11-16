@@ -244,11 +244,16 @@ async function loadAttachment(a: any): Promise<{ name: string; type: string; b64
   throw new Error("מקור קובץ לא מוכר");
 }
 async function rawMail(p: any, from: string, extra: string[] = []) {
-  const head = [`From: ${from}`, `To: ${[].concat(p.to).join(", ")}`, ...(p.cc ? [`Cc: ${[].concat(p.cc).join(", ")}`] : []), `Subject: ${encHeader(p.subject || "")}`, "MIME-Version: 1.0", ...extra];
+  const fromH = p.from_name ? `${encHeader(p.from_name)} <${from}>` : from;
+  const head = [`From: ${fromH}`, ...(p.reply_to ? [`Reply-To: ${p.reply_to}`] : []), `To: ${[].concat(p.to).join(", ")}`, ...(p.cc ? [`Cc: ${[].concat(p.cc).join(", ")}`] : []), `Subject: ${encHeader(p.subject || "")}`, "MIME-Version: 1.0", ...extra];
   const bodyB64 = wrap76(btoa(unescape(encodeURIComponent(p.body || ""))));
   const atts: any[] = Array.isArray(p.attachments) ? p.attachments : [];
   let lines: string[];
-  if (!atts.length) lines = [...head, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", bodyB64];
+  if (!atts.length && p.html) {
+    const alt = "kosa_" + crypto.randomUUID().replace(/-/g, "");
+    lines = [...head, `Content-Type: multipart/alternative; boundary="${alt}"`, "", `--${alt}`, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", bodyB64,
+      `--${alt}`, "Content-Type: text/html; charset=UTF-8", "Content-Transfer-Encoding: base64", "", wrap76(btoa(unescape(encodeURIComponent(p.html)))), `--${alt}--`];
+  } else if (!atts.length) lines = [...head, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", bodyB64];
   else {
     const bnd = "kos_" + crypto.randomUUID().replace(/-/g, "");
     lines = [...head, `Content-Type: multipart/mixed; boundary="${bnd}"`, "", `--${bnd}`, "Content-Type: text/plain; charset=UTF-8", "Content-Transfer-Encoding: base64", "", bodyB64];
