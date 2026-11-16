@@ -65,6 +65,13 @@ async function claudeJSON(prompt: string | any[], model: string, search = 0) {
   catch { throw new Error(`no JSON (stop=${j.stop_reason}, out=${j.usage?.output_tokens}): ${t.slice(0, 160)}`); }
 }
 
+// Goldchain's six skills (orchestrator, discovery, copywriting, video, education, cases, leads) — the same texts Karin installed; cached per instance
+let GC_SKILLS: any = null;
+async function gcSkills(): Promise<string> {
+  if (!GC_SKILLS) { try { GC_SKILLS = await (await fetch("https://raw.githubusercontent.com/karinatar9-commits/hon-mishpachti/main/os/skills/goldchain.json")).json(); } catch { GC_SKILLS = {}; } }
+  return ["orchestrator", "copywriting", "video", "education", "discovery", "cases", "leads"].filter((k) => GC_SKILLS[k]?.text).map((k) => `### סקיל: ${GC_SKILLS[k].title}\n${String(GC_SKILLS[k].text).slice(0, 2200)}`).join("\n\n");
+}
+
 // ---- Guides: every Goldchain post gets its own locked guide at goldchain-ai.com/<slug> (draft until Karin approves) ----
 const GUIDE_RULES = `אתה כותב מדריך קצר ל-Goldchain AI (קרין) שנשלח למי שמגיב לפוסט. הקהל: בעלי עסקים קטנים-בינוניים בישראל, הנישה: הצד הפיננסי של העסק.
 המדריך הוא 3 שלבים בדיוק:
@@ -98,7 +105,8 @@ async function scriptJob(id: string, feedback?: string) {
     const car = v.format === "carousel";
     const kit = (s.main.brandKit || {})[v.account] || {};
     const les: string[] = (s.lessons[v.account] || []).concat(s.lessons.all || []);
-    let p = `את/ה ליה — במאית תוכן ויוצרת רילסים ומצגות מובילה. ${car ? "בנה/י קרוסלה (מצגת) לאינסטגרם: 5-9 שקפים 4:5, כל שקף עומד בפני עצמו, השקף הראשון הוק שגורם להחליק, האחרון קריאה לפעולה. dur לא חשוב (3)." : `בנה/י סרטון הסבר אנכי (9:16) לאינסטגרם, טקסט על המסך עם אנימציה ${v.voice ? "וקריינות בעברית" : "(בלי קריינות)"}`}, שמסביר את הנושא בצורה מעניינת ומפתיעה — עובדה מפתיעה, מנגנון, דוגמה, טעות נפוצה, ומה לעשות.
+    const skills = v.account === "karin" ? await gcSkills() : "";
+    let p = (skills ? `הסקילים של Goldchain AI שקרין הגדירה — לעבוד לפיהם (מיצוב, קופי, מבנה וידאו, קריאה לפעולה):\n${skills}\n\n` : "") + `את/ה ליה — במאית תוכן ויוצרת רילסים ומצגות מובילה. ${car ? "בנה/י קרוסלה (מצגת) לאינסטגרם: 5-9 שקפים 4:5, כל שקף עומד בפני עצמו, השקף הראשון הוק שגורם להחליק, האחרון קריאה לפעולה. dur לא חשוב (3)." : `בנה/י סרטון הסבר אנכי (9:16) לאינסטגרם, טקסט על המסך עם אנימציה ${v.voice ? "וקריינות בעברית" : "(בלי קריינות)"}`}, שמסביר את הנושא בצורה מעניינת ומפתיעה — עובדה מפתיעה, מנגנון, דוגמה, טעות נפוצה, ומה לעשות.
 ${les.length ? "כללים שקרין לימדה אותך מהערות קודמות (חובה לשמור עליהם):\n- " + les.join("\n- ") : ""}
 ${kit.accent ? "העיצוב קבוע לפי ערכת המותג — אל תשנה/י צבעים." : ""}
 מותג: ${BRAND[v.account](s.main)}
@@ -188,6 +196,33 @@ ${d.focus ? "דגשים קבועים מקרין: " + d.focus : ""}
   }
   for (const id of ids) await selfCall({ mode: "script_one", id }, s.cron);   // each script gets its own time budget
   return { created: ids.length };
+}
+
+// ---------- ליה: one Goldchain reel every day at 15:00 Israel time, picked from the ideas scout, in Karin's voice ----------
+async function liaDaily(force = false) {
+  const hr = +new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", hour12: false }).format(new Date());
+  if (!force && hr !== 15) return { skipped: "not_15" };
+  const s = await settings();
+  const L = s.main.lia || {};
+  if (!force && L.on === false) return { skipped: "off" };
+  const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const get = async (k: string) => (await db.from("os_settings").select("value").eq("key", k).maybeSingle()).data?.value;
+  const st: any = (await get("lia_state")) || {};
+  if (!force && st.day === day) return { skipped: "already" };
+  const dig: any = (await get("ideas_digest")) || {};
+  const fb: any[] = ((await get("ideas_feedback")) || {}).items || [];
+  const down = new Set(fb.filter((f) => f.vote === "down").map((f) => f.id)), up = new Set(fb.filter((f) => f.vote === "up").map((f) => f.id));
+  const used = new Set(st.used || []);
+  const pool = (dig.ideas || []).filter((x: any) => x?.id && !down.has(x.id) && !used.has(x.id)).sort((a: any, b: any) => (up.has(b.id) ? 1 : 0) - (up.has(a.id) ? 1 : 0));
+  const idea = pool[0];
+  if (!idea) { if (!force) await selfCall({ mode: "ideas" }, s.cron); return { skipped: "no_idea" }; }
+  const topic = `${idea.title}${idea.hook ? " — הוק: " + idea.hook : ""}`;
+  const notes = [idea.pain && "הכאב: " + idea.pain, idea.before && "לפני: " + idea.before, idea.after && "אחרי: " + idea.after, idea.angle && "זווית: " + idea.angle, idea.source && "מקור: " + idea.source].filter(Boolean).join(" | ");
+  const row = { account: "karin", topic: topic.slice(0, 2000), notes: notes.slice(0, 2000) || null, style: L.clips === 0 || !HF_KEY ? "explainer" : "mixed", format: idea.format && /קרוסל/.test(idea.format) ? "carousel" : "reel", length_s: 35, voice: true, source: "daily" };
+  const { data } = await db.from("os_videos").insert(row).select("id").single();
+  await db.from("os_settings").upsert({ key: "lia_state", value: { day, used: [...used, idea.id].slice(-120), last: { id: data?.id, idea: idea.title, at: now() } }, updated_at: now() });
+  if (data?.id) await selfCall({ mode: "script_one", id: data.id }, s.cron);
+  return { created: data?.id, idea: idea.title };
 }
 
 async function pollClips() {
@@ -421,6 +456,7 @@ Deno.serve(async (req) => {
       if (body.mode === "script_one") { await db.from("os_videos").update({ status: "scripting" }).eq("id", body.id).eq("status", "scripting"); bg(scriptJob(String(body.id))); return json({ ok: true }); }
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
       if (body.mode === "glow_daily") { const r = await glowDaily(); return json(r); }
+      if (body.mode === "lia") { if (!AKEY) return json({ error: "no_key" }, 400); bg(liaDaily(!!body.force).then((r) => console.log("lia", JSON.stringify(r)))); return json({ ok: true }); }
       if (body.mode === "ideas") { if (!AKEY) return json({ error: "no_key" }, 400); bg(ideasScout().then((r) => console.log("ideas", JSON.stringify(r)))); return json({ ok: true }); }
       // read-only: results of chosen campaigns split by age and gender (lifetime)
       if (body.mode === "ads_breakdown") {
