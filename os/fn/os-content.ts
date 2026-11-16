@@ -86,7 +86,7 @@ async function guideJob(opts: { videoId?: string; topic?: string; script?: any }
   const { data: main } = await db.from("os_settings").select("value").eq("key", "guide_assistant").maybeSingle();
   const val = { ...g, slug, active: false, community: main?.value?.community || "", video_id: opts.videoId || null, created_at: now() };
   await db.from("os_settings").upsert({ key: `guide_${slug}`, value: val, updated_at: now() });
-  await db.from("os_items").insert({ kind: "tasks", data: { title: `מדריך חדש מחכה לאישור: ${g.title}`, note: `goldchain-ai.com/${slug} · מילת תגובה: ${g.keyword}. לבדוק שהפרומפט בשלב 2 באמת בונה את מה שבפוסט, ואז לאשר.`, biz: "אישי", by: "מפעל התוכן" } });
+  await db.from("os_tasks").insert({ title: `מדריך חדש מחכה לאישור: ${g.title}`, agent: "biz", status: "open", source: "content", priority: "normal", notes: `goldchain-ai.com/${slug} · מילת תגובה: ${g.keyword}. לבדוק שהפרומפט בשלב 2 באמת בונה את מה שבפוסט, ואז לאשר בקוביית "מדריכים לפוסטים".` });
   return { slug, keyword: g.keyword };
 }
 
