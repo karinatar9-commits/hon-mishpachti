@@ -543,6 +543,11 @@ Deno.serve(async (req) => {
     if (m === "guide_set") { const k = "guide_" + String(body.slug || "").replace(/[^a-z0-9-]/g, ""); const { data } = await db.from("os_settings").select("value").eq("key", k).maybeSingle(); if (!data) return json({ error: "not_found" }, 404);
       const v: any = { ...data.value }; if (typeof body.active === "boolean") v.active = body.active; if (body.post) v.post = String(body.post).slice(0, 300); if (body.keyword) v.keyword = String(body.keyword).slice(0, 40);
       await db.from("os_settings").update({ value: v, updated_at: now() }).eq("key", k); return json({ ok: true }); }
+    if (m === "hf_probe") { // find Higgsfield's REST path for text-to-speech with Karin's voice element
+      const out: any[] = [];
+      for (const u of (body.urls || []).slice(0, 8)) { try { const r = await fetch(String(u), { method: body.get ? "GET" : "POST", headers: { Authorization: `Key ${HF_KEY}`, "Content-Type": "application/json" }, ...(body.get ? {} : { body: JSON.stringify(body.payload || {}) }) }); out.push({ u, s: r.status, b: (await r.text()).slice(0, 300) }); } catch (e) { out.push({ u, e: String(e).slice(0, 100) }); } }
+      return json({ out });
+    }
     if (m === "ideas_now") { if (!AKEY) return json({ error: "no_key" }, 400); bg(ideasScout()); return json({ ok: true }); }
     if (m === "ideas_vote") {
       const { data: f } = await db.from("os_settings").select("value").eq("key", "ideas_feedback").maybeSingle();
