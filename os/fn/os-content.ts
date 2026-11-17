@@ -536,6 +536,21 @@ Deno.serve(async (req) => {
         await db.from("os_settings").upsert({ key: "glow_campaign_build", value: out, updated_at: now() });
         return json(out);
       }
+      // read-only: lead quality of the running Glow House campaigns (where the conversations come from, and how many people kept talking)
+      if (body.mode === "ads_quality") {
+        const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
+        const out: any = { at: now() }; const rng = body.since ? `time_range={"since":"${String(body.since).slice(0, 10)}","until":"${now().slice(0, 10)}"}` : "date_preset=last_7d";
+        const F = "campaign_name,campaign_id,spend,impressions,reach,clicks,actions,cost_per_action_type";
+        const g = async (k: string, extra: string) => { try { out[k] = (await graph(`${GLOW.act}/insights?level=campaign&${rng}&fields=${F}${extra}&limit=200`, tok)).data || []; } catch (e) { out[k] = { error: String((e as Error).message).slice(0, 300) }; } };
+        await g("total", "");
+        await g("placement", "&breakdowns=publisher_platform,platform_position");
+        await g("region", "&breakdowns=region");
+        await g("age_gender", "&breakdowns=age,gender");
+        await g("hour", "&breakdowns=hourly_stats_aggregated_by_advertiser_time_zone");
+        try { out.adsets = (await graph(`${GLOW.act}/adsets?fields=name,campaign{name},effective_status,targeting,daily_budget,destination_type&effective_status=["ACTIVE","PAUSED"]&limit=30`, tok)).data || []; } catch (e) { out.adsets = { error: String((e as Error).message).slice(0, 300) }; }
+        await db.from("os_settings").upsert({ key: "meta_quality", value: out, updated_at: now() });
+        return json({ ok: true });
+      }
       // read-only look at how the ad account is built (accounts, page, the settings of existing campaigns), kept for building the campaign screen
       if (body.mode === "ads_probe") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
