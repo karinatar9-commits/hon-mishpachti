@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Before/after split-screen reel (approved style, 17.11.2026).
 usage: python3 build.py cfg.json out.mp4
-cfg: {"hook":[l1,l2,l3], "beats":[5 labels], "end":[l1,l2,"line|line"], "pairs":[[top_bad.mp4, bottom_good.mp4] x5], "vo": "voice.mp3" (optional), "seg":4.3667}
+cfg: {"hook":[l1,l2,l3], "beats":[5 labels], "end":[l1,l2,"line|line"], "pairs":[[top_bad.mp4, bottom_good.mp4] x5], "vo": "voice.mp3" (optional), "seg":4.3667, "inserts": {"0": "ins.mp4"} (optional)}
 Top half = problem (בלי סוכן), bottom = with agent. Overlays come from overlays.mjs (PNG dir = cfg["ov"]).
 No music. Voice = Karin's ElevenLabs voice, plain settings."""
 import json, subprocess, sys, os
@@ -20,6 +20,11 @@ for i, (top, bot) in enumerate(cfg["pairs"]):
         fc += "[w];[4:v]format=rgba,fade=t=out:st=1.3:d=0.35:alpha=1[h];[w][h]overlay=0:0"
     run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", fc + ",format=yuv420p", "-t", str(S), "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", o])
     segs.append(o)
+    ins = cfg.get("inserts", {}).get(str(i))  # optional full-screen "system at work" clip after this pair (from inserts.mjs)
+    if ins:
+        o2 = f"{tmp}/ins{i}.mp4"
+        run(["ffmpeg", "-v", "error", "-y", "-i", ins, "-vf", "scale=1080:1920,setsar=1,fps=30,format=yuv420p", "-an", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", o2])
+        segs.append(o2)
 # end card over the last pair
 top, bot = cfg["pairs"][-1]; E = cfg.get("endlen", 4.1667); o = f"{tmp}/segE.mp4"
 fc = (f"color=c=0x0b0b14:s=1080x1920:d={E}:r=30[bg];[0:v]trim=0:{E},setpts=PTS-STARTPTS,{half}[t];[1:v]trim=0:{E},setpts=PTS-STARTPTS,{half}[b];"
