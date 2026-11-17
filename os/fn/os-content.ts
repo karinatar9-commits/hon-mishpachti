@@ -537,6 +537,17 @@ Deno.serve(async (req) => {
         return json(out);
       }
       // read-only: lead quality of the running Glow House campaigns (where the conversations come from, and how many people kept talking)
+      // speech-to-text for a short recording Karin shares (ElevenLabs Scribe); result kept in os_settings 'stt_last'
+      if (body.mode === "stt") {
+        if (!EL_KEY) return json({ error: "no_el" }, 400);
+        const a = await fetch(String(body.url)); if (!a.ok) return json({ error: "fetch " + a.status }, 400);
+        const fd = new FormData(); fd.append("model_id", "scribe_v1"); fd.append("language_code", "he"); fd.append("diarize", "true"); fd.append("file", new Blob([await a.arrayBuffer()], { type: "audio/mpeg" }), "a.mp3");
+        const r = await fetch("https://api.elevenlabs.io/v1/speech-to-text", { method: "POST", headers: { "xi-api-key": EL_KEY }, body: fd }); const j = await r.json();
+        const words = (j.words || []).filter((w: any) => w.type === "word"); let out = "", sp = "";
+        for (const w of words) { if (w.speaker_id !== sp) { sp = w.speaker_id; out += `\n[${sp} ${Math.round(w.start)}s] `; } out += w.text + " "; }
+        await db.from("os_settings").upsert({ key: "stt_last", value: { at: now(), status: r.status, text: j.text || null, by_speaker: out.trim(), error: j.detail || null }, updated_at: now() });
+        return json({ ok: r.ok });
+      }
       if (body.mode === "ads_quality") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
         const out: any = { at: now() }; const rng = body.since ? `time_range={"since":"${String(body.since).slice(0, 10)}","until":"${now().slice(0, 10)}"}` : "date_preset=last_7d";
