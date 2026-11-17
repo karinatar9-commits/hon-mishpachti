@@ -22,7 +22,7 @@ const CID = (Deno.env.get("GOOGLE_CLIENT_ID") || "").trim().replace(/^["']|["']$
 const CSECRET = (Deno.env.get("GOOGLE_CLIENT_SECRET") || "").trim().replace(/^["']|["']$/g, "");
 const GREEN_ID = (Deno.env.get("GLOW_GREEN_ID") || "").trim();
 const GREEN_TOKEN = (Deno.env.get("GLOW_GREEN_TOKEN") || "").trim();
-const PAGE = "https://karinatar9-commits.github.io/hon-mishpachti/tor/";
+const PAGE = "https://glow.goldchain-ai.com/";
 const TZ = "Asia/Jerusalem";
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-token", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
