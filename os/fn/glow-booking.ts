@@ -52,7 +52,7 @@ const DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", 
 function whenText(ms: number) { const l = local(ms); const [, m, d] = l.date.split("-").map(Number); return `יום ${DAYS[weekday(l.date)]} ${d}.${m} בשעה ${minStr(l.min)}`; }
 
 // ---------- settings ----------
-type Svc = { id: string; cat: string; name: string; min: number; price: number | null; on: boolean };
+type Svc = { id: string; cat: string; name: string; min: number; price: number | null; on: boolean; deposit?: number | null };
 async function loadSettings() {
   const { data } = await db.from("glow_book_settings").select("value,admin_hash").eq("id", "main").maybeSingle();
   return { S: (data?.value || {}) as any, adminHash: data?.admin_hash as string | null };
@@ -86,7 +86,8 @@ function sanitizeSettings(v: any, prev: any) {
     let id = String(s?.id || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 40) || "s-" + crypto.randomUUID().slice(0, 8);
     while (seen.has(id)) id += "x"; seen.add(id);
     const price = s?.price === "" || s?.price == null ? null : Math.max(0, Math.min(100000, Number(s.price) || 0));
-    return { id, cat: cleanText(s.cat, 40), name, min: clampInt(s.min, 5, 600, 30), price, on: s.on !== false };
+    const deposit = s?.deposit === "" || s?.deposit == null ? null : Math.max(0, Math.min(5000, Math.round(Number(s.deposit) || 0)));
+    return { id, cat: cleanText(s.cat, 40), name, min: clampInt(s.min, 5, 600, 30), price, deposit, on: s.on !== false };
   }).filter(Boolean);
   return {
     live: !!v?.live,
@@ -98,6 +99,11 @@ function sanitizeSettings(v: any, prev: any) {
     notify_phone: normPhone(v?.notify_phone) || "",
     whatsapp: normPhone(v?.whatsapp) || "",
     show_prices: !!v?.show_prices,
+    deposit_on: !!v?.deposit_on,
+    deposit_amount: clampInt(v?.deposit_amount, 0, 5000, 0),
+    bit_phone: normPhone(v?.bit_phone) || "",
+    // only a real PayBox link is accepted, so the button can never send a client somewhere else
+    paybox_url: /^https:\/\/(?:[a-z0-9-]+\.)*(?:payboxapp\.com|paybox\.co\.il|payboxapp\.page\.link)\/[^\s"'<>]{1,300}$/i.test(String(v?.paybox_url || "").trim()) ? String(v.paybox_url).trim() : "",
     step_min: [10, 15, 20, 30, 60].includes(+v?.step_min) ? +v.step_min : 15,
     buffer_min: clampInt(v?.buffer_min, 0, 60, 0),
     lead_min: clampInt(v?.lead_min, 0, 7 * 1440, 180),
@@ -266,7 +272,8 @@ async function notifyRinat(S: any, subject: string, text: string) {
   return out;
 }
 
-const publicServices = (S: any) => (S.services || []).filter((s: Svc) => s.on).map((s: Svc) => ({ id: s.id, cat: s.cat, name: s.name, min: s.min, price: S.show_prices ? s.price : null }));
+const depositFor = (S: any, s: Svc) => !S.deposit_on || (!S.bit_phone && !S.paybox_url) ? 0 : (s.deposit != null ? s.deposit : (S.deposit_amount || 0));
+const publicServices = (S: any) => (S.services || []).filter((s: Svc) => s.on).map((s: Svc) => ({ id: s.id, cat: s.cat, name: s.name, min: s.min, price: S.show_prices ? s.price : null, deposit: depositFor(S, s) }));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -281,7 +288,7 @@ Deno.serve(async (req) => {
   try {
     // ---- public ----
     if (mode === "config") {
-      return json({ open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours });
+      return json({ open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", paybox: S.paybox_url || "" } : null });
     }
     if (mode === "slots") {
       if (!open) return json({ error: "closed" }, 403);
@@ -304,6 +311,11 @@ Deno.serve(async (req) => {
       if (name.length < 2) return json({ error: "name" }, 400);
       if (!phone) return json({ error: "phone" }, 400);
       if (!m || !isDate(m[1])) return json({ error: "start" }, 400);
+      const depAmount = depositFor(S, svc);
+      const depMethod = String(body.deposit_method || "");
+      if (depAmount > 0 && (body.deposit_paid !== true || !((depMethod === "bit" && S.bit_phone) || (depMethod === "paybox" && S.paybox_url)))) return json({ error: "deposit" }, 400);
+      const deposit = depAmount > 0 ? { amount: depAmount, method: depMethod, status: "claimed", at: new Date().toISOString() } : null;
+      const depText = deposit ? `\nמקדמה: ${deposit.amount} ₪ ב${deposit.method === "bit" ? "ביט" : "פייבוקס"} — הלקוחה סימנה ששילמה, לבדוק שהתקבל` : "";
       await logHit("book", ipHash, phone);
       const date = m[1], time = `${m[2]}:${m[3]}`;
       const today = local(Date.now()).date;
@@ -317,13 +329,13 @@ Deno.serve(async (req) => {
       const s = toUtc(date, hm(time)), e = s + svc.min * 60000;
       const cancel_token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
       const { data: row, error } = await db.from("glow_bookings").insert({ service_id: svc.id, service_name: svc.name, duration_min: svc.min, price: svc.price, starts_at: new Date(s).toISOString(), ends_at: new Date(e).toISOString(),
-        busy: `[${new Date(s).toISOString()},${new Date(e + S.buffer_min * 60000).toISOString()})`, name, phone, cancel_token }).select("id").single();
+        busy: `[${new Date(s).toISOString()},${new Date(e + S.buffer_min * 60000).toISOString()})`, name, phone, cancel_token, deposit }).select("id").single();
       if (error) return json({ error: /overlap|exclusion|23P01/i.test(error.message + error.code) ? "taken" : "save" }, error.code === "23P01" ? 409 : 500);
       const notify: any = {}; let gcal_event_id: string | null = null;
       try {
         const ev: any = await gcal(S.calendar_id, "events", { method: "POST", body: JSON.stringify({
           summary: `${name} ${phone} - ${svc.name}`,
-          description: `נקבע דרך זימון התורים אונליין.\nלקוחה: ${name}\nטלפון: ${phone}\nטיפול: ${svc.name} (${svc.min} דק׳)`,
+          description: `נקבע דרך זימון התורים אונליין.\nלקוחה: ${name}\nטלפון: ${phone}\nטיפול: ${svc.name} (${svc.min} דק׳)${depText}`,
           start: { dateTime: new Date(s).toISOString(), timeZone: TZ }, end: { dateTime: new Date(e).toISOString(), timeZone: TZ },
           extendedProperties: { private: { glow_booking: row.id } }, reminders: { useDefault: true } }) });
         gcal_event_id = ev.id; notify.calendar = true;
@@ -334,10 +346,10 @@ Deno.serve(async (req) => {
         return json({ error: "calendar" }, 503);
       }
       const when = whenText(s);
-      Object.assign(notify, await notifyRinat(S, `תור חדש: ${name} · ${svc.name} · ${when}`, `נקבע תור חדש דרך זימון התורים 🗓\n\n${name}\n${svc.name} (${svc.min} דק׳)\n${when}\nטלפון: ${phone}\n\nהתור כבר ביומן שלך.`));
+      Object.assign(notify, await notifyRinat(S, `תור חדש: ${name} · ${svc.name} · ${when}`, `נקבע תור חדש דרך זימון התורים 🗓\n\n${name}\n${svc.name} (${svc.min} דק׳)\n${when}\nטלפון: ${phone}${depText}\n\nהתור כבר ביומן שלך.`));
       try { if (await sendWa(phone, `היי ${name} 💗\nהתור שלך ב-${S.business} נקבע:\n${svc.name}\n${when}${S.address ? "\n" + S.address : ""}\n\nלביטול או שינוי: ${PAGE}?c=${cancel_token}`)) notify.client_wa = true; } catch (_) { /* optional */ }
       await db.from("glow_bookings").update({ gcal_event_id, notify }).eq("id", row.id);
-      return json({ ok: true, booking: { service: svc.name, min: svc.min, start: new Date(s).toISOString(), end: new Date(e).toISOString(), when, name, token: cancel_token, wa_sent: !!notify.client_wa } });
+      return json({ ok: true, booking: { service: svc.name, min: svc.min, start: new Date(s).toISOString(), end: new Date(e).toISOString(), when, name, token: cancel_token, wa_sent: !!notify.client_wa, deposit } });
     }
     if (mode === "booking" || mode === "cancel") {
       if (await tooMany("token", ipHash, 40)) return json({ error: "rate" }, 429);
@@ -377,7 +389,7 @@ Deno.serve(async (req) => {
       const src = await calSource(); const gv: any = src.own ? await vget("google_glowcal") : null;
       try { const c = await calendarBusy(S.calendar_id, Date.now(), Date.now() + 86400_000); calendar = { ok: true, write: ["owner", "writer"].includes(c.role), role: c.role, own: src.own, email: gv?.email || "" }; }
       catch (e) { const st = (e as any).status; calendar = { ok: false, reason: st === 404 ? "not_shared" : String((e as Error).message || e).slice(0, 120) }; }
-      const { data: upcoming } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,cancelled_by,created_at").gte("starts_at", new Date(Date.now() - 86400_000).toISOString()).order("starts_at").limit(200);
+      const { data: upcoming } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,cancelled_by,created_at,deposit").gte("starts_at", new Date(Date.now() - 86400_000).toISOString()).order("starts_at").limit(200);
       const kg: any = await vget("google");
       return json({ value: S, calendar, share_with: kg?.email || "", whatsapp_ready: !!(GREEN_ID && GREEN_TOKEN), page: PAGE, bookings: (upcoming || []).map((b: any) => ({ ...b, when: whenText(Date.parse(b.starts_at)) })) });
     }
@@ -386,6 +398,14 @@ Deno.serve(async (req) => {
       const { error } = await db.from("glow_book_settings").update({ value, updated_at: new Date().toISOString() }).eq("id", "main");
       if (error) return json({ error: "save" }, 500);
       return json({ ok: true, value });
+    }
+    if (mode === "admin_deposit") {
+      const id = String(body.id || ""), st = String(body.status || "");
+      if (!/^[0-9a-f-]{36}$/.test(id) || !["received", "missing", "claimed"].includes(st)) return json({ error: "bad" }, 400);
+      const { data: b } = await db.from("glow_bookings").select("deposit").eq("id", id).maybeSingle();
+      if (!b?.deposit) return json({ error: "not_found" }, 404);
+      await db.from("glow_bookings").update({ deposit: { ...b.deposit, status: st, checked_at: new Date().toISOString() }, updated_at: new Date().toISOString() }).eq("id", id);
+      return json({ ok: true });
     }
     if (mode === "admin_cancel") {
       if (!/^[0-9a-f-]{36}$/.test(String(body.id || ""))) return json({ error: "not_found" }, 404);
