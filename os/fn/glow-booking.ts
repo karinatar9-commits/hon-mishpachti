@@ -124,6 +124,7 @@ function sanitizeSettings(v: any, prev: any) {
     buffer_min: clampInt(v?.buffer_min, 0, 60, 0),
     lead_min: clampInt(v?.lead_min, 0, 7 * 1440, 180),
     horizon_days: clampInt(v?.horizon_days, 1, 90, 30),
+    show_per_day: clampInt(v?.show_per_day, 0, 24, 0),
     cancel_hours: clampInt(v?.cancel_hours, 0, 168, 12),
     terms: String(v?.terms ?? prev?.terms ?? "").replace(/\r/g, "").replace(/[<>\u0000-\u0008\u000b-\u001f]/g, "").slice(0, 8000).trim(),
     remind_24: v?.remind_24 !== false,
@@ -344,7 +345,19 @@ Deno.serve(async (req) => {
       if (!svc) return json({ error: "service" }, 400);
       const a = await availability(S, svc);
       if (!a.calOk) return json({ error: "calendar" }, 503); // never show hours we can't check against the calendar
-      return json({ days: a.days.filter((d) => d.times.length) });
+      // show only part of the free times per day (spread over the day, stable per date) so the diary doesn't look empty
+      const n = S.show_per_day || 0;
+      const thin = (t: string[], seed: string) => {
+        if (!n || t.length <= n) return t;
+        const out: string[] = [];
+        for (let i = 0; i < n; i++) {
+          const part = t.slice(Math.floor(i * t.length / n), Math.floor((i + 1) * t.length / n));
+          let h = 0; for (const c of seed + i) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+          if (part.length) out.push(part[h % part.length]);
+        }
+        return out;
+      };
+      return json({ days: a.days.filter((d) => d.times.length).map((d) => ({ date: d.date, times: thin(d.times, d.date + svc.id) })) });
     }
     if (mode === "book") {
       if (!open) return json({ error: "closed" }, 403);
