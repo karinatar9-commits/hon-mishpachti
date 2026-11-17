@@ -125,6 +125,7 @@ function sanitizeSettings(v: any, prev: any) {
     lead_min: clampInt(v?.lead_min, 0, 7 * 1440, 180),
     horizon_days: clampInt(v?.horizon_days, 1, 90, 30),
     cancel_hours: clampInt(v?.cancel_hours, 0, 168, 12),
+    terms: String(v?.terms ?? prev?.terms ?? "").replace(/\r/g, "").replace(/[<>\u0000-\u0008\u000b-\u001f]/g, "").slice(0, 8000).trim(),
     remind_24: v?.remind_24 !== false,
     remind_morning: v?.remind_morning !== false,
     morning_hour: clampInt(v?.morning_hour, 5, 12, 8),
@@ -332,7 +333,8 @@ Deno.serve(async (req) => {
     // ---- public ----
     if (mode === "config") {
       let vapid = ""; try { vapid = await pushInit(); } catch (_) { /* no push */ }
-      return json({ vapid, open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", bit_url: S.bit_url || "", paybox: S.paybox_url || "" } : null });
+      const terms = open && S.terms ? S.terms : "";
+      return json({ vapid, terms, terms_ver: terms ? (await sha(terms)).slice(0, 12) : "", deposit_default: S.deposit_amount || 0, open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", bit_url: S.bit_url || "", paybox: S.paybox_url || "" } : null });
     }
     if (mode === "slots") {
       if (!open) return json({ error: "closed" }, 403);
@@ -355,6 +357,8 @@ Deno.serve(async (req) => {
       if (name.length < 2) return json({ error: "name" }, 400);
       if (!phone) return json({ error: "phone" }, 400);
       if (!m || !isDate(m[1])) return json({ error: "start" }, 400);
+      if (S.terms && body.terms_ok !== true) return json({ error: "terms" }, 400);
+      const termsVer = S.terms ? (await sha(S.terms)).slice(0, 12) : null;
       const depAmount = depositFor(S, svc);
       const depMethod = String(body.deposit_method || "");
       if (depAmount > 0 && (body.deposit_paid !== true || !((depMethod === "bit" && (S.bit_phone || S.bit_url)) || (depMethod === "paybox" && S.paybox_url)))) return json({ error: "deposit" }, 400);
@@ -373,7 +377,7 @@ Deno.serve(async (req) => {
       const s = toUtc(date, hm(time)), e = s + svc.min * 60000;
       const cancel_token = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
       const { data: row, error } = await db.from("glow_bookings").insert({ service_id: svc.id, service_name: svc.name, duration_min: svc.min, price: svc.price, starts_at: new Date(s).toISOString(), ends_at: new Date(e).toISOString(),
-        busy: `[${new Date(s).toISOString()},${new Date(e + S.buffer_min * 60000).toISOString()})`, name, phone, cancel_token, deposit }).select("id").single();
+        busy: `[${new Date(s).toISOString()},${new Date(e + S.buffer_min * 60000).toISOString()})`, name, phone, cancel_token, deposit, terms_at: termsVer ? new Date().toISOString() : null, terms_ver: termsVer }).select("id").single();
       if (error) return json({ error: /overlap|exclusion|23P01/i.test(error.message + error.code) ? "taken" : "save" }, error.code === "23P01" ? 409 : 500);
       const notify: any = {}; let gcal_event_id: string | null = null;
       try {
