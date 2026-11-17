@@ -13,6 +13,9 @@
 // the WhatsApp bot. Clients opt in on the booking page; Rinat opts in inside her management app.
 //   POST {mode:'subscribe', token, sub}       → a client's phone subscribes to reminders for her appointment
 //   POST {mode:'admin_push', sub}             → Rinat's phone subscribes to new-booking / cancel / confirm alerts
+//   POST {mode:'admin_reminded', id, kind}    → Rinat sent a reminder from her own WhatsApp (r24|morning)
+// Reminders from Rinat's own phone: every morning her app gets one notification "X reminders to send", and the
+// management app lists them with a WhatsApp button that opens her WhatsApp with the message ready (no Green API).
 // Admin (header x-admin-token = Rinat's secret link, or Karin's app session):
 //   POST {mode:'admin_get'} · {mode:'admin_save', value} · {mode:'admin_cancel', id} · {mode:'admin_test'}
 // WhatsApp bot (header x-bot-key; only its hash is stored, in glow_book_settings.bot_hash):
@@ -456,7 +459,20 @@ Deno.serve(async (req) => {
         await db.from("glow_bookings").update({ reminders: { ...R, [kind]: ok ? new Date().toISOString() : "failed" }, ...(r === "gone" ? { push: null } : {}) }).eq("id", b.id);
         sent.push({ id: b.id, kind, ok });
       }
-      return json({ ok: true, sent });
+      // once a day, at the morning hour: tell Rinat how many WhatsApp reminders are waiting in her app
+      let digest: any = null;
+      if (nowL.min >= S.morning_hour * 60) {
+        const tag = "digest:" + today;
+        const { count: done } = await db.from("glow_book_log").select("id", { count: "exact", head: true }).eq("kind", tag);
+        if (!done) {
+          await db.from("glow_book_log").insert({ kind: tag });
+          const { data: due } = await db.from("glow_bookings").select("starts_at,reminders").eq("status", "confirmed")
+            .gte("starts_at", new Date(now).toISOString()).lt("starts_at", new Date(toUtc(addDays(today, 2), 0)).toISOString());
+          const n = (due || []).filter((b: any) => { const d = local(Date.parse(b.starts_at)).date; return (d === today && !b.reminders?.morning_wa) || (d === addDays(today, 1) && !b.reminders?.r24_wa); }).length;
+          if (n) digest = await notifyRinat(S, `${n} תזכורות לשלוח היום`, `יש ${n} לקוחות לשלוח להן תזכורת בווצאפ (להיום ולמחר). באפליקציה: לשונית "תורים" ← "תזכורות לשלוח".`, `📲 ${n} תזכורות לשלוח`, "לחצי כדי לשלוח מהווצאפ שלך בלחיצה לכל לקוחה");
+        }
+      }
+      return json({ ok: true, sent, digest });
     }
 
     // ---- WhatsApp bot ----
@@ -495,6 +511,14 @@ Deno.serve(async (req) => {
       Object.entries({ client_id: CID, redirect_uri: `${SB_URL}/functions/v1/os-google`, response_type: "code", scope: "openid email https://www.googleapis.com/auth/calendar.events", access_type: "offline", prompt: "consent", state: s, login_hint: S.calendar_id || "" }).forEach(([k, v]) => v && u.searchParams.set(k, v));
       return json({ url: u.toString() });
     }
+    if (mode === "admin_reminded") {
+      const id = String(body.id || ""), kind = String(body.kind || "");
+      if (!/^[0-9a-f-]{36}$/.test(id) || !["r24", "morning"].includes(kind)) return json({ error: "bad" }, 400);
+      const { data: b } = await db.from("glow_bookings").select("reminders").eq("id", id).maybeSingle();
+      if (!b) return json({ error: "not_found" }, 404);
+      await db.from("glow_bookings").update({ reminders: { ...(b.reminders || {}), [kind + "_wa"]: new Date().toISOString() } }).eq("id", id);
+      return json({ ok: true });
+    }
     if (mode === "admin_push") {
       const sub = validSub(body.sub); if (!sub) return json({ error: "bad" }, 400);
       const { data } = await db.from("glow_book_settings").select("admin_push").eq("id", "main").maybeSingle();
@@ -513,7 +537,7 @@ Deno.serve(async (req) => {
       const src = await calSource(); const gv: any = src.own ? await vget("google_glowcal") : null;
       try { const c = await calendarBusy(S.calendar_id, Date.now(), Date.now() + 86400_000); calendar = { ok: true, write: ["owner", "writer"].includes(c.role), role: c.role, own: src.own, email: gv?.email || "" }; }
       catch (e) { const st = (e as any).status; calendar = { ok: false, reason: st === 404 ? "not_shared" : String((e as Error).message || e).slice(0, 120) }; }
-      const { data: upcoming } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,cancelled_by,created_at,deposit,attend_confirmed_at,reminders").gte("starts_at", new Date(Date.now() - 86400_000).toISOString()).order("starts_at").limit(200);
+      const { data: upcoming } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,cancelled_by,created_at,deposit,attend_confirmed_at,reminders,cancel_token").gte("starts_at", new Date(Date.now() - 86400_000).toISOString()).order("starts_at").limit(200);
       const kg: any = await vget("google");
       let vapid = ""; try { vapid = await pushInit(); } catch (_) { /* no push */ }
       const { data: ap } = await db.from("glow_book_settings").select("admin_push").eq("id", "main").maybeSingle();
