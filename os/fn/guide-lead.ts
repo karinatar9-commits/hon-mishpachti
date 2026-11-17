@@ -42,8 +42,16 @@ Deno.serve(async (req) => {
       const name = clean(b.name, 80), phone = clean(b.phone, 30).replace(/[^\d+\-\s]/g, ""), email = clean(b.email, 120).toLowerCase(), biz = clean(b.biz, 120), need = clean(b.need, 800);
       if (!name || (phone.replace(/\D/g, "").length < 9 && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))) return json({ error: "invalid" }, 400);
       const at = new Date().toISOString();
-      await db.from("os_items").insert({ kind: "leads", data: { name, phone, email, company: biz, need, biz: "אישי", source: "אתר goldchain-ai.com · בקשת ייעוץ", source_type: "site", stage: "new", consent: b.consent === true, consent_at: b.consent === true ? at : null, by: "האתר" } });
+      await db.from("os_items").insert({ kind: "leads", data: { name, phone, email, company: biz, need, biz: "אישי", source: "אתר goldchain-ai.com · בקשת ייעוץ" + (clean(b.src, 30) ? " · " + clean(b.src, 30) : ""), source_type: "site", stage: "new", consent: b.consent === true, consent_at: b.consent === true ? at : null, by: "האתר" } });
       await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: "karinatar9@gmail.com", subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
+      return json({ ok: true });
+    }
+    if (b.mode === "wa_click") { // goldchain-ai.com/wa short link: count clicks per day/source (anonymous, no personal data)
+      const src = clean(b.src, 30) || "direct", day = new Date().toISOString().slice(0, 10);
+      const { data } = await db.from("os_settings").select("value").eq("key", "wa_clicks").maybeSingle();
+      const v: any = data?.value || { total: 0, days: {}, src: {} };
+      v.total = (v.total || 0) + 1; v.days = v.days || {}; v.days[day] = (v.days[day] || 0) + 1; v.src = v.src || {}; v.src[src] = (v.src[src] || 0) + 1; v.last = new Date().toISOString();
+      await db.from("os_settings").upsert({ key: "wa_clicks", value: v });
       return json({ ok: true });
     }
     if (b.mode === "meta") { // public teaser only: titles, never the copy-paste texts
