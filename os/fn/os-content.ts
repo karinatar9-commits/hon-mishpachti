@@ -602,7 +602,7 @@ Deno.serve(async (req) => {
     if (m === "guide_set") { const k = "guide_" + String(body.slug || "").replace(/[^a-z0-9-]/g, ""); const { data } = await db.from("os_settings").select("value").eq("key", k).maybeSingle(); if (!data) return json({ error: "not_found" }, 404);
       const v: any = { ...data.value }; if (typeof body.active === "boolean") v.active = body.active; if (body.post) v.post = String(body.post).slice(0, 300); if (body.keyword) v.keyword = String(body.keyword).slice(0, 40);
       await db.from("os_settings").update({ value: v, updated_at: now() }).eq("key", k); return json({ ok: true }); }
-    if (m === "tts_text") { if (!EL_KEY || !s.main.voiceId) return json({ error: "no_voice" }, 400); // narration for a hand-edited video, in Karin's cloned voice
+    if (m === "tts_text") { const s = await settings(); if (!EL_KEY || !s.main.voiceId) return json({ error: "no_voice" }, 400); // narration for a hand-edited video, in Karin's cloned voice
       const text = String(body.text || "").slice(0, 2500).trim(); if (!text) return json({ error: "empty" }, 400);
       const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(s.main.voiceId)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL_KEY, "content-type": "application/json" },
         body: JSON.stringify({ text, model_id: s.main.voiceModel || "eleven_v3", language_code: "he", voice_settings: { stability: body.stability ?? s.main.voiceStability ?? 0.5, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true } }) });
