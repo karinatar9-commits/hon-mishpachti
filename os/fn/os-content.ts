@@ -602,6 +602,14 @@ Deno.serve(async (req) => {
     if (m === "guide_set") { const k = "guide_" + String(body.slug || "").replace(/[^a-z0-9-]/g, ""); const { data } = await db.from("os_settings").select("value").eq("key", k).maybeSingle(); if (!data) return json({ error: "not_found" }, 404);
       const v: any = { ...data.value }; if (typeof body.active === "boolean") v.active = body.active; if (body.post) v.post = String(body.post).slice(0, 300); if (body.keyword) v.keyword = String(body.keyword).slice(0, 40);
       await db.from("os_settings").update({ value: v, updated_at: now() }).eq("key", k); return json({ ok: true }); }
+    if (m === "tts_text") { if (!EL_KEY || !s.main.voiceId) return json({ error: "no_voice" }, 400); // narration for a hand-edited video, in Karin's cloned voice
+      const text = String(body.text || "").slice(0, 2500).trim(); if (!text) return json({ error: "empty" }, 400);
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(s.main.voiceId)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL_KEY, "content-type": "application/json" },
+        body: JSON.stringify({ text, model_id: s.main.voiceModel || "eleven_v3", language_code: "he", voice_settings: { stability: body.stability ?? s.main.voiceStability ?? 0.5, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true } }) });
+      if (!r.ok) return json({ error: (await r.text()).slice(0, 300) }, 502);
+      const path = `vo/${Date.now()}.mp3`; const up = await db.storage.from(BUCKET).upload(path, new Uint8Array(await r.arrayBuffer()), { contentType: "audio/mpeg", upsert: true });
+      if (up.error) return json({ error: up.error.message }, 500);
+      return json({ url: db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl }); }
     if (m === "el_voices") { if (!EL_KEY) return json({ error: "no_eleven_key" }, 400); // Karin's own (cloned) ElevenLabs voices
       const r = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": EL_KEY } }); const j = await r.json().catch(() => ({}));
       return json({ status: r.status, voices: (j.voices || []).filter((v: any) => v.category !== "premade").map((v: any) => ({ id: v.voice_id, name: v.name, category: v.category })) }); }
