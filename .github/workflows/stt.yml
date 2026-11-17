@@ -23,7 +23,9 @@ jobs:
           try: m=WhisperModel("ivrit-ai/whisper-large-v3-turbo-ct2",device="cpu",compute_type="int8")
           except Exception as e:
               print("fallback",e); m=WhisperModel("large-v3",device="cpu",compute_type="int8")
-          segs,_=m.transcribe(f,language="he",beam_size=5,vad_filter=False)
+          import subprocess, numpy as np
+          raw=subprocess.run(["ffmpeg","-v","error","-i",f,"-f","f32le","-ac","1","-ar","16000","-"],capture_output=True,check=True).stdout
+          segs,_=m.transcribe(np.frombuffer(raw,dtype=np.float32),language="he",beam_size=5,vad_filter=False)
           open(f+".txt","w").write("\n".join(f"[{s.start:.1f}] {s.text.strip()}" for s in segs))
           PY
           git config user.name "karin-os-bot"; git config user.email "bot@users.noreply.github.com"
