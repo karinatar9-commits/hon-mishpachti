@@ -8,6 +8,9 @@
 //   POST {mode:'cancel', token}               → the client cancels her own appointment
 // Admin (header x-admin-token = Rinat's secret link, or Karin's app session):
 //   POST {mode:'admin_get'} · {mode:'admin_save', value} · {mode:'admin_cancel', id} · {mode:'admin_test'}
+// WhatsApp bot (header x-bot-key; only its hash is stored, in glow_book_settings.bot_hash):
+//   POST {mode:'bot_feed', since?|date?}  → online bookings changed since a time, or for one Israel date
+//   POST {mode:'bot_deposit', id, status:'received'|'missing', ref?} → the bot matched (or failed to match) a deposit
 //
 // Availability = working hours − blocks Rinat defined − everything busy in her Google Calendar − appointments
 // booked here. Clients only ever receive free start times; nothing from the calendar itself leaves the server.
@@ -54,8 +57,8 @@ function whenText(ms: number) { const l = local(ms); const [, m, d] = l.date.spl
 // ---------- settings ----------
 type Svc = { id: string; cat: string; name: string; min: number; price: number | null; on: boolean; deposit?: number | null };
 async function loadSettings() {
-  const { data } = await db.from("glow_book_settings").select("value,admin_hash").eq("id", "main").maybeSingle();
-  return { S: (data?.value || {}) as any, adminHash: data?.admin_hash as string | null };
+  const { data } = await db.from("glow_book_settings").select("value,admin_hash,bot_hash").eq("id", "main").maybeSingle();
+  return { S: (data?.value || {}) as any, adminHash: data?.admin_hash as string | null, botHash: data?.bot_hash as string | null };
 }
 const clampInt = (v: unknown, lo: number, hi: number, def: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : def; };
 const cleanText = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
@@ -283,7 +286,7 @@ Deno.serve(async (req) => {
   let body: any = {}; try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
   const mode = String(body.mode || "");
   const ipHash = await sha("glow:" + ipOf(req));
-  const { S, adminHash } = await loadSettings();
+  const { S, adminHash, botHash } = await loadSettings();
   const admin = (mode.startsWith("admin_") || body.preview) ? await isAdmin(req, adminHash, ipHash) : false;
   const open = !!S.live || (admin && !!body.preview);
 
@@ -369,6 +372,31 @@ Deno.serve(async (req) => {
       if (b.gcal_event_id) { try { await gcal(S.calendar_id, `events/${encodeURIComponent(b.gcal_event_id)}`, { method: "DELETE" }); } catch (err) { console.error("calendar delete failed", (err as Error).message); } }
       await notifyRinat(S, `תור בוטל: ${b.name} · ${b.service_name} · ${view.when}`, `${b.name} ביטלה את התור שלה ❌\n\n${b.service_name}\n${view.when}\nטלפון: ${b.phone}\n\nהתור הוסר מהיומן והשעה חזרה להיות פנויה.`);
       return json({ ok: true, booking: { ...view, status: "cancelled", can_cancel: false } });
+    }
+
+    // ---- WhatsApp bot ----
+    if (mode.startsWith("bot_")) {
+      const k = req.headers.get("x-bot-key") || "";
+      if (k.length < 32 || !botHash || (await tooMany("bot_fail", ipHash, 20))) return json({ error: "forbidden" }, 403);
+      if ((await sha(k)) !== botHash) { await logHit("bot_fail", ipHash); return json({ error: "forbidden" }, 403); }
+      const cols = "id,service_id,service_name,duration_min,price,starts_at,ends_at,name,phone,status,cancelled_by,deposit,gcal_event_id,created_at,updated_at";
+      if (mode === "bot_feed") {
+        let q = db.from("glow_bookings").select(cols).order("starts_at").limit(500);
+        if (isDate(body.date)) q = q.gte("starts_at", new Date(toUtc(body.date, 0)).toISOString()).lt("starts_at", new Date(toUtc(addDays(body.date, 1), 0)).toISOString());
+        else if (body.since && !Number.isNaN(Date.parse(body.since))) q = q.gte("updated_at", new Date(Date.parse(body.since)).toISOString());
+        else q = q.gte("updated_at", new Date(Date.now() - 86400_000).toISOString());
+        const { data } = await q;
+        return json({ now: new Date().toISOString(), bookings: (data || []).map((b: any) => ({ ...b, when: whenText(Date.parse(b.starts_at)), date: local(Date.parse(b.starts_at)).date, time: minStr(local(Date.parse(b.starts_at)).min) })) });
+      }
+      if (mode === "bot_deposit") {
+        const id = String(body.id || ""), st = String(body.status || "");
+        if (!/^[0-9a-f-]{36}$/.test(id) || !["received", "missing"].includes(st)) return json({ error: "bad" }, 400);
+        const { data: b } = await db.from("glow_bookings").select("deposit").eq("id", id).maybeSingle();
+        if (!b?.deposit) return json({ error: "not_found" }, 404);
+        await db.from("glow_bookings").update({ deposit: { ...b.deposit, status: st, checked_at: new Date().toISOString(), checked_by: "bot", ref: cleanText(body.ref, 80) || undefined }, updated_at: new Date().toISOString() }).eq("id", id);
+        return json({ ok: true });
+      }
+      return json({ error: "unknown mode" }, 400);
     }
 
     // ---- admin ----
