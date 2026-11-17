@@ -102,6 +102,8 @@ function sanitizeSettings(v: any, prev: any) {
     deposit_on: !!v?.deposit_on,
     deposit_amount: clampInt(v?.deposit_amount, 0, 5000, 0),
     bit_phone: normPhone(v?.bit_phone) || "",
+    // a ready payment link that opens Bit directly (e.g. a Morning / Grow payment link); https only
+    bit_url: /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}\/[^\s"'<>]{0,400}$/i.test(String(v?.bit_url || "").trim()) ? String(v.bit_url).trim() : "",
     // only a real PayBox link is accepted, so the button can never send a client somewhere else
     paybox_url: /^https:\/\/(?:[a-z0-9-]+\.)*(?:payboxapp\.com|paybox\.co\.il|payboxapp\.page\.link)\/[^\s"'<>]{1,300}$/i.test(String(v?.paybox_url || "").trim()) ? String(v.paybox_url).trim() : "",
     step_min: [10, 15, 20, 30, 60].includes(+v?.step_min) ? +v.step_min : 15,
@@ -272,7 +274,7 @@ async function notifyRinat(S: any, subject: string, text: string) {
   return out;
 }
 
-const depositFor = (S: any, s: Svc) => !S.deposit_on || (!S.bit_phone && !S.paybox_url) ? 0 : (s.deposit != null ? s.deposit : (S.deposit_amount || 0));
+const depositFor = (S: any, s: Svc) => !S.deposit_on || (!S.bit_phone && !S.bit_url && !S.paybox_url) ? 0 : (s.deposit != null ? s.deposit : (S.deposit_amount || 0));
 const publicServices = (S: any) => (S.services || []).filter((s: Svc) => s.on).map((s: Svc) => ({ id: s.id, cat: s.cat, name: s.name, min: s.min, price: S.show_prices ? s.price : null, deposit: depositFor(S, s) }));
 
 Deno.serve(async (req) => {
@@ -288,7 +290,7 @@ Deno.serve(async (req) => {
   try {
     // ---- public ----
     if (mode === "config") {
-      return json({ open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", paybox: S.paybox_url || "" } : null });
+      return json({ open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", bit_url: S.bit_url || "", paybox: S.paybox_url || "" } : null });
     }
     if (mode === "slots") {
       if (!open) return json({ error: "closed" }, 403);
@@ -313,7 +315,7 @@ Deno.serve(async (req) => {
       if (!m || !isDate(m[1])) return json({ error: "start" }, 400);
       const depAmount = depositFor(S, svc);
       const depMethod = String(body.deposit_method || "");
-      if (depAmount > 0 && (body.deposit_paid !== true || !((depMethod === "bit" && S.bit_phone) || (depMethod === "paybox" && S.paybox_url)))) return json({ error: "deposit" }, 400);
+      if (depAmount > 0 && (body.deposit_paid !== true || !((depMethod === "bit" && (S.bit_phone || S.bit_url)) || (depMethod === "paybox" && S.paybox_url)))) return json({ error: "deposit" }, 400);
       const deposit = depAmount > 0 ? { amount: depAmount, method: depMethod, status: "claimed", at: new Date().toISOString() } : null;
       const depText = deposit ? `\nמקדמה: ${deposit.amount} ₪ ב${deposit.method === "bit" ? "ביט" : "פייבוקס"} — הלקוחה סימנה ששילמה, לבדוק שהתקבל` : "";
       await logHit("book", ipHash, phone);
