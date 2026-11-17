@@ -1,0 +1,5 @@
+{"hook":["אותו עסק.","אותו יום.","רק הבדל אחד."],
+ "beats":["08:00","חשבוניות","לקוחות","תשלומים","18:00"],
+ "end":["ההבדל?","סוכן AI","שעובד בתוך המערכות|שכבר יש לך"],
+ "pairs":[["../media/raw/ba0.mp4","../media/raw/ba1.mp4"],["../media/raw/ba2.mp4","../media/raw/ba3.mp4"],["../media/raw/ba4.mp4","../media/raw/ba5.mp4"],["../media/raw/ba6b.mp4","../media/raw/ba7.mp4"],["../media/raw/ba8.mp4","../media/raw/ba9.mp4"]],
+ "vo":"../media/raw/vo-ba3.mp4","ov":"/tmp/ba_ov"}
