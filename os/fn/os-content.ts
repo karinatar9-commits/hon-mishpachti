@@ -562,7 +562,7 @@ Deno.serve(async (req) => {
           if (j.error) throw new Error(`${path}: ${j.error.error_user_msg || j.error.message}`); return j;
         };
         const camp = String(body.campaign || "");
-        const ads = ((await graph(`${GLOW.act}/ads?fields=id,name,effective_status,campaign{name},creative{id,name,object_story_spec,page_welcome_message}&limit=50`, tok)).data || [])
+        const ads = ((await graph(`${GLOW.act}/ads?fields=id,name,effective_status,campaign{name},creative{id,name,object_story_spec,page_welcome_message,effective_object_story_id}&limit=50`, tok)).data || [])
           .filter((a: any) => a.campaign?.name === camp && ["ACTIVE", "PAUSED", "IN_PROCESS", "PENDING_REVIEW"].includes(a.effective_status));
         const welcome = { type: "VISUAL_EDITOR", version: 2, landing_screen_type: "welcome_message", media_type: "text",
           text_format: { customer_action_type: "autofill_message", message: { text: String(body.greeting || "").slice(0, 600), autofill_message: { content: String(body.prefill || "").slice(0, 300) } } } };
@@ -570,7 +570,8 @@ Deno.serve(async (req) => {
           const r: any = { ad: a.id, name: a.name, old_creative: a.creative?.id, old_welcome: a.creative?.page_welcome_message || null };
           try {
             const spec = a.creative?.object_story_spec; if (!spec) throw new Error("no object_story_spec"); const vd = spec.video_data; if (vd?.image_url && vd?.image_hash) delete vd.image_hash;
-            const cr = await post(`${GLOW.act}/adcreatives`, { name: `${a.creative.name || a.name} · welcome ${now().slice(0, 10)}`, object_story_spec: spec, page_welcome_message: welcome });
+            const nm = `${a.creative.name || a.name} · welcome ${now().slice(0, 10)}`;
+            const cr = body.use_story && a.creative.effective_object_story_id ? await post(`${GLOW.act}/adcreatives`, { name: nm, object_story_id: a.creative.effective_object_story_id, page_welcome_message: welcome }) : await post(`${GLOW.act}/adcreatives`, { name: nm, object_story_spec: spec, page_welcome_message: welcome });
             r.new_creative = cr.id;
             if (!body.dry) { await post(a.id, { creative: { creative_id: cr.id } }); r.updated = true; }
           } catch (e) { r.error = String((e as Error).message).slice(0, 400); }
