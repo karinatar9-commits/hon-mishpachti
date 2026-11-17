@@ -5,7 +5,14 @@
 //   POST {mode:'slots', service}              → free start times per day for that treatment
 //   POST {mode:'book', service, start, name, phone} → books, writes the event to Rinat's calendar, notifies her
 //   POST {mode:'booking', token}              → one booking's details (for the cancel page)
-//   POST {mode:'cancel', token}               → the client cancels her own appointment
+//   POST {mode:'cancel', token}               → the client cancels her own appointment (only up to cancel_hours before)
+//   POST {mode:'confirm', token}              → the client confirms she is coming (link in the 24h reminder)
+// Scheduled (pg_cron, header x-cron-key = os_settings.cron_secret):
+//   POST {mode:'cron_reminders'}             → app (web push) reminders: 24 hours before (with a confirm link) and on the morning of the day
+// Notifications go out as phone notifications from the apps themselves (web push, same keys as Karin OS) — not from
+// the WhatsApp bot. Clients opt in on the booking page; Rinat opts in inside her management app.
+//   POST {mode:'subscribe', token, sub}       → a client's phone subscribes to reminders for her appointment
+//   POST {mode:'admin_push', sub}             → Rinat's phone subscribes to new-booking / cancel / confirm alerts
 // Admin (header x-admin-token = Rinat's secret link, or Karin's app session):
 //   POST {mode:'admin_get'} · {mode:'admin_save', value} · {mode:'admin_cancel', id} · {mode:'admin_test'}
 // WhatsApp bot (header x-bot-key; only its hash is stored, in glow_book_settings.bot_hash):
@@ -19,6 +26,7 @@
 // connection (os_vault "google") once Rinat has shared her calendar with Karin with "make changes to events".
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const db = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -114,6 +122,9 @@ function sanitizeSettings(v: any, prev: any) {
     lead_min: clampInt(v?.lead_min, 0, 7 * 1440, 180),
     horizon_days: clampInt(v?.horizon_days, 1, 90, 30),
     cancel_hours: clampInt(v?.cancel_hours, 0, 168, 12),
+    remind_24: v?.remind_24 !== false,
+    remind_morning: v?.remind_morning !== false,
+    morning_hour: clampInt(v?.morning_hour, 5, 12, 8),
     max_per_phone: clampInt(v?.max_per_phone, 1, 10, 3),
     hours, blocks, weekly, services,
   };
@@ -269,11 +280,35 @@ async function sendWa(phone: string, text: string) {
   const r = await fetch(`https://api.green-api.com/waInstance${GREEN_ID}/sendMessage/${GREEN_TOKEN}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chatId: `972${phone.slice(1)}@c.us`, message: text }) });
   return r.ok;
 }
-// Rinat hears about every new or cancelled appointment: WhatsApp when the bot's keys are configured, otherwise email.
-async function notifyRinat(S: any, subject: string, text: string) {
+// ---------- phone notifications (web push) ----------
+let pushReady: Promise<string> | null = null;
+function pushInit(): Promise<string> {
+  if (!pushReady) pushReady = (async () => {
+    const { data: cfg } = await db.rpc("push_config");
+    if (!cfg?.pub || !cfg?.priv) throw new Error("no_push_config");
+    webpush.setVapidDetails("https://glow.goldchain-ai.com", cfg.pub, cfg.priv);
+    return cfg.pub as string;
+  })();
+  return pushReady;
+}
+const validSub = (x: any) => x && typeof x.endpoint === "string" && /^https:\/\//.test(x.endpoint) && x.endpoint.length < 1000 && x.keys && typeof x.keys.p256dh === "string" && typeof x.keys.auth === "string" && x.keys.p256dh.length < 200 && x.keys.auth.length < 100
+  ? { endpoint: x.endpoint, keys: { p256dh: x.keys.p256dh, auth: x.keys.auth } } : null;
+async function pushTo(sub: any, title: string, body: string, url: string, tag = ""): Promise<"ok" | "gone" | "fail"> {
+  try {
+    await pushInit();
+    await webpush.sendNotification(sub, JSON.stringify({ title, body, url, tag }), { TTL: 86400, urgency: "high" });
+    return "ok";
+  } catch (e) { const c = (e as any)?.statusCode; return c === 404 || c === 410 ? "gone" : "fail"; }
+}
+// Rinat hears about every new, cancelled or confirmed appointment on her phone; email only when no phone is subscribed.
+async function notifyRinat(S: any, subject: string, text: string, title = "", short = "") {
   const out: any = {};
-  try { if (await sendWa(S.notify_phone, text)) out.wa = true; } catch (_) { /* fall through to email */ }
-  if (!out.wa && S.notify_email) { try { await sendMail(S.notify_email, subject, text); out.mail = true; } catch (e) { out.error = String((e as Error).message || e).slice(0, 120); } }
+  const { data } = await db.from("glow_book_settings").select("admin_push").eq("id", "main").maybeSingle();
+  const subs: any[] = Array.isArray(data?.admin_push) ? data!.admin_push : [];
+  const keep: any[] = [];
+  for (const sub of subs) { const r = await pushTo(sub, title || subject, short || text, "/admin.html", "glow-admin"); if (r === "ok") out.push = (out.push || 0) + 1; if (r !== "gone") keep.push(sub); }
+  if (keep.length !== subs.length) await db.from("glow_book_settings").update({ admin_push: keep }).eq("id", "main");
+  if (!out.push && S.notify_email) { try { await sendMail(S.notify_email, subject, text); out.mail = true; } catch (e) { out.error = String((e as Error).message || e).slice(0, 120); } }
   return out;
 }
 
@@ -293,7 +328,8 @@ Deno.serve(async (req) => {
   try {
     // ---- public ----
     if (mode === "config") {
-      return json({ open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", bit_url: S.bit_url || "", paybox: S.paybox_url || "" } : null });
+      let vapid = ""; try { vapid = await pushInit(); } catch (_) { /* no push */ }
+      return json({ vapid, open, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "", services: open ? publicServices(S) : [], cancel_hours: S.cancel_hours, pay: open ? { bit: S.bit_phone || "", bit_url: S.bit_url || "", paybox: S.paybox_url || "" } : null });
     }
     if (mode === "slots") {
       if (!open) return json({ error: "closed" }, 403);
@@ -351,27 +387,76 @@ Deno.serve(async (req) => {
         return json({ error: "calendar" }, 503);
       }
       const when = whenText(s);
-      Object.assign(notify, await notifyRinat(S, `תור חדש: ${name} · ${svc.name} · ${when}`, `נקבע תור חדש דרך זימון התורים 🗓\n\n${name}\n${svc.name} (${svc.min} דק׳)\n${when}\nטלפון: ${phone}${depText}\n\nהתור כבר ביומן שלך.`));
-      try { if (await sendWa(phone, `היי ${name} 💗\nהתור שלך ב-${S.business} נקבע:\n${svc.name}\n${when}${S.address ? "\n" + S.address : ""}\n\nלביטול או שינוי: ${PAGE}?c=${cancel_token}`)) notify.client_wa = true; } catch (_) { /* optional */ }
+      Object.assign(notify, await notifyRinat(S, `תור חדש: ${name} · ${svc.name} · ${when}`, `נקבע תור חדש דרך זימון התורים 🗓\n\n${name}\n${svc.name} (${svc.min} דק׳)\n${when}\nטלפון: ${phone}${depText}\n\nהתור כבר ביומן שלך.`, `🗓 תור חדש: ${name}`, `${svc.name} · ${when}${deposit ? ` · מקדמה ${deposit.amount} ₪ — לבדוק` : ""}`));
       await db.from("glow_bookings").update({ gcal_event_id, notify }).eq("id", row.id);
       return json({ ok: true, booking: { service: svc.name, min: svc.min, start: new Date(s).toISOString(), end: new Date(e).toISOString(), when, name, token: cancel_token, wa_sent: !!notify.client_wa, deposit } });
     }
-    if (mode === "booking" || mode === "cancel") {
+    if (mode === "subscribe") {
+      if (await tooMany("token", ipHash, 40)) return json({ error: "rate" }, 429);
+      await logHit("token", ipHash);
+      const token = String(body.token || ""), sub = validSub(body.sub);
+      if (!/^[a-f0-9]{64}$/.test(token) || !sub) return json({ error: "bad" }, 400);
+      const { data: upd } = await db.from("glow_bookings").update({ push: sub }).eq("cancel_token", token).eq("status", "confirmed").select("id");
+      if (!upd?.length) return json({ error: "not_found" }, 404);
+      return json({ ok: true });
+    }
+    if (mode === "booking" || mode === "cancel" || mode === "confirm") {
       if (await tooMany("token", ipHash, 40)) return json({ error: "rate" }, 429);
       await logHit("token", ipHash);
       const token = String(body.token || ""); if (!/^[a-f0-9]{64}$/.test(token)) return json({ error: "not_found" }, 404);
-      const { data: b } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,gcal_event_id").eq("cancel_token", token).maybeSingle();
+      const { data: b } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,gcal_event_id,deposit,attend_confirmed_at").eq("cancel_token", token).maybeSingle();
       if (!b) return json({ error: "not_found" }, 404);
       const s = Date.parse(b.starts_at);
       const can = b.status === "confirmed" && s - Date.now() >= S.cancel_hours * 3600_000;
-      const view = { service: b.service_name, min: b.duration_min, start: b.starts_at, end: b.ends_at, when: whenText(s), name: b.name, status: b.status, past: s < Date.now(), can_cancel: can, cancel_hours: S.cancel_hours };
+      const view = { service: b.service_name, min: b.duration_min, start: b.starts_at, end: b.ends_at, when: whenText(s), name: b.name, status: b.status, past: s < Date.now(), can_cancel: can, cancel_hours: S.cancel_hours,
+        attend_confirmed: !!b.attend_confirmed_at, can_confirm: b.status === "confirmed" && s > Date.now() && !b.attend_confirmed_at, deposit: b.deposit ? { amount: b.deposit.amount } : null };
+      if (mode === "confirm") {
+        if (!view.can_confirm) return json({ ok: true, booking: view });
+        await db.from("glow_bookings").update({ attend_confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", b.id).eq("status", "confirmed");
+        await notifyRinat(S, `אישור הגעה: ${b.name} · ${view.when}`, `${b.name} אישרה שהיא מגיעה ✅\n${b.service_name}\n${view.when}`, `✅ ${b.name} אישרה הגעה`, `${b.service_name} · ${view.when}`);
+        return json({ ok: true, booking: { ...view, attend_confirmed: true, can_confirm: false } });
+      }
       if (mode === "booking") return json({ booking: view, business: S.business, address: S.address, whatsapp: S.whatsapp ? "972" + S.whatsapp.slice(1) : "" });
       if (!can) return json({ error: b.status !== "confirmed" ? "already" : "late", booking: view }, 409);
       const { data: upd } = await db.from("glow_bookings").update({ status: "cancelled", cancelled_by: "client", updated_at: new Date().toISOString() }).eq("id", b.id).eq("status", "confirmed").select("id");
       if (!upd?.length) return json({ error: "already" }, 409);
       if (b.gcal_event_id) { try { await gcal(S.calendar_id, `events/${encodeURIComponent(b.gcal_event_id)}`, { method: "DELETE" }); } catch (err) { console.error("calendar delete failed", (err as Error).message); } }
-      await notifyRinat(S, `תור בוטל: ${b.name} · ${b.service_name} · ${view.when}`, `${b.name} ביטלה את התור שלה ❌\n\n${b.service_name}\n${view.when}\nטלפון: ${b.phone}\n\nהתור הוסר מהיומן והשעה חזרה להיות פנויה.`);
+      await notifyRinat(S, `תור בוטל: ${b.name} · ${b.service_name} · ${view.when}`, `${b.name} ביטלה את התור שלה ❌\n\n${b.service_name}\n${view.when}\nטלפון: ${b.phone}\n\nהתור הוסר מהיומן והשעה חזרה להיות פנויה.`, `❌ ${b.name} ביטלה`, `${b.service_name} · ${view.when}`);
       return json({ ok: true, booking: { ...view, status: "cancelled", can_cancel: false } });
+    }
+
+    // ---- scheduled WhatsApp reminders ----
+    if (mode === "cron_reminders") {
+      const ck = req.headers.get("x-cron-key") || "";
+      const { data: cs } = await db.from("os_settings").select("value").eq("key", "cron_secret").maybeSingle();
+      if (!ck || !cs?.value?.k || ck !== cs.value.k) return json({ error: "forbidden" }, 403);
+      const now = Date.now(), nowL = local(now), today = nowL.date;
+      const { data: rows } = await db.from("glow_bookings").select("id,service_name,starts_at,name,phone,status,reminders,attend_confirmed_at,cancel_token,created_at,deposit,push")
+        .eq("status", "confirmed").not("push", "is", null).gt("starts_at", new Date(now).toISOString()).lt("starts_at", new Date(now + 26 * 3600_000).toISOString()).limit(100);
+      const sent: any[] = [];
+      for (const b of rows || []) {
+        if (sent.length >= 30) break;
+        const st = Date.parse(b.starts_at), left = st - now, R: any = b.reminders || {}, L = local(st);
+        const link = `${PAGE}?c=${b.cancel_token}`;
+        let kind = "", text = "";
+        // 24 hours before: only if the booking was made well before that, and ask her to confirm
+        if (S.remind_24 && !R.r24 && left <= 24 * 3600_000 && left > 13 * 3600_000 && st - Date.parse(b.created_at) > 26 * 3600_000) {
+          kind = "r24";
+          text = `היי ${b.name} 💗\nתזכורת: ${L.date === addDays(today, 1) ? "מחר" : "יום " + DAYS[weekday(L.date)]} בשעה ${minStr(L.min)} — ${b.service_name} ב-${S.business}.${S.address ? "\n📍 " + S.address : ""}\n\nנא לאשר הגעה בלחיצה כאן:\n${link}\n\nאפשר לבטל עד ${S.cancel_hours} שעות לפני התור, מאותו קישור.${b.deposit ? " אחרי זה המקדמה לא מוחזרת." : ""}`;
+        // morning of the day
+        } else if (S.remind_morning && !R.morning && L.date === today && nowL.min >= S.morning_hour * 60 && L.min > nowL.min + 30 && Date.parse(b.created_at) < toUtc(today, S.morning_hour * 60) && !(R.r24 && now - Date.parse(R.r24) < 6 * 3600_000)) {
+          kind = "morning";
+          text = `בוקר טוב ${b.name} ☀️\nמחכות לך היום בשעה ${minStr(L.min)} — ${b.service_name}.${S.address ? "\n📍 " + S.address : ""}${b.attend_confirmed_at ? "" : "\n\nלאישור הגעה: " + link}`;
+        }
+        if (!kind) continue;
+        const title = kind === "r24" ? `תזכורת: ${b.service_name} ${L.date === addDays(today, 1) ? "מחר" : "ביום " + DAYS[weekday(L.date)]} ב-${minStr(L.min)}` : `היום ב-${minStr(L.min)}: ${b.service_name}`;
+        const short = kind === "r24" ? `${S.business} · לחצי לאישור הגעה. ביטול עד ${S.cancel_hours} שעות לפני${b.deposit ? ", אחר כך המקדמה לא מוחזרת" : ""}.` : `${S.business}${S.address ? " · " + S.address : ""}${b.attend_confirmed_at ? "" : " · לחצי לאישור הגעה"}`;
+        const r = await pushTo(b.push, title, short, link, "glow-" + b.id);
+        const ok = r === "ok";
+        await db.from("glow_bookings").update({ reminders: { ...R, [kind]: ok ? new Date().toISOString() : "failed" }, ...(r === "gone" ? { push: null } : {}) }).eq("id", b.id);
+        sent.push({ id: b.id, kind, ok });
+      }
+      return json({ ok: true, sent });
     }
 
     // ---- WhatsApp bot ----
@@ -410,6 +495,15 @@ Deno.serve(async (req) => {
       Object.entries({ client_id: CID, redirect_uri: `${SB_URL}/functions/v1/os-google`, response_type: "code", scope: "openid email https://www.googleapis.com/auth/calendar.events", access_type: "offline", prompt: "consent", state: s, login_hint: S.calendar_id || "" }).forEach(([k, v]) => v && u.searchParams.set(k, v));
       return json({ url: u.toString() });
     }
+    if (mode === "admin_push") {
+      const sub = validSub(body.sub); if (!sub) return json({ error: "bad" }, 400);
+      const { data } = await db.from("glow_book_settings").select("admin_push").eq("id", "main").maybeSingle();
+      const list = (Array.isArray(data?.admin_push) ? data!.admin_push : []).filter((x: any) => x.endpoint !== sub.endpoint);
+      list.push(sub);
+      await db.from("glow_book_settings").update({ admin_push: list.slice(-5) }).eq("id", "main");
+      const r = await pushTo(sub, "Glow ניהול", "ההתראות פעילות ✓ כאן יופיעו תורים חדשים, ביטולים ואישורי הגעה.", "/admin.html", "glow-admin");
+      return json({ ok: r === "ok" });
+    }
     if (mode === "admin_google_disconnect") {
       await db.from("os_vault").upsert({ key: "google_glowcal", value: {}, updated_at: new Date().toISOString() });
       return json({ ok: true });
@@ -419,9 +513,11 @@ Deno.serve(async (req) => {
       const src = await calSource(); const gv: any = src.own ? await vget("google_glowcal") : null;
       try { const c = await calendarBusy(S.calendar_id, Date.now(), Date.now() + 86400_000); calendar = { ok: true, write: ["owner", "writer"].includes(c.role), role: c.role, own: src.own, email: gv?.email || "" }; }
       catch (e) { const st = (e as any).status; calendar = { ok: false, reason: st === 404 ? "not_shared" : String((e as Error).message || e).slice(0, 120) }; }
-      const { data: upcoming } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,cancelled_by,created_at,deposit").gte("starts_at", new Date(Date.now() - 86400_000).toISOString()).order("starts_at").limit(200);
+      const { data: upcoming } = await db.from("glow_bookings").select("id,service_name,duration_min,starts_at,ends_at,name,phone,status,cancelled_by,created_at,deposit,attend_confirmed_at,reminders").gte("starts_at", new Date(Date.now() - 86400_000).toISOString()).order("starts_at").limit(200);
       const kg: any = await vget("google");
-      return json({ value: S, calendar, share_with: kg?.email || "", whatsapp_ready: !!(GREEN_ID && GREEN_TOKEN), page: PAGE, bookings: (upcoming || []).map((b: any) => ({ ...b, when: whenText(Date.parse(b.starts_at)) })) });
+      let vapid = ""; try { vapid = await pushInit(); } catch (_) { /* no push */ }
+      const { data: ap } = await db.from("glow_book_settings").select("admin_push").eq("id", "main").maybeSingle();
+      return json({ value: S, calendar, share_with: kg?.email || "", vapid, admin_push_count: Array.isArray(ap?.admin_push) ? ap!.admin_push.length : 0, page: PAGE, bookings: (upcoming || []).map((b: any) => ({ ...b, when: whenText(Date.parse(b.starts_at)) })) });
     }
     if (mode === "admin_save") {
       const value = sanitizeSettings(body.value, S);
@@ -439,7 +535,10 @@ Deno.serve(async (req) => {
     }
     if (mode === "admin_cancel") {
       if (!/^[0-9a-f-]{36}$/.test(String(body.id || ""))) return json({ error: "not_found" }, 404);
-      const { data: b } = await db.from("glow_bookings").update({ status: "cancelled", cancelled_by: "rinat", updated_at: new Date().toISOString() }).eq("id", String(body.id || "")).eq("status", "confirmed").select("gcal_event_id").maybeSingle();
+      const { data: cur } = await db.from("glow_bookings").select("starts_at,deposit").eq("id", String(body.id)).maybeSingle();
+      const late = !!cur && Date.parse(cur.starts_at) - Date.now() < S.cancel_hours * 3600_000;
+      const dep = cur?.deposit ? { ...cur.deposit, kept: late } : null;
+      const { data: b } = await db.from("glow_bookings").update({ status: "cancelled", cancelled_by: "rinat", deposit: dep, updated_at: new Date().toISOString() }).eq("id", String(body.id || "")).eq("status", "confirmed").select("gcal_event_id").maybeSingle();
       if (!b) return json({ error: "not_found" }, 404);
       if (b.gcal_event_id) { try { await gcal(S.calendar_id, `events/${encodeURIComponent(b.gcal_event_id)}`, { method: "DELETE" }); } catch (_) { /* already gone */ } }
       return json({ ok: true });
