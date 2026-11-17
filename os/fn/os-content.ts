@@ -548,6 +548,7 @@ Deno.serve(async (req) => {
         await g("region", "&breakdowns=region");
         await g("age_gender", "&breakdowns=age,gender");
         await g("hour", "&breakdowns=hourly_stats_aggregated_by_advertiser_time_zone");
+        try { out.ad_status = (await graph(`${GLOW.act}/ads?fields=name,effective_status,configured_status,issues_info,ad_review_feedback,campaign{name},creative{id,page_welcome_message}&effective_status=["ACTIVE","PENDING_REVIEW","DISAPPROVED","WITH_ISSUES","IN_PROCESS","PAUSED"]&limit=50`, tok)).data || []; } catch (e) { out.ad_status = { error: String((e as Error).message).slice(0, 300) }; }
         try { out.adsets = (await graph(`${GLOW.act}/adsets?fields=name,campaign{name},effective_status,targeting,daily_budget,destination_type&effective_status=["ACTIVE","PAUSED"]&limit=30`, tok)).data || []; } catch (e) { out.adsets = { error: String((e as Error).message).slice(0, 300) }; }
         await db.from("os_settings").upsert({ key: "meta_quality", value: out, updated_at: now() });
         return json({ ok: true });
