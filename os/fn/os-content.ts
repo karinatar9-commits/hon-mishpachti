@@ -543,6 +543,7 @@ Deno.serve(async (req) => {
         const F = "campaign_name,campaign_id,spend,impressions,reach,clicks,actions,cost_per_action_type";
         const g = async (k: string, extra: string) => { try { out[k] = (await graph(`${GLOW.act}/insights?level=campaign&${rng}&fields=${F}${extra}&limit=200`, tok)).data || []; } catch (e) { out[k] = { error: String((e as Error).message).slice(0, 300) }; } };
         await g("total", "");
+        try { out.ads = (await graph(`${GLOW.act}/insights?level=ad&${rng}&fields=campaign_name,ad_name,spend,impressions,reach,frequency,cpm,ctr,inline_link_click_ctr,actions,video_play_actions,video_p25_watched_actions,video_p50_watched_actions,video_p100_watched_actions,video_avg_time_watched_actions,video_thruplay_watched_actions&limit=100`, tok)).data || []; } catch (e) { out.ads = { error: String((e as Error).message).slice(0, 300) }; }
         await g("placement", "&breakdowns=publisher_platform,platform_position");
         await g("region", "&breakdowns=region");
         await g("age_gender", "&breakdowns=age,gender");
