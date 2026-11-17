@@ -396,10 +396,12 @@ Deno.serve(async (req) => {
       if (!r.ok || !j.refresh_token) return new Response("גוגל לא החזיר הרשאה קבועה (" + (j.error || "no_refresh_token") + ") — נסי שוב מהקישור", { status: 400, headers: { "content-type": "text/plain; charset=utf-8" } });
       let email = "";
       try { const p = JSON.parse(atob(j.id_token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))); email = p.email || ""; } catch (_) { /* */ }
-      const slot = st.slot === "google_glow" ? "google_glow" : "google";
+      // google_glowcal = Rinat's own calendar for the Glow House booking site (consent started from glow-booking)
+      const slot = st.slot === "google_glow" ? "google_glow" : st.slot === "google_glowcal" ? "google_glowcal" : "google";
       await vset(slot, { refresh_token: j.refresh_token, access_token: j.access_token, expires_at: Date.now() + (j.expires_in || 3600) * 1000, email, scope: j.scope, connected_at: new Date().toISOString() });
       await vset("google_state", { s: "", exp: 0 });
       await vset("google_start", {});
+      if (slot === "google_glowcal") return Response.redirect("https://glow.goldchain-ai.com/admin.html?google=ok", 302);
       return Response.redirect(APP + (slot === "google_glow" ? "?google=ok#settings-conn" : "?google=ok#home"), 302);
     }
     const body = await req.json().catch(() => ({}));
