@@ -438,26 +438,29 @@ Deno.serve(async (req) => {
       const { data: cs } = await db.from("os_settings").select("value").eq("key", "cron_secret").maybeSingle();
       if (!ck || !cs?.value?.k || ck !== cs.value.k) return json({ error: "forbidden" }, 403);
       const now = Date.now(), nowL = local(now), today = nowL.date;
+      const lead = S.cancel_hours + 24, cutMs = S.cancel_hours * 3600_000;
+      const dayWord = (d: string) => d === today ? "היום" : d === addDays(today, 1) ? "מחר" : d === addDays(today, 2) ? "מחרתיים" : "ביום " + DAYS[weekday(d)];
       const { data: rows } = await db.from("glow_bookings").select("id,service_name,starts_at,name,phone,status,reminders,attend_confirmed_at,cancel_token,created_at,deposit,push")
-        .eq("status", "confirmed").not("push", "is", null).gt("starts_at", new Date(now).toISOString()).lt("starts_at", new Date(now + 26 * 3600_000).toISOString()).limit(100);
+        .eq("status", "confirmed").not("push", "is", null).gt("starts_at", new Date(now).toISOString()).lt("starts_at", new Date(now + (lead + 2) * 3600_000).toISOString()).limit(100);
       const sent: any[] = [];
       for (const b of rows || []) {
         if (sent.length >= 30) break;
         const st = Date.parse(b.starts_at), left = st - now, R: any = b.reminders || {}, L = local(st);
         const link = `${PAGE}?c=${b.cancel_token}`;
         let kind = "", text = "";
-        // 24 hours before: only if the booking was made well before that, and ask her to confirm
-        if (S.remind_24 && !R.r24 && left <= 24 * 3600_000 && left > 13 * 3600_000 && st - Date.parse(b.created_at) > 26 * 3600_000) {
+        // a day before the cancellation deadline, so she can still cancel free of charge; ask her to confirm
+        const cut = local(st - cutMs);
+        if (S.remind_24 && !R.r24 && left <= lead * 3600_000 && left > cutMs + 3600_000 && st - Date.parse(b.created_at) > (lead + 2) * 3600_000) {
           kind = "r24";
-          text = `היי ${b.name} 💗\nתזכורת: ${L.date === addDays(today, 1) ? "מחר" : "יום " + DAYS[weekday(L.date)]} בשעה ${minStr(L.min)} — ${b.service_name} ב-${S.business}.${S.address ? "\n📍 " + S.address : ""}\n\nנא לאשר הגעה בלחיצה כאן:\n${link}\n\nאפשר לבטל עד ${S.cancel_hours} שעות לפני התור, מאותו קישור.${b.deposit ? " אחרי זה המקדמה לא מוחזרת." : ""}`;
+          text = `היי ${b.name} 💗\nתזכורת: ${dayWord(L.date)} בשעה ${minStr(L.min)} — ${b.service_name} ב-${S.business}.${S.address ? "\n📍 " + S.address : ""}\n\nנא לאשר הגעה בלחיצה כאן:\n${link}\n\nאם צריך לבטל, אפשר מאותו קישור עד ${dayWord(cut.date)} בשעה ${minStr(cut.min)}.${b.deposit ? " אחרי זה המקדמה לא מוחזרת." : ""}`;
         // morning of the day
         } else if (S.remind_morning && !R.morning && L.date === today && nowL.min >= S.morning_hour * 60 && L.min > nowL.min + 30 && Date.parse(b.created_at) < toUtc(today, S.morning_hour * 60) && !(R.r24 && now - Date.parse(R.r24) < 6 * 3600_000)) {
           kind = "morning";
           text = `בוקר טוב ${b.name} ☀️\nמחכות לך היום בשעה ${minStr(L.min)} — ${b.service_name}.${S.address ? "\n📍 " + S.address : ""}${b.attend_confirmed_at ? "" : "\n\nלאישור הגעה: " + link}`;
         }
         if (!kind) continue;
-        const title = kind === "r24" ? `תזכורת: ${b.service_name} ${L.date === addDays(today, 1) ? "מחר" : "ביום " + DAYS[weekday(L.date)]} ב-${minStr(L.min)}` : `היום ב-${minStr(L.min)}: ${b.service_name}`;
-        const short = kind === "r24" ? `${S.business} · לחצי לאישור הגעה. ביטול עד ${S.cancel_hours} שעות לפני${b.deposit ? ", אחר כך המקדמה לא מוחזרת" : ""}.` : `${S.business}${S.address ? " · " + S.address : ""}${b.attend_confirmed_at ? "" : " · לחצי לאישור הגעה"}`;
+        const title = kind === "r24" ? `תזכורת: ${b.service_name} ${dayWord(L.date)} ב-${minStr(L.min)}` : `היום ב-${minStr(L.min)}: ${b.service_name}`;
+        const short = kind === "r24" ? `${S.business} · לחצי לאישור הגעה. ביטול עד ${dayWord(cut.date)} ב-${minStr(cut.min)}${b.deposit ? ", אחר כך המקדמה לא מוחזרת" : ""}.` : `${S.business}${S.address ? " · " + S.address : ""}${b.attend_confirmed_at ? "" : " · לחצי לאישור הגעה"}`;
         const r = await pushTo(b.push, title, short, link, "glow-" + b.id);
         const ok = r === "ok";
         await db.from("glow_bookings").update({ reminders: { ...R, [kind]: ok ? new Date().toISOString() : "failed" }, ...(r === "gone" ? { push: null } : {}) }).eq("id", b.id);
@@ -471,9 +474,9 @@ Deno.serve(async (req) => {
         if (!done) {
           await db.from("glow_book_log").insert({ kind: tag });
           const { data: due } = await db.from("glow_bookings").select("starts_at,reminders").eq("status", "confirmed")
-            .gte("starts_at", new Date(now).toISOString()).lt("starts_at", new Date(toUtc(addDays(today, 2), 0)).toISOString());
-          const n = (due || []).filter((b: any) => { const d = local(Date.parse(b.starts_at)).date; return (d === today && !b.reminders?.morning_wa) || (d === addDays(today, 1) && !b.reminders?.r24_wa); }).length;
-          if (n) digest = await notifyRinat(S, `${n} תזכורות לשלוח היום`, `יש ${n} לקוחות לשלוח להן תזכורת בווצאפ (להיום ולמחר). באפליקציה: לשונית "תורים" ← "תזכורות לשלוח".`, `📲 ${n} תזכורות לשלוח`, "לחצי כדי לשלוח מהווצאפ שלך בלחיצה לכל לקוחה");
+            .gte("starts_at", new Date(now).toISOString()).lt("starts_at", new Date(toUtc(addDays(today, Math.round(lead / 24) + 1), 0)).toISOString());
+          const n = (due || []).filter((b: any) => { const d = local(Date.parse(b.starts_at)).date; return (d === today && !b.reminders?.morning_wa) || (d === addDays(today, Math.round(lead / 24)) && !b.reminders?.r24_wa); }).length;
+          if (n) digest = await notifyRinat(S, `${n} תזכורות לשלוח היום`, `יש ${n} לקוחות לשלוח להן תזכורת בווצאפ (להיום ולתורים של עוד יומיים). באפליקציה: לשונית "תורים" ← "תזכורות לשלוח".`, `📲 ${n} תזכורות לשלוח`, "לחצי כדי לשלוח מהווצאפ שלך בלחיצה לכל לקוחה");
         }
       }
       return json({ ok: true, sent, digest });
