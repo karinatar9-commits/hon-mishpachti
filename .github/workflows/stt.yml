@@ -1,0 +1,30 @@
+name: stt
+on:
+  workflow_dispatch:
+    inputs:
+      branch: { required: true }
+      file: { required: true }
+permissions:
+  contents: write
+jobs:
+  stt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.branch }}" }
+      - run: pip install -q faster-whisper
+      - env: { F: "${{ inputs.file }}" }
+        run: |
+          python - <<'PY'
+          import os
+          from faster_whisper import WhisperModel
+          f=os.environ["F"]
+          try: m=WhisperModel("ivrit-ai/whisper-large-v3-turbo-ct2",device="cpu",compute_type="int8")
+          except Exception as e:
+              print("fallback",e); m=WhisperModel("large-v3",device="cpu",compute_type="int8")
+          segs,_=m.transcribe(f,language="he",beam_size=5,vad_filter=False)
+          open(f+".txt","w").write("\n".join(f"[{s.start:.1f}] {s.text.strip()}" for s in segs))
+          PY
+          git config user.name "karin-os-bot"; git config user.email "bot@users.noreply.github.com"
+          git add "$F.txt" && git commit -m "transcript" && git push
