@@ -46,6 +46,16 @@ Deno.serve(async (req) => {
       await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: "karinatar9@gmail.com", subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
       return json({ ok: true });
     }
+    if (b.mode === "audit_done") { // goldchain-ai.com/audit: anonymous count of finished task audits (no personal data)
+      const day = new Date().toISOString().slice(0, 10), src = clean(b.src, 30) || "direct", h = Math.max(0, Math.min(80, Number(b.hours) || 0));
+      const { data } = await db.from("os_settings").select("value").eq("key", "audit_stats").maybeSingle();
+      const v: any = data?.value || { total: 0, hours: 0, days: {}, src: {}, tasks: {} };
+      v.total = (v.total || 0) + 1; v.hours = (v.hours || 0) + h; v.days = v.days || {}; v.days[day] = (v.days[day] || 0) + 1; v.src = v.src || {}; v.src[src] = (v.src[src] || 0) + 1; v.tasks = v.tasks || {};
+      for (const t of (Array.isArray(b.tasks) ? b.tasks : []).slice(0, 12)) { const k = clean(t, 12); if (/^[a-z]+$/.test(k)) v.tasks[k] = (v.tasks[k] || 0) + 1; }
+      v.last = new Date().toISOString();
+      await db.from("os_settings").upsert({ key: "audit_stats", value: v });
+      return json({ ok: true });
+    }
     if (b.mode === "wa_click") { // goldchain-ai.com/wa short link: count clicks per day/source (anonymous, no personal data)
       const src = clean(b.src, 30) || "direct", day = new Date().toISOString().slice(0, 10);
       const { data } = await db.from("os_settings").select("value").eq("key", "wa_clicks").maybeSingle();
