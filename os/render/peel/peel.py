@@ -18,19 +18,18 @@ while True:
     ok, fr = cap.read()
     if not ok: break
     f = fr.astype(np.float32); b, g, r = f[..., 0], f[..., 1], f[..., 2]
-    gm = g - np.maximum(r, b); a = np.clip((gm - 25) / 55, 0, 1)
-    hard = (gm > 50).astype(np.uint8)
+    hsv = cv2.cvtColor(fr, cv2.COLOR_BGR2HSV); hh, ss, vv = [hsv[..., i].astype(np.float32) for i in range(3)]
+    # lime..green key (generators rarely give pure #00FF00); soft alpha from saturation
+    a = ((hh >= 24) & (hh <= 85) & (vv > 60)).astype(np.float32) * np.clip((ss - 70) / 50, 0, 1)
+    hard = (a > 0.6).astype(np.uint8)
     n, lab, st, _ = cv2.connectedComponentsWithStats(hard)
-    if n > 1:
-        i = 1 + st[1:, cv2.CC_STAT_AREA].argmax(); blob = (lab == i).astype(np.uint8)
-        if st[i, cv2.CC_STAT_AREA] > 400:
-            cnt = max(cv2.findContours(blob, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0], key=cv2.contourArea)
-            hull = cv2.convexHull(cnt); q = None
-            for eps in np.linspace(0.01, 0.1, 19):
-                ap = cv2.approxPolyDP(hull, eps * cv2.arcLength(hull, True), True)
-                if len(ap) == 4: q = order(ap.reshape(4, 2).astype(np.float32)); break
-            if q is None: q = order(cv2.boxPoints(cv2.minAreaRect(cnt)).astype(np.float32))
-            c = q.mean(0); q = c + (q - c) * 1.03  # grow slightly to cover soft edges
+    big = [i for i in range(1, n) if st[i, cv2.CC_STAT_AREA] > 150]
+    if big and sum(st[i, cv2.CC_STAT_AREA] for i in big) > 400:
+            blob = np.isin(lab, big).astype(np.uint8)
+            keep = cv2.dilate(blob, np.ones((9, 9), np.uint8)); a = cv2.dilate(a, np.ones((3, 3), np.uint8)) * keep  # ignore stray green elsewhere
+            cnt = np.concatenate(cv2.findContours(blob, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0])
+            q = order(cv2.boxPoints(cv2.minAreaRect(cnt)).astype(np.float32))  # thin strips: rotated rect is the most stable fit
+            c = q.mean(0); q = c + (q - c) * np.float32([1.02, 1.25])  # cover soft edges (more across the strip)  # grow slightly to cover soft edges
             prev = q
     if prev is not None and a.max() > 0.2:
         q = prev; wq = (np.linalg.norm(q[1] - q[0]) + np.linalg.norm(q[2] - q[3])) / 2; hq = (np.linalg.norm(q[3] - q[0]) + np.linalg.norm(q[2] - q[1])) / 2
