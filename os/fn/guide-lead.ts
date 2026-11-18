@@ -13,6 +13,21 @@ const esc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, 
 function mailText(first: string, c: any, link: string) {
   return `היי ${first}!\n\nהמדריך "${c.title}" מחכה לך כאן:\n${link}\n\n${c.community ? "הקהילה בוואטסאפ: " + c.community + "\n\n" : ""}קרין · Goldchain AI`;
 }
+function mapMailHtml(first: string, link: string) {
+  return `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:24px 12px;background:#eef0f7;font-family:Arial,Helvetica,sans-serif" dir="rtl">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#070b1f;border-radius:16px" dir="rtl">
+<tr><td style="padding:30px 32px 0;text-align:right;color:#f2b632;font-size:12px;letter-spacing:2px;font-weight:bold">GOLDCHAIN AI</td></tr>
+<tr><td style="padding:20px 32px 0;text-align:right;color:#ffffff;font-size:24px;font-weight:bold">היי ${esc(first)}, מפת ההורדה שלך מוכנה</td></tr>
+<tr><td style="padding:12px 32px 0;text-align:right;color:#b7bfdf;font-size:15px;line-height:1.7">לפי המשימות והשעות שסימנת במיפוי: מה יורד ראשון, מה הסוכן עושה בכל משימה ומה נשאר אצלך.</td></tr>
+<tr><td style="padding:26px 32px 0;text-align:right">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:12px;background-color:#f2b632">
+<a href="${esc(link)}" style="display:inline-block;padding:14px 30px;color:#1a1203;font-size:16px;font-weight:bold;text-decoration:none">לפתיחת המפה ←</a></td></tr></table></td></tr>
+<tr><td style="padding:28px 32px 0"><div style="height:1px;background:#1e2547;line-height:1px">&nbsp;</div></td></tr>
+<tr><td style="padding:16px 32px 28px;text-align:right;color:#7f88ad;font-size:12px;line-height:1.7">רוצה לעבור על המפה יחד? אפשר פשוט לענות למייל הזה.<br><a href="${SITE}" style="color:#39e0ff;text-decoration:none">goldchain-ai.com</a> · <a href="https://instagram.com/goldchain_ai" style="color:#39e0ff;text-decoration:none">@goldchain_ai</a></td></tr>
+</table></td></tr></table></body></html>`;
+}
 function mailHtml(first: string, c: any, link: string) {
   const sub = c.subtitle || "3 שלבים, עם טקסט מוכן להעתקה ל-Claude, מהרעיון ועד עוזר אישי שמדבר איתך.";
   const wa = c.community ? `<tr><td style="padding:14px 0 0"><a href="${esc(c.community)}" style="display:inline-block;padding:11px 22px;border-radius:999px;border:1px solid #a78bfa;color:#e9e3ff;text-decoration:none;font-size:14px">💬 להצטרפות לקהילה בוואטסאפ</a></td></tr>` : "";
@@ -42,8 +57,10 @@ Deno.serve(async (req) => {
       const name = clean(b.name, 80), phone = clean(b.phone, 30).replace(/[^\d+\-\s]/g, ""), email = clean(b.email, 120).toLowerCase(), biz = clean(b.biz, 120), need = clean(b.need, 800);
       if (!name || (phone.replace(/\D/g, "").length < 9 && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email))) return json({ error: "invalid" }, 400);
       const at = new Date().toISOString();
-      await db.from("os_items").insert({ kind: "leads", data: { name, phone, email, company: biz, need, biz: "אישי", source: "אתר goldchain-ai.com · בקשת ייעוץ" + (clean(b.src, 30) ? " · " + clean(b.src, 30) : ""), source_type: "site", stage: "new", consent: b.consent === true, consent_at: b.consent === true ? at : null, by: "האתר" } });
-      await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: "karinatar9@gmail.com", subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
+      const map = /^[a-z]+:\d+(\.5)?(,[a-z]+:\d+(\.5)?){0,11}$/.test(String(b.map || "")) ? String(b.map) : "", mapLink = map ? `${SITE}/audit/?m=${map}` : "";
+      await db.from("os_items").insert({ kind: "leads", data: { name, phone, email, company: biz, need, audit_map: mapLink || undefined, biz: "אישי", source: "אתר goldchain-ai.com · בקשת ייעוץ" + (clean(b.src, 30) ? " · " + clean(b.src, 30) : ""), source_type: "site", stage: "new", consent: b.consent === true, consent_at: b.consent === true ? at : null, by: "האתר" } });
+      await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: "karinatar9@gmail.com", subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}${mapLink ? "\n\nמפת ההורדה שקיבל: " + mapLink : ""}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
+      if (mapLink && email) { const first = name.split(" ")[0]; await db.from("os_actions").insert({ agent: "biz", type: "email", title: `מפת הורדה לליד · ${first}`, payload: { to: email, from_name: "קרין | Goldchain AI", subject: "מפת ההורדה שלך מוכנה", body: `היי ${first}!\n\nמפת ההורדה שלך, לפי המיפוי שעשית באתר, מחכה כאן:\n${mapLink}\n\nרוצה לעבור עליה יחד? אפשר פשוט לענות למייל הזה.\n\nקרין · Goldchain AI`, html: mapMailHtml(first, mapLink) }, status: "approved", decided_at: at }); }
       return json({ ok: true });
     }
     if (b.mode === "audit_done") { // goldchain-ai.com/audit: anonymous count of finished task audits (no personal data)
