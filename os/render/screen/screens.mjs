@@ -1,6 +1,7 @@
 // Renders the animated laptop-screen content (1280x800) for the "screen series" reels as PNG frames + mp4.
 // usage: node screen/screens.mjs <episode.json> <out.mp4>   (run from os/render; needs puppeteer + @fontsource/heebo)
 // episode.json: {"dur": 18, "scenes":[{"t":0,"len":2.6,"html":"...","bg":"#ff5a1f"}, ...]}
+// NOTE: do not use the 'burst' fx (radial starburst) — it reads as the Claude logo (Karin, 18.11).
 // Scene HTML may use classes: .big .mid .small .acc .bubble.in/.out .tile .chip .card .row .rep .burst; children get
 // an entrance animation via style="--d:0.4s" (delay relative to scene start).
 import puppeteer from 'puppeteer'; import fs from 'fs'; import path from 'path'; import { execFileSync } from 'child_process';
