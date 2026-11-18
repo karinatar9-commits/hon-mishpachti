@@ -35,7 +35,7 @@ html,body{margin:0;width:1280px;height:800px;overflow:hidden;background:#000;fon
 const burst = (c) => `<svg class="burst" viewBox="-50 -50 100 100">${Array.from({ length: 14 }, (_, i) => `<rect x="-2.2" y="-48" width="4.4" height="34" rx="2.2" fill="${c}" transform="rotate(${i * 360 / 14})"/>`).join('')}</svg>`;
 const page = ep.scenes.map(s => `<div class="sc" style="--t:${s.t}s;--len:${s.len}s;background:${s.bg || '#000'}">${s.fx === 'grid' ? '<div class="bgfx grid"></div><div class="bgfx"><div class="scan"></div></div>' : ''}${s.fx === 'burst' ? `<div class="bgfx">${burst(s.burst || 'rgba(255,255,255,.9)')}</div>` : ''}${s.html.replace('{burst}', '')}</div>`).join('');
 const dir = out.replace(/\.mp4$/, '_f'); fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(`${dir}/page.html`, `<html><head><meta charset="utf-8"><style>${css}</style></head><body>${page}</body></html>`);
+fs.writeFileSync(`${dir}/page.html`, `<html><head><meta charset="utf-8"><style>${css}${ep.css || ""}</style></head><body>${page}</body></html>`);
 const br = await puppeteer.launch({ args: ['--no-sandbox'] }); const p = await br.newPage(); await p.setViewport({ width: 1280, height: 800 });
 await p.goto('file://' + path.resolve(`${dir}/page.html`)); await p.evaluate(() => document.fonts.ready);
 const n = Math.round(ep.dur * FPS);
