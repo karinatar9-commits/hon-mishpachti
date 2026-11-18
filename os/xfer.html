@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>xfer</title><body>sending…<script>
+// Hands a published media file to the opener window (used to upload reels to Instagram web from automation).
+const q=new URLSearchParams(location.search), src=q.get('f'), to=q.get('to')||'https://www.instagram.com';
+fetch(src).then(r=>r.blob()).then(b=>{window.opener.postMessage({xfer:new File([b],src.split('/').pop(),{type:b.type||'video/mp4'})},to);document.body.textContent='sent '+b.size;setTimeout(()=>window.close(),1500)}).catch(e=>document.body.textContent='err '+e);
+</script>
