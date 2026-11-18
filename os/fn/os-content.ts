@@ -548,6 +548,23 @@ Deno.serve(async (req) => {
         await db.from("os_settings").upsert({ key: "stt_last", value: { at: now(), status: r.status, text: j.text || null, by_speaker: out.trim(), error: j.detail || null }, updated_at: now() });
         return json({ ok: r.ok });
       }
+      // Glow House ad set: narrow ages and/or placements on one named ad set (Karin asked 18.11.2026 to fix the tan campaign). dry:true only reads.
+      if (body.mode === "ads_adset_tune") {
+        const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
+        const sets = ((await graph(`${GLOW.act}/adsets?fields=name,campaign{name},effective_status,targeting&limit=50`, tok)).data || []).filter((a: any) => a.campaign?.name === String(body.campaign || "") && a.effective_status === "ACTIVE");
+        const out: any = { at: now(), sets: [] };
+        for (const a of sets) {
+          const r: any = { id: a.id, name: a.name, before: a.targeting };
+          const t = JSON.parse(JSON.stringify(a.targeting || {}));
+          if (body.age_min) t.age_min = Number(body.age_min); if (body.age_max) t.age_max = Number(body.age_max);
+          if (body.placements) { t.publisher_platforms = ["facebook", "instagram"]; t.facebook_positions = ["feed", "facebook_reels"]; t.instagram_positions = ["stream", "reels"]; delete t.messenger_positions; delete t.audience_network_positions; }
+          r.after = t;
+          if (!body.dry) { try { const f = new URLSearchParams(); f.set("targeting", JSON.stringify(t)); f.set("access_token", tok); const j = await (await fetch(`${G}/${a.id}`, { method: "POST", body: f })).json(); if (j.error) throw new Error(j.error.error_user_msg || j.error.message); r.updated = true; } catch (e) { r.error = String((e as Error).message).slice(0, 400); } }
+          out.sets.push(r);
+        }
+        await db.from("os_settings").upsert({ key: "glow_adset_tune", value: out, updated_at: now() });
+        return json(out);
+      }
       if (body.mode === "ads_quality") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
         const out: any = { at: now() }; const rng = body.since ? `time_range={"since":"${String(body.since).slice(0, 10)}","until":"${now().slice(0, 10)}"}` : "date_preset=last_7d";
