@@ -8,17 +8,31 @@ cap = cv2.VideoCapture(plate); fps = cap.get(cv2.CAP_PROP_FPS) or 24; W, H = int
 L = cv2.resize(cv2.imread(layer), (W, H), interpolation=cv2.INTER_AREA).astype(np.float32)
 ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "17", "-preset", "medium", out], stdin=subprocess.PIPE)
+def key(fr):
+    f = fr.astype(np.float32); b, g, r = f[..., 0], f[..., 1], f[..., 2]
+    hsv = cv2.cvtColor(fr, cv2.COLOR_BGR2HSV); hh, ss, vv = [hsv[..., i].astype(np.float32) for i in range(3)]
+    a1 = ((hh >= 24) & (hh <= 90) & (vv > 50)).astype(np.float32) * np.clip((ss - 60) / 50, 0, 1)
+    gm = g - np.maximum(r, b); a2 = np.clip((gm - 10) / 18, 0, 1) * (vv > 100) * (hh >= 28) * (hh <= 88)
+    return np.maximum(a1, a2)
+# pass 1: green that never moves (pens, props) is not the strip
+cnt = None; tot = 0
+while True:
+    ok, fr = cap.read()
+    if not ok: break
+    m = (key(fr) > 0.5).astype(np.float32); cnt = m if cnt is None else cnt + m; tot += 1
+static = (cnt / max(tot, 1)) > 0.6
+cap.release(); cap = cv2.VideoCapture(plate)
 n = 0
 while True:
     ok, fr = cap.read()
     if not ok: break
     f = fr.astype(np.float32); b, g, r = f[..., 0], f[..., 1], f[..., 2]
     hsv = cv2.cvtColor(fr, cv2.COLOR_BGR2HSV); hh, ss, vv = [hsv[..., i].astype(np.float32) for i in range(3)]
-    a1 = ((hh >= 24) & (hh <= 90) & (vv > 50)).astype(np.float32) * np.clip((ss - 60) / 50, 0, 1)  # saturated lime/green
-    gm = g - np.maximum(r, b); a2 = np.clip((gm - 14) / 18, 0, 1) * (vv > 105) * (hh >= 30) * (hh <= 85)  # pale/pastel green strips
-    a = np.maximum(a1, a2)
+    a = key(fr)
     hard = (a > 0.6).astype(np.uint8); k, lab, st, _ = cv2.connectedComponentsWithStats(hard)
-    big = [i for i in range(1, k) if st[i, cv2.CC_STAT_AREA] > 150]
+    areas = st[1:, cv2.CC_STAT_AREA] if k > 1 else np.array([0]); mx = areas.max()
+    big = [i for i in range(1, k) if st[i, cv2.CC_STAT_AREA] > max(150, 0.2 * mx)
+           and not (st[i, cv2.CC_STAT_AREA] < 20000 and static[lab == i].mean() > 0.5)]  # skip static green props (pens) and stray bits
     keep = cv2.dilate(np.isin(lab, big).astype(np.uint8), np.ones((9, 9), np.uint8)) if big else np.zeros_like(hard)
     a = cv2.GaussianBlur(cv2.dilate(a, np.ones((3, 3), np.uint8)) * keep, (0, 0), 0.8)
     shade = np.clip(vv / max(np.percentile(vv[a > 0.6], 90), 1), 0.55, 1.15)[..., None] if (a > 0.6).any() else 1  # keep the strip's own light falloff
