@@ -2,7 +2,7 @@
 // hands jobs to the GitHub renderer (authenticated by GitHub OIDC), and publishes to
 // Instagram only when Karin presses "אשר ופרסם" in the app.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.49.4";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose@5";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
