@@ -599,9 +599,9 @@ Deno.serve(async (req) => {
         for (const a of ads) {
           const r: any = { ad: a.id, name: a.name, old_creative: a.creative?.id, old_welcome: a.creative?.page_welcome_message || null };
           try {
-            const spec = a.creative?.object_story_spec; if (!spec) throw new Error("no object_story_spec"); const vd = spec.video_data; if (vd?.image_url && vd?.image_hash) delete vd.image_hash;
+            const story = body.use_story && a.creative?.effective_object_story_id; const spec = a.creative?.object_story_spec; if (!spec && !story) throw new Error("no object_story_spec"); const vd = spec?.video_data; if (vd?.image_url && vd?.image_hash) delete vd.image_hash;
             const nm = `${a.creative.name || a.name} · welcome ${now().slice(0, 10)}`;
-            const cr = body.use_story && a.creative.effective_object_story_id ? await post(`${GLOW.act}/adcreatives`, { name: nm, object_story_id: a.creative.effective_object_story_id, page_welcome_message: welcome }) : await post(`${GLOW.act}/adcreatives`, { name: nm, object_story_spec: spec, page_welcome_message: welcome });
+            const cr = story ? await post(`${GLOW.act}/adcreatives`, { name: nm, object_story_id: a.creative.effective_object_story_id, page_welcome_message: welcome }) : await post(`${GLOW.act}/adcreatives`, { name: nm, object_story_spec: spec, page_welcome_message: welcome });
             r.new_creative = cr.id;
             if (!body.dry) { await post(a.id, { creative: { creative_id: cr.id } }); r.updated = true; }
           } catch (e) { r.error = String((e as Error).message).slice(0, 400); }
