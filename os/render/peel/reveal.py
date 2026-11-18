@@ -14,7 +14,9 @@ while True:
     if not ok: break
     f = fr.astype(np.float32); b, g, r = f[..., 0], f[..., 1], f[..., 2]
     hsv = cv2.cvtColor(fr, cv2.COLOR_BGR2HSV); hh, ss, vv = [hsv[..., i].astype(np.float32) for i in range(3)]
-    a = ((hh >= 24) & (hh <= 90) & (vv > 50)).astype(np.float32) * np.clip((ss - 60) / 50, 0, 1)
+    a1 = ((hh >= 24) & (hh <= 90) & (vv > 50)).astype(np.float32) * np.clip((ss - 60) / 50, 0, 1)  # saturated lime/green
+    gm = g - np.maximum(r, b); a2 = np.clip((gm - 14) / 18, 0, 1) * (vv > 105) * (hh >= 30) * (hh <= 85)  # pale/pastel green strips
+    a = np.maximum(a1, a2)
     hard = (a > 0.6).astype(np.uint8); k, lab, st, _ = cv2.connectedComponentsWithStats(hard)
     big = [i for i in range(1, k) if st[i, cv2.CC_STAT_AREA] > 150]
     keep = cv2.dilate(np.isin(lab, big).astype(np.uint8), np.ones((9, 9), np.uint8)) if big else np.zeros_like(hard)
