@@ -552,9 +552,9 @@ Deno.serve(async (req) => {
           const src = ((await graph(`${GLOW.act}/adsets?fields=name,campaign{name,daily_budget},effective_status,targeting,daily_budget&limit=50`, tok)).data || [])
             .find((a: any) => a.campaign?.name === String(b.from_campaign || "") && a.effective_status === "ACTIVE");
           if (!src) throw new Error("source ad set not found");
-          const t: any = { ...src.targeting }; delete t.targeting_automation;
+          const t: any = { ...src.targeting, targeting_automation: { advantage_audience: 0 } };
           const budget = b.daily_budget || src.daily_budget || src.campaign?.daily_budget;
-          const camp = await step("campaign", () => post(`${GLOW.act}/campaigns`, { name: b.name, objective: "OUTCOME_TRAFFIC", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
+          const camp = b.campaign_id ? { id: b.campaign_id } : await step("campaign", () => post(`${GLOW.act}/campaigns`, { name: b.name, objective: "OUTCOME_TRAFFIC", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
           out.campaign_id = camp.id;
           const as = await step("adset", () => post(`${GLOW.act}/adsets`, { name: b.adset_name || b.name, campaign_id: camp.id, status: "PAUSED", daily_budget: budget, targeting: t,
             optimization_goal: "LINK_CLICKS", billing_event: "IMPRESSIONS", destination_type: "WEBSITE", bid_strategy: "LOWEST_COST_WITHOUT_CAP" }));
