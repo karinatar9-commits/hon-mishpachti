@@ -86,6 +86,7 @@
   "d20261118_rib1": "https://d8j0ntlcm91z4.cloudfront.net/user_3FD2Aeade3zvYMVd1cAvItojwTC/hf_20261118_181358_1171eb64-0ce2-4e11-bc31-52bae3461508.mp4",
   "d20261118_rib2": "https://d8j0ntlcm91z4.cloudfront.net/user_3FD2Aeade3zvYMVd1cAvItojwTC/hf_20261118_181357_24d7aae8-61de-4b25-8610-9ef221d00b28.mp4",
   "d20261118_rib3": "https://d8j0ntlcm91z4.cloudfront.net/user_3FD2Aeade3zvYMVd1cAvItojwTC/hf_20261118_181359_b7d017f0-e55c-4456-8a62-04e66a1307ba.mp4",
-  "vo-peek2-karin": "https://tcnnmbmooynevstasgaj.supabase.co/storage/v1/object/public/os-media/vo/1795026246939.mp3"
+  "vo-peek2-karin": "https://tcnnmbmooynevstasgaj.supabase.co/storage/v1/object/public/os-media/vo/1795026246939.mp3",
+  "mp_hand_landmarker": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task"
  }
 }
