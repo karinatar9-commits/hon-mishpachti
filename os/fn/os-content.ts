@@ -536,6 +536,43 @@ Deno.serve(async (req) => {
         await db.from("os_settings").upsert({ key: "glow_campaign_build", value: out, updated_at: now() });
         return json(out);
       }
+      // Glow House: a second campaign that sends people straight to the booking page (no WhatsApp step). Karin asked 19.11.2026
+      // after 11 WhatsApp conversations brought no tan booking. Targeting + budget copied from the live ad set of body.from_campaign.
+      // Everything is created PAUSED; nothing is spent until Karin turns it on.
+      if (body.mode === "ads_build_link") {
+        const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
+        const b = body.spec || {}; const log: any[] = []; const out: any = { at: now(), log };
+        const post = async (path: string, params: Record<string, unknown>) => {
+          const f = new URLSearchParams(); for (const [k, v] of Object.entries(params)) if (v !== undefined) f.set(k, typeof v === "string" ? v : JSON.stringify(v));
+          f.set("access_token", tok); const j = await (await fetch(`${G}/${path}`, { method: "POST", body: f })).json();
+          if (j.error) throw new Error(`${path}: ${j.error.error_user_msg || j.error.message}`); return j;
+        };
+        const step = async (name: string, fn: () => Promise<any>) => { try { const r = await fn(); log.push({ step: name, ok: true }); return r; } catch (e) { log.push({ step: name, ok: false, error: String((e as Error).message).slice(0, 400) }); throw e; } };
+        try {
+          const src = ((await graph(`${GLOW.act}/adsets?fields=name,campaign{name,daily_budget},effective_status,targeting,daily_budget&limit=50`, tok)).data || [])
+            .find((a: any) => a.campaign?.name === String(b.from_campaign || "") && a.effective_status === "ACTIVE");
+          if (!src) throw new Error("source ad set not found");
+          const t: any = { ...src.targeting }; delete t.targeting_automation;
+          const budget = b.daily_budget || src.daily_budget || src.campaign?.daily_budget;
+          const camp = await step("campaign", () => post(`${GLOW.act}/campaigns`, { name: b.name, objective: "OUTCOME_TRAFFIC", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
+          out.campaign_id = camp.id;
+          const as = await step("adset", () => post(`${GLOW.act}/adsets`, { name: b.adset_name || b.name, campaign_id: camp.id, status: "PAUSED", daily_budget: budget, targeting: t,
+            optimization_goal: "LINK_CLICKS", billing_event: "IMPRESSIONS", destination_type: "WEBSITE", bid_strategy: "LOWEST_COST_WITHOUT_CAP" }));
+          out.adset_id = as.id; out.daily_budget = budget;
+          const vid = await step("video_upload", () => post(`${GLOW.act}/advideos`, { file_url: b.video_url, name: b.name }));
+          out.video_id = vid.id;
+          let thumb = "";
+          for (let i = 0; i < 20 && !thumb; i++) { await new Promise((r) => setTimeout(r, 4000)); try { const th = await graph(`${vid.id}/thumbnails?fields=uri,is_preferred`, tok); thumb = (th.data || []).find((x: any) => x.is_preferred)?.uri || th.data?.[0]?.uri || ""; } catch { /* processing */ } }
+          if (!thumb) throw new Error("video still processing — run again in a few minutes");
+          const cr = await step("creative", () => post(`${GLOW.act}/adcreatives`, { name: b.name, object_story_spec: { page_id: GLOW.page, instagram_user_id: GLOW.ig,
+            video_data: { video_id: vid.id, image_url: thumb, message: b.text, title: b.headline, link_description: b.description, call_to_action: { type: "BOOK_NOW", value: { link: b.link } } } } }));
+          out.creative_id = cr.id;
+          const ad = await step("ad", () => post(`${GLOW.act}/ads`, { name: b.ad_name || b.name, adset_id: as.id, creative: { creative_id: cr.id }, status: "PAUSED" }));
+          out.ad_id = ad.id; out.ok = true;
+        } catch (e) { out.ok = false; out.error = String((e as Error).message).slice(0, 400); }
+        await db.from("os_settings").upsert({ key: "glow_link_build", value: out, updated_at: now() });
+        return json(out);
+      }
       // read-only: lead quality of the running Glow House campaigns (where the conversations come from, and how many people kept talking)
       // speech-to-text for a short recording Karin shares (ElevenLabs Scribe); result kept in os_settings 'stt_last'
       if (body.mode === "stt") {
