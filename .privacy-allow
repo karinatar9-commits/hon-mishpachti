@@ -1,0 +1,4 @@
+# Exceptions Karin approved to the privacy check (scripts/check-private.py).
+# Format: <path><TAB><exact value>  # reason. Everything here is already public on purpose.
+os/fn/os-content.ts	₪1,200  # format example inside an instruction to the model, not real data
+g/claude-3/index.html	972586352953  # Karin's WhatsApp on the public Goldchain guide page — Karin approved keeping it, 19.11.2026

@@ -2,6 +2,13 @@
 // and a designed email with a personal link to the guide is sent (approved os_action; Karin approved auto-sending guide emails on 16.11).
 import { createClient } from "jsr:@supabase/supabase-js@2";
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+// Karin's address for notification emails lives in os_settings (key owner_email), not in this public code.
+async function ownerEmail(): Promise<string> {
+  const { data } = await db.from("os_settings").select("value").eq("key", "owner_email").maybeSingle();
+  const e = String((data?.value as any)?.email || "");
+  if (!e) console.error("os_settings.owner_email is missing");
+  return e;
+}
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
 const clean = (v: unknown, n: number) => String(v ?? "").replace(/[<>]/g, "").trim().slice(0, n);
@@ -59,7 +66,7 @@ Deno.serve(async (req) => {
       const at = new Date().toISOString();
       const map = /^[a-z]+:\d+(\.5)?(,[a-z]+:\d+(\.5)?){0,11}$/.test(String(b.map || "")) ? String(b.map) : "", mapLink = map ? `${SITE}/audit/?m=${map}` : "";
       await db.from("os_items").insert({ kind: "leads", data: { name, phone, email, company: biz, need, audit_map: mapLink || undefined, biz: "אישי", source: "אתר goldchain-ai.com · בקשת ייעוץ" + (clean(b.src, 30) ? " · " + clean(b.src, 30) : ""), source_type: "site", stage: "new", consent: b.consent === true, consent_at: b.consent === true ? at : null, by: "האתר" } });
-      await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: "karinatar9@gmail.com", subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}${mapLink ? "\n\nמפת ההורדה שקיבל: " + mapLink : ""}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
+      await db.from("os_actions").insert({ agent: "biz", type: "email", title: `פנייה חדשה מהאתר · ${name}`, payload: { to: await ownerEmail(), subject: `🔔 פנייה חדשה מהאתר · ${name}${biz ? " · " + biz : ""}`, body: `פנייה חדשה מ-goldchain-ai.com\n\nשם: ${name}\nטלפון: ${phone || "-"}\nמייל: ${email || "-"}\nעסק: ${biz || "-"}\n\nמה צריך:\n${need || "-"}${mapLink ? "\n\nמפת ההורדה שקיבל: " + mapLink : ""}\n\nהליד נשמר במערכת תחת לידים.` }, status: "approved", decided_at: at });
       if (mapLink && email) { const first = name.split(" ")[0]; await db.from("os_actions").insert({ agent: "biz", type: "email", title: `מפת הורדה לליד · ${first}`, payload: { to: email, from_name: "קרין | Goldchain AI", subject: "מפת ההורדה שלך מוכנה", body: `היי ${first}!\n\nמפת ההורדה שלך, לפי המיפוי שעשית באתר, מחכה כאן:\n${mapLink}\n\nרוצה לעבור עליה יחד? אפשר פשוט לענות למייל הזה.\n\nקרין · Goldchain AI`, html: mapMailHtml(first, mapLink) }, status: "approved", decided_at: at }); }
       return json({ ok: true });
     }

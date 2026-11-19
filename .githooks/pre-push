@@ -1,0 +1,3 @@
+#!/bin/sh
+# Karin OS: block pushes when any tracked file contains personal or financial data (see CLAUDE.md)
+exec python3 scripts/check-private.py

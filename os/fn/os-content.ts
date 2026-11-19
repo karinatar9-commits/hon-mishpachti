@@ -7,6 +7,13 @@ import { createRemoteJWKSet, jwtVerify } from "npm:jose@5";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const db = createClient(SB_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+// Karin's address for notification emails lives in os_settings (key owner_email), not in this public code.
+async function ownerEmail(): Promise<string> {
+  const { data } = await db.from("os_settings").select("value").eq("key", "owner_email").maybeSingle();
+  const e = String((data?.value as any)?.email || "");
+  if (!e) console.error("os_settings.owner_email is missing");
+  return e;
+}
 const AKEY = Deno.env.get("ANTHROPIC_API_KEY") || "";
 const HF_KEY = Deno.env.get("HF_KEY") || "";            // "keyId:keySecret"
 const EL_KEY = Deno.env.get("ELEVEN_KEY") || "";       // ElevenLabs: narration in Karin's cloned voice
@@ -363,7 +370,7 @@ async function glowDaily() {
   if (b) {
     const body = `${b.headline}\n\n${(b.story || []).join("\n")}\n\n${(b.campaigns || []).length ? "📢 הקמפיינים\n" + b.campaigns.map((c: any) => `• ${c.name}: ${c.line}`).join("\n") + "\n\n" : ""}${b.social ? "📸 " + b.social + "\n\n" : ""}${(b.actions || []).length ? "✅ מה לעשות היום\n" + b.actions.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n") + "\n\n" : ""}הכל במערכת: ${base}`;
     const d = new Date().toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "2-digit", month: "2-digit" });
-    await db.from("os_actions").insert({ agent: "pa", type: "email", title: `Glow House · בוקר ${d}`, payload: { to: "karinatar9@gmail.com", subject: `${b.status === "alert" ? "⚠️ " : "✨ "}Glow House · ${b.headline}`.slice(0, 140), body }, status: "approved", decided_at: now() });
+    await db.from("os_actions").insert({ agent: "pa", type: "email", title: `Glow House · בוקר ${d}`, payload: { to: await ownerEmail(), subject: `${b.status === "alert" ? "⚠️ " : "✨ "}Glow House · ${b.headline}`.slice(0, 140), body }, status: "approved", decided_at: now() });
   }
   return { ok: !!b, errors: out.errors };
 }
@@ -400,7 +407,7 @@ ${wantCorner ? `הפינה השבועית הקבועה השבוע: ${ck === "tip
   await db.from("os_settings").upsert({ key: "ideas_digest", value: val, updated_at: at });
   const L = (a: any[], f: (x: any) => string) => (a || []).map(f).join("\n");
   const body = `${d.headline}\n\n💡 5 רעיונות\n${L(d.ideas, (x) => `• ${x.title} (${x.format})\n  הוק: ${x.hook}\n  ${x.angle}`)}\n\n${d.corner ? `📌 הפינה השבועית — ${d.corner.title}\n${d.corner.body}\n${d.corner.cta || ""}\n\n` : ""}📰 מה חדש\n${L(d.news, (x) => `• ${x.title} — ${x.why} ${x.url || ""}`)}\n\n👀 מה קורה אצל היוצרים\n${L(d.creators, (x) => `• ${x.name}: ${x.what} — ${x.standout} ${x.url || ""}`)}\n\n😣 מה כואב לבעלי עסקים\n${L(d.pains, (x) => `• ${x.pain} (${x.evidence}) ${x.url || ""}`)}\n\nלבחור ולפסול רעיונות (והסוכן לומד): https://karinatar9-commits.github.io/hon-mishpachti/os/#ideas`;
-  await db.from("os_actions").insert({ agent: "biz", type: "email", title: "Goldchain · רעיונות", payload: { to: "karinatar9@gmail.com", subject: `💡 Goldchain · ${d.headline}`.slice(0, 140), body }, status: "approved", decided_at: at });
+  await db.from("os_actions").insert({ agent: "biz", type: "email", title: "Goldchain · רעיונות", payload: { to: await ownerEmail(), subject: `💡 Goldchain · ${d.headline}`.slice(0, 140), body }, status: "approved", decided_at: at });
   return { ok: true, ideas: d.ideas.length, corner: !!d.corner };
 }
 

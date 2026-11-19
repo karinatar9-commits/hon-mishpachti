@@ -1,0 +1,46 @@
+# Karin OS — privacy check on every push, and the website is published ONLY when the check passes.
+# (GitHub Pages source = "GitHub Actions"; nothing is published straight from the branch any more.)
+name: Privacy check + publish site
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  privacy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Personal and financial data check (scripts/check-private.py)
+        env:
+          PRIVATE_DENYLIST: ${{ secrets.PRIVATE_DENYLIST }}
+        run: |
+          if [ -z "$PRIVATE_DENYLIST" ]; then echo "::warning::PRIVATE_DENYLIST secret is not set — names/amounts denylist not checked"; fi
+          python3 scripts/check-private.py
+  publish:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: privacy
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Site files (without the video-render toolkit, which the site does not use)
+        run: |
+          mkdir _site
+          rsync -a --exclude .git --exclude .github --exclude os/render/node_modules --exclude os/render/media --exclude _site ./ _site/
+          touch _site/.nojekyll
+          du -sh _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4
