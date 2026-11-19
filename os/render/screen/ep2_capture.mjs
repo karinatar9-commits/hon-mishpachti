@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer';
+const br=await puppeteer.launch({args:['--no-sandbox']});const p=await br.newPage();
+await p.setViewport({width:390,height:780,deviceScaleFactor:2});
+await p.goto('file:///home/claude/ep2/book.html');await p.evaluate(()=>document.fonts.ready);
+const w=ms=>new Promise(r=>setTimeout(r,ms));await w(400);
+await p.screenshot({path:'s1.png'});
+await p.click('.svc[data-s="a"]');await w(400);await p.screenshot({path:'s2a.png'});
+await p.click('.time[data-t="16:30"]');await w(300);await p.screenshot({path:'s2.png'});
+await p.click('#nx');await w(300);
+await p.type('#nm','נועה כהן');await p.type('#ph','050-1234567');await p.evaluate(()=>document.activeElement.blur());await w(200);await p.screenshot({path:'s3.png'});
+await p.click('#go');await w(500);await p.screenshot({path:'s4.png'});
+await br.close();
