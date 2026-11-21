@@ -593,6 +593,23 @@ Deno.serve(async (req) => {
         return json({ ok: r.ok });
       }
       // Glow House ad set: narrow ages and/or placements on one named ad set (Karin asked 18.11.2026 to fix the tan campaign). dry:true only reads.
+      // Pause or resume one Glow House campaign by its exact name. Only campaigns whose name starts with "Glow OS" (ours) —
+      // never the campaigns run by the agency.
+      if (body.mode === "ads_campaign_status") {
+        const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
+        const name = String(body.campaign || ""); const status = body.status === "ACTIVE" ? "ACTIVE" : "PAUSED";
+        if (!name.startsWith("Glow OS")) return json({ error: "only Glow OS campaigns" }, 400);
+        const camps = ((await graph(`${GLOW.act}/campaigns?fields=name,effective_status&limit=100`, tok)).data || []).filter((c: any) => c.name === name);
+        if (!camps.length) return json({ error: "campaign not found" }, 404);
+        const out: any = { at: now(), status, done: [] };
+        for (const c of camps) {
+          const f = new URLSearchParams({ status, access_token: tok });
+          const j = await (await fetch(`${G}/${c.id}`, { method: "POST", body: f })).json();
+          out.done.push({ id: c.id, before: c.effective_status, ok: !!j.success, error: j.error?.message });
+        }
+        await db.from("os_settings").upsert({ key: "glow_campaign_status", value: out, updated_at: now() });
+        return json(out);
+      }
       if (body.mode === "ads_adset_tune") {
         const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
         const sets = ((await graph(`${GLOW.act}/adsets?fields=name,campaign{name},effective_status,targeting&limit=50`, tok)).data || []).filter((a: any) => a.campaign?.name === String(body.campaign || "") && a.effective_status === "ACTIVE");
