@@ -352,11 +352,14 @@ async function glowDaily() {
   const { data: prev } = await db.from("os_settings").select("value").eq("key", "glow_daily").maybeSingle();
   const pv = prev?.value?.raw || null;
   const lessons = (await db.from("os_settings").select("value").eq("key", "meta_lessons").maybeSingle()).data?.value;
+  // optional one-off focus Karin asked for (text lives in os_settings, not in code)
+  const focus = (await db.from("os_settings").select("value").eq("key", "glow_focus").maybeSingle()).data?.value;
+  const focusOn = focus?.note && (!focus.until || String(focus.until) >= now().slice(0, 10));
   if (AKEY) {
     const p = `את/ה דניאל, מנהל השיווק של Glow House (רינת קוסמטיקס, קליניקת יופי בראשון לציון: שיזוף בהתזה, הסרת שיער, גבות). כתוב/י לקרין תמונת בוקר קצרה בעברית פשוטה.
 היא לא אוהבת טבלאות מספרים — כל מספר בתוך משפט שמסביר מה הוא אומר ולמה זה חשוב. קצר, ענייני, בלי הקדמות.
 מדדי ייחוס מהעבר של החשבון: שיחת וואטסאפ עולה בממוצע כ-14 ₪; מתחת ל-12 ₪ מצוין, מעל 15 ₪ צריך לשנות; שיזוף בגילאי 25-54 עבד הכי טוב. ${lessons?.summary ? "לקחים מהעבר: " + String(lessons.summary).slice(0, 600) : ""}
-כללים: קמפיינים ששמם מתחיל ב-"Glow OS" הם של קרין; את השאר מנהל אבינועם (שותף שיווק) — עליהם מדווחים, וכל שינוי ממליצים "לתאם עם אבינועם". קמפיין בשלושת הימים הראשונים נמצא בלמידה — לא להמליץ לשנות בו כלום. אם מודעה נדחתה (DISAPPROVED) או בבעיה — זו התראה ראשונה. אל תמציא/י נתונים שאין; אם משהו חסר (למשל אינסטגרם לא נגיש) תגיד/י את זה במשפט אחד.
+${focusOn ? "מיקוד שקרין ביקשה לבוקר הזה (לפתוח בו את התמונה): " + String(focus.note).slice(0, 600) + "\n" : ""}כללים: קמפיינים ששמם מתחיל ב-"Glow OS" הם של קרין; את השאר מנהל אבינועם (שותף שיווק) — עליהם מדווחים, וכל שינוי ממליצים "לתאם עם אבינועם". קמפיין בשלושת הימים הראשונים נמצא בלמידה — לא להמליץ לשנות בו כלום. אם מודעה נדחתה (DISAPPROVED) או בבעיה — זו התראה ראשונה. אל תמציא/י נתונים שאין; אם משהו חסר (למשל אינסטגרם לא נגיש) תגיד/י את זה במשפט אחד.
 נתוני היום: ${JSON.stringify({ ...out, errors: undefined })}
 שגיאות גישה: ${JSON.stringify(out.errors)}
 אתמול-שלשום (להשוואה): ${pv ? JSON.stringify({ yesterday: pv.yesterday, ig: pv.ig?.followers, page: pv.page, leads: pv.leads }) : "אין"}
