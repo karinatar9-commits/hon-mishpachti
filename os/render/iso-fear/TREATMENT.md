@@ -1,0 +1,5 @@
+# לא לפחד — Treatment (Isometric People Scene, 1080×1920, 30 fps, Hebrew, Karin's voice)
+Structure (Karin, 23.11 — tips script): hook → reason to stay → step 1 → step 2 → mid-hook → step 3 → summary → comment CTA with a gift.
+Candidates: (1) tips list in one studio (chosen: matches the new script structure); (2) before/after rewind of the same day; (3) a journey from the street into the studio. 
+Same studio as "מי שילם?": the owner steps back in fear (bubbles "קוד?", "יחליף אותי?"), passers-by outside already carry lit cards; the pile on her desk grows; one task lights (step 1); an approval card waits in a dashed outline at her feet and she steps in (step 2); a big "3" on the floor (mid-hook, near-silence); lit branches run from the desk to the phone, the shelf and the pin board and carry the pile away (step 3); summary "בשבילכם"; CTA "מתחילים" + end card.
+Floor words: 3 צעדים · בלי לפחד · משימה אחת · אישור · 3 · מה שכבר יש · בשבילכם · מתחילים. Sound: upright chords per beat, vibraphone per landing glyph, pizzicato as the pile grows, glock on the mid-hook and approvals.
