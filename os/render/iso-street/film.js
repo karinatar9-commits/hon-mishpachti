@@ -31,7 +31,7 @@ const P = {
 };
 
 // ---------------- the street ----------------
-const SW = 8, SD = 7, GAP = 1.4, NS = 4, OURS = 1;
+const SW = 8, SD = 7, GAP = 1.6, NS = 2, OURS = 1;
 const X = i => i * (SW + GAP);
 const DOOR = i => [X(i) + 2.3, X(i) + 3.6];
 const DESK = i => ({ x: X(i) + 3.4, y: 2.5, w: 2.2, d: 1.0 });
@@ -47,13 +47,13 @@ const OWNERS = [{ h: 1.74, top: TOPS[1], legs: LEGS[1] }, { h: 1.68, top: TOPS[0
 const CUST = [{ h: 1.72, top: TOPS[1], legs: LEGS[2] }, { h: 1.64, top: TOPS[3], legs: LEGS[0], hairLong: true }, { h: 1.8, top: TOPS[2], legs: LEGS[1] }, { h: 1.66, top: TOPS[0], legs: LEGS[3], hairLong: true }, { h: 1.75, top: TOPS[3], legs: LEGS[1] }];
 
 // towers behind the shops (the city of businesses), deterministic
-const TOWERS = []; { let x = -8; let k = 0; while (x < X(NS) + 4) { const w = 3.5 + (k * 37 % 5) * .5, h = 9 + (k * 53 % 7) * 2.2, y = -6 - (k * 29 % 4) * 2.2; TOWERS.push({ x, y, w, d: 3.5 + (k % 3), h, c: P.tower[k % 5], k }); x += w + .8 + (k * 13 % 3) * .4; k++; } }
+const TOWERS = []; { let x = -1; let k = 0; while (k < 3) { const w = 3.5 + (k * 37 % 5) * .5, h = 9 + (k * 53 % 7) * 2.2, y = -6 - (k * 29 % 4) * 2.2; TOWERS.push({ x, y: -7, w: 4.5, d: 4, h: [12, 17, 10][k], c: P.tower[[0, 3, 2][k]], k }); x += 6.2; k++; } }
 function towers(g, t) {
   for (const T of TOWERS) {
     iso.box(T.x, T.y - T.d, 0, T.w, T.d, T.h, tri(T.c, .18, .2), {
       cull: false, decal: () => {
         const rows = Math.floor((T.h - 1) / 1.4), cols = Math.max(2, Math.floor(T.w / 1.1));
-        onPlane(g, T.x, T.y, T.h - .6, 'xz', g2 => { for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const lit = (T.k * 7 + r * 3 + c * 5) % 9 < 3 && Math.sin(t * .8 + r + c + T.k) > -.3; g2.fillStyle = lit ? P.winLit : P.win; g2.fillRect(.35 + c * 1.1, r * 1.4, .6, .8); } });
+        onPlane(g, T.x, T.y, T.h - .6, 'xz', g2 => { for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { const lit = false; g2.fillStyle = lit ? P.winLit : P.win; g2.fillRect(.35 + c * 1.1, r * 1.4, .6, .8); } });
       },
     });
   }
@@ -143,7 +143,7 @@ function posOn(r, t) { const s = clamp((t - r.t0) * r.speed, 0, r.L[r.L.length -
 // neighbours' customers: a loop — street → door → counter → wait → out and away along the street
 function neighbourCustomers(t, i) {
   const door = (DOOR(i)[0] + DOOR(i)[1]) / 2, period = 7.5;
-  for (let c = 0; c < 2; c++) {
+  for (let c = 0; c < 1; c++) {
     const ph = ((t + c * period / 2 + i * 1.3) % period + period) % period, p = CUST[(i + c) % CUST.length];
     let x, y, w = true;
     if (ph < 1.6) { x = door - 4 + ph * 2.5; y = SD + 1.6; }                       // walk in along the street
@@ -157,13 +157,13 @@ function neighbourCustomers(t, i) {
 }
 // our queue: five people waiting outside the door; two give up and walk to the neighbour; the rest come in at step three
 const QX = i => DOOR(OURS)[1] + .3 + i * .8, QY = SD + 1.5;
-const LEAVE = [walkAlong([[QX(4), QY], [QX(4), QY + .9], [DOOR(2)[0] + .6, QY + .9], [DOOR(2)[0] + .6, 5.0]], at_(1, .12), 2.2),
-  walkAlong([[QX(3), QY], [QX(3), QY + .9], [DOOR(2)[0] + 1.0, QY + .9], [DOOR(2)[0] + 1.0, 5.6]], at_(1, .32), 2.2)];
-const ENTER = [0, 1, 2].map(i => walkAlong([[QX(i), QY], [DOOR(OURS)[0] + .6 + i * .3, QY], [DOOR(OURS)[0] + .6 + i * .3, 5.0 + i * .5]], at_(5, .55) + i * .35, 1.8));
+const NB = 0;
+const LEAVE = [walkAlong([[QX(2), QY], [QX(2), QY + .9], [DOOR(NB)[0] + .6, QY + .9], [DOOR(NB)[0] + .6, 5.4]], at_(1, .15), 2.6)];
+const ENTER = [0, 1].map(i => walkAlong([[QX(i), QY], [DOOR(OURS)[0] + .6 + i * .3, QY], [DOOR(OURS)[0] + .6 + i * .3, 5.0 + i * .5]], at_(5, .55) + i * .35, 1.8));
 function ourQueue(t) {
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     let x = QX(i), y = QY, w = false;
-    if (i >= 3) { const r = LEAVE[4 - i]; if (t >= r.t0) { const q = posOn(r, t); x = q.x; y = q.y; w = q.walking; } }
+    if (i >= 2) { const r = LEAVE[0]; if (t >= r.t0) { const q = posOn(r, t); x = q.x; y = q.y; w = q.walking; } }
     else if (t >= ENTER[i].t0) { const q = posOn(ENTER[i], t); x = q.x; y = q.y; w = q.walking; }
     bill(CUST[i], x, y, w, t * 7 + i);
   }
@@ -201,25 +201,22 @@ function phrase(o) {
 }
 const FX = X(OURS) + 7.7, FY = 6.8;
 const PH = {
-  one: phrase({ x: FX, y: FY, t0: at_(2, .18), t1: B(3)[0] - .05, step: .11, scale: .6, lines: [[['משימה ', 'B'], ['אחת', 'A']]] }),
-  ok: phrase({ x: FX, y: FY, t0: at_(3, .3), t1: B(4)[0] - .05, step: .14, scale: .8, lines: [[['אישור', 'A']]] }),
-  three: phrase({ x: FX, y: FY - .4, t0: B(4)[0] + .25, t1: B(5)[0] + .2, step: .1, scale: 1.3, lines: [[['3', 'na']]] }),
-  start: phrase({ x: FX, y: FY, t0: B(7)[0] + .2, t1: DUR + 1, step: .12, scale: .65, lines: [[['מתחילים', 'A']]] }),
+  three: phrase({ x: X(OURS) + 6.9, y: 5.9, t0: B(4)[0] + .25, t1: B(5)[0] + .2, step: .1, scale: 1.3, lines: [[['3', 'na']]] }),
 };
 
 // ---------------- camera ----------------
 const K = (x, y, z, k) => ({ x, y, z, k });
 const O = X(OURS);
 const CAMS = [
-  [0, K(O + 4.4, 3.2, 1.2, 80)], [.7, K(O + 4.5, 3.4, 1.4, 128)], [at_(0, .55), K(O + 4.6, 3.6, 1.4, 132)],   // hook: snap into the paper tower
-  [B(0)[1] - .1, K(O + 4.5, 2.5, 2.5, 40)],                                                                     // reveal: the street, the towers, the lit neighbours
-  [at_(1, .2), K(O + 6.5, 5.6, 1, 62)], [B(1)[1], K(X(2) + 2.5, 5.2, 1, 70)],                                   // the queue gives up and walks next door
-  [B(2)[0] + .6, K(O + 4.6, 3.8, 1.2, 104)], [B(2)[1], K(O + 4.6, 3.8, 1.2, 108)],                             // step one: our desk
-  [B(3)[0] + .5, K(O + 4.8, 4.4, 1, 100)], [B(3)[1], K(O + 4.8, 4.5, 1, 100)],                                 // step two: approval
-  [B(4)[0] + .4, K(O + 6.4, 5.6, .6, 104)], [B(4)[1], K(O + 6.4, 5.6, .6, 110)],                               // mid-hook: the 3
-  [B(5)[0] + .5, K(O + 4.4, 3.6, 1, 74)], [B(5)[1], K(O + 4.6, 4.2, 1, 72)],                                   // step three: her branches light, the queue comes in
-  [B(6)[0] + .9, K(O + 4.5, 2.5, 2.5, 38)], [B(6)[1], K(O + 4.5, 2.5, 2.5, 37)],                               // summary: the whole street lit
-  [B(7)[0] + .8, K(O + 5.0, 4.4, 1.2, 70)], [DUR, K(O + 5.0, 4.4, 1.2, 66)],
+  [0, K(O + 4.4, 3.2, 1.2, 80)], [.7, K(O + 4.5, 3.4, 1.4, 124)], [at_(0, .55), K(O + 4.6, 3.6, 1.4, 128)],   // hook: snap into the paper tower
+  [B(0)[1] - .1, K(O - .4, 4.2, 1.4, 54)],                                                                      // reveal: her shop and the neighbour's, side by side
+  [B(1)[1], K(O - .4, 4.4, 1.2, 56)],                                                                           // a customer walks next door
+  [B(2)[0] + .6, K(O + 4.6, 3.8, 1.2, 104)], [B(2)[1], K(O + 4.6, 3.8, 1.2, 108)],                             // step one
+  [B(3)[0] + .5, K(O + 4.8, 4.4, 1, 100)], [B(3)[1], K(O + 4.8, 4.5, 1, 100)],                                 // step two
+  [B(4)[0] + .4, K(O + 5.4, 4.2, .9, 100)], [B(4)[1], K(O + 5.4, 4.2, .9, 106)],                               // mid-hook
+  [B(5)[0] + .5, K(O + 4.2, 3.8, 1, 78)], [B(5)[1], K(O + 4.2, 4.0, 1, 76)],                                   // step three
+  [B(6)[0] + .9, K(O - .4, 4.2, 1.4, 54)], [B(6)[1], K(O - .4, 4.2, 1.4, 53)],                                 // summary: both shops lit
+  [B(7)[0] + .8, K(O + 3.6, 4.4, 1.2, 74)], [DUR, K(O + 3.6, 4.4, 1.2, 70)],
 ];
 export function camAt(t) {
   let i = 0; while (i < CAMS.length - 2 && CAMS[i + 1][0] <= t) i++;
@@ -294,16 +291,14 @@ export function render(g, t, Q) {
   const op = ownerPos(t); bill(OWNERS[OURS], op.x, op.y, op.walking, op.ph);
   iso.flush();
   // neighbours' "done" bubbles, cycling
-  for (let i = 0; i < NS; i++) if (i !== OURS) { const [sx, sy] = iso.P(SPOT(i)[0], SPOT(i)[1], 2.1), ph = (t + i * .9) % 2.4; bubble(g, sx, sy, NB_SAY[(Math.floor((t + i * .9) / 2.4) + i) % 4], ss(seg(ph, 0, .25)) * (1 - ss(seg(ph, 1.9, 2.2))), true, 34); }
+  for (let i = 0; i < NS; i++) if (i !== OURS) { const [sx, sy] = iso.P(SPOT(i)[0], SPOT(i)[1], 2.1), ph = t % 3.6; bubble(g, sx, sy, NB_SAY[Math.floor(t / 3.6) % 4], ss(seg(ph, 0, .25)) * (1 - ss(seg(ph, 1.8, 2.1))), true, 34); }
   // our owner's fears and our queue's impatience
   const [ox, oy] = iso.P(op.x, op.y, 1.95);
-  bubble(g, ox - 140, oy, 'קוד?', win(t, at_(0, .2), B(1)[0] + .3));
-  bubble(g, ox + 120, oy - 90, 'יחליף אותי?', win(t, at_(0, .38), B(1)[0] + .3));
-  bubble(g, ox - 40, oy - 180, 'יקר?', win(t, at_(0, .56), B(1)[0] + .3));
-  const [qx, qy] = iso.P(QX(1), QY, 2.0); bubble(g, qx, qy, 'עוד מחכים…', win(t, .9, at_(1, .5)) + win(t, B(2)[0], B(5)[0]) * .0);
-  const [lx, ly] = iso.P(LEAVE[0].pts[2][0], LEAVE[0].pts[2][1], 2.0); bubble(g, lx, ly, 'הולכים לשכנים', win(t, at_(1, .45), B(2)[0] + .3));
+  bubble(g, ox, oy, 'יחליף אותי?', win(t, at_(0, .25), B(1)[0] + .1));
+  const [qx, qy] = iso.P(QX(1), QY, 2.0); 
+  const lq = posOn(LEAVE[0], t), [lx, ly] = iso.P(lq.x, lq.y, 2.0); bubble(g, lx, ly, 'הולך לשכן', win(t, at_(1, .4), B(2)[0]));
   const st = { phone: [STA(OURS).phone[0], 1.8, 1.6, 'לקוח נענה'], shelf: [X(OURS) + .5, 3.0, 2.0, 'חשבונית סודרה'], board: [X(OURS) + 6.0, 0, 2.6, 'תזכורת נשלחה'] };
-  for (const k in st) { const [x, y, z, s] = st[k], [sx, sy] = iso.P(x, y, z); bubble(g, sx, sy, s, win(t, ARR[k] - .05, B(6)[0] + .5), false, 36); }
+  for (const k in st) { const [x, y, z, s] = st[k], [sx, sy] = iso.P(x, y, z); bubble(g, sx, sy, s, win(t, ARR[k] - .05, ARR[k] + 1.4), false, 36); }
   bubble(g, ox, oy - 10, 'מאשרת', win(t, CARD.ok - .15, CARD.out0 + .5), true);
   headline(g, t);
   if (!Q?.has('nosub')) subtitles(g, t);
@@ -317,12 +312,12 @@ export function events() {
   for (const k in PH) [...PH[k].L].sort((a, b) => a.tc - b.tc).forEach((c, j) => ev.push({ t: c.tc, type: 'land', accent: c.col === C.accent, j }));
   for (let j = 0; j < 9; j++) ev.push({ t: .28 + j * .07, type: 'pile' });
   for (let i = 0; i < 8; i++) ev.push({ t: B(i)[0], type: 'title', i });
-  [at_(0, .2), at_(0, .38), at_(0, .56)].forEach(t => ev.push({ t, type: 'pop' }));
+  ev.push({ t: at_(0, .25), type: 'pop' });
   LEAVE.forEach(r => ev.push({ t: r.t0, type: 'pass' }));
   ev.push({ t: B(5)[0] - .05, type: 'chime' }, { t: B(4)[0] + .25, type: 'hook' }, { t: B(0)[1] - .3, type: 'whoosh' });
   for (const k in FLY) ev.push({ t: FLY[k][0], type: 'whoosh' }, { t: ARR[k], type: 'arrive' });
   ev.push({ t: CARD.t0, type: 'paper' }, { t: CARD.ok, type: 'approve' }, { t: CARD.out0, type: 'paper' }, { t: at_(2, .22), type: 'one' }, { t: END, type: 'end' });
-  for (let t = 1.0; t < DUR - 1; t += 2.4) ev.push({ t, type: 'nb' });
+  for (let t = 3.6; t < DUR - 1; t += 3.6) ev.push({ t, type: 'nb' });
   return ev.sort((a, b) => a.t - b.t);
 }
 export function texts(t) {
