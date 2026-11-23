@@ -6,8 +6,8 @@ import { iso, tri, C, TOPS, LEGS, W, H, onPlane, quad, fillPoly, rect, tracePath
 
 // ---------------- narration (Karin's voice) ----------------
 export const LINES = [
-  'מפחדים מבינה מלאכותית? הנה שלושה צעדים שיגרמו לה לעבוד בשבילכם.',
-  'בלי קוד, בלי להחליף אף אחד, ובלי להישאר מאחור כשכולם כבר שם.',
+  'הפחד מבינה מלאכותית עולה לכם יותר כסף מהבינה המלאכותית עצמה.',
+  'תנו לי שלושים שניות, ותראו איך הופכים אותה לעובד הכי זול בעסק, בשלושה צעדים.',
   'צעד ראשון: מתחילים ממשימה אחת שגוזלת לכם זמן כל יום. ככה רואים תוצאה כבר בשבוע הראשון.',
   'צעד שני: האישור נשאר אצלכם. הסוכן מכין, אתם מאשרים, ושום דבר לא יוצא בלי שראיתם.',
   'והצעד השלישי הוא זה שהכי חוסך כסף.',
@@ -15,9 +15,9 @@ export const LINES = [
   'משימה אחת, אישור שלכם, ומה שכבר יש בעסק. ככה זה עובד בשבילכם.',
   'תגיבו: מתחילים, ואשלח לכם מיפוי חינמי של המשימות שאפשר להעביר לסוכן כבר השבוע.',
 ];
-export const VO_DUR = [4.789, 4.617, 7.101, 7.037, 2.974, 5.826, 5.357, 5.772];
-const GAPS = [.25, .3, .3, .45, .55, .3, .3];     // .45 before the mid-hook, .55: the near-silence before step three
-export const VO = []; { let t = .45; VO_DUR.forEach((d, i) => { VO.push(+t.toFixed(3)); t += d + (GAPS[i] ?? 0); }); }
+export const VO_DUR = [4.423, 5.288, 7.101, 7.037, 2.974, 5.826, 5.357, 5.772];
+const GAPS = [.2, .3, .3, .45, .55, .3, .3];     // .45 before the mid-hook, .55: the near-silence before step three
+export const VO = []; { let t = .15; VO_DUR.forEach((d, i) => { VO.push(+t.toFixed(3)); t += d + (GAPS[i] ?? 0); }); }
 const B = i => [VO[i], i < 7 ? VO[i + 1] : VO[7] + VO_DUR[7] + .3];
 const END = VO[7] + VO_DUR[7] + .35;
 export const DUR = +(END + 5.5).toFixed(2);
@@ -85,7 +85,7 @@ function furniture() {
 
 // ---------------- the pile of work on the desk, and the three tasks the agent carries away ----------------
 const PILE = [[4.45, 4.0], [4.95, 4.05], [4.5, 4.45], [5.0, 4.5], [4.7, 4.25], [4.6, 4.2], [4.9, 4.3]];   // stack spots (x, y) on the desk
-const PILE_N = t => 2 + Math.floor(5 * eo(seg(t, B(1)[0] + .2, at_(2, .3))) + .001);    // the work piles up as step one starts
+const PILE_N = t => 7;    // the whole pile crashes onto the desk in the first second (the visual hook)
 const FLY = { phone: [at_(5, .05), 6], shelf: [at_(5, .3), 5], board: [at_(5, .55), 4] };   // [start, which pile item]
 const FLYD = 1.15;
 const ARRIVE = { phone: FLY.phone[0] + FLYD, shelf: FLY.shelf[0] + FLYD, board: FLY.board[0] + FLYD };
@@ -96,9 +96,9 @@ function pile(t) {
     let gone = false;
     for (const k in FLY) if (FLY[k][1] === i && t >= FLY[k][0]) gone = true;
     if (gone) continue;
-    const [x, y] = PILE[i], z = .75 + (i >= 4 ? .14 * (i - 3) : 0), pop = eo(seg(t, B(1)[0] + .2 + (i - 2) * .45, B(1)[0] + .5 + (i - 2) * .45));
+    const [x, y] = PILE[i], z = .75 + (i >= 4 ? .14 * (i - 3) : 0), pop = ss(seg(t, .02 + i * .1, .3 + i * .1)), bounce = Math.abs(Math.sin(seg(t, .3 + i * .1, .6 + i * .1) * Math.PI)) * .12 * (t < .6 + i * .1 ? 1 : 0);
     const one = i === 1 && t > at_(2, .22) ? ss(seg(t, at_(2, .22), at_(2, .22) + .35)) : 0;   // step one: one task lights up
-    iso.box(x - .26, y - .2, z + (i < 2 ? 0 : (1 - pop) * .6) + one * .25, .52, .4, .14, tri(hex(mix(P.paper, C.accent, one))), { bias: -.2 + i * .01 });
+    iso.box(x - .26, y - .2, z + (1 - pop) * 4 + bounce + one * .25, .52, .4, .14, tri(hex(mix(P.paper, C.accent, one))), { bias: -.2 + i * .01 });
   }
   for (const k in FLY) {   // tasks in flight along the agent's branch
     const [t0, i] = FLY[k]; if (t < t0 || t > t0 + FLYD + .35) continue;
@@ -126,7 +126,7 @@ function ownerPos(t) {
 const STREET = PASS.map((p, i) => ({ p, t0: at_(1, .35) + i * .6, y: 11.35 + (i % 2) * .5 }));
 function passers(t) {
   for (const s of STREET) {
-    const x = .3 + (t - s.t0) * 1.7; if (t < s.t0 || x > 13 || t > B(2)[0] + .2) continue;
+    const x = .3 + (t - s.t0) * 1.7; if (true) continue;
     iso.bill(x, s.y, 0, gg => drawPerson(gg, s.p, { walking: true, phase: (t - s.t0) * 7.5 }), { r: 2, cull: false });
     iso.box(x + .15, s.y - .2, 1.55 + Math.sin((t - s.t0) * 4) * .05, .34, .26, .05, tri(C.accent), { bias: 1, cull: false });
   }
@@ -158,8 +158,7 @@ function phrase(o) {
   return { P: Pp, L };
 }
 const PH = {
-  steps: phrase({ x: 3.95, y: 9.7, t0: at_(0, .45), t1: B(1)[0] + .5, step: .12, scale: .9, lines: [[['3', 'na'], [' צעדים', 'B']]] }),
-  nofear: phrase({ x: 3.95, y: 9.6, t0: at_(1, .05), t1: B(2)[0] - .05, step: .11, scale: .85, lines: [[['בלי ', 'B'], ['לפחד', 'A']]] }),
+  steps: phrase({ x: 3.95, y: 9.7, t0: at_(1, .2), t1: B(2)[0] - .05, step: .12, scale: .9, lines: [[['3', 'na'], [' צעדים', 'B']]] }),
   one: phrase({ x: 8.7, y: 9.6, t0: at_(2, .18), t1: B(3)[0] - .05, step: .11, scale: .72, lines: [[['משימה ', 'B'], ['אחת', 'A']]] }),
   ok: phrase({ x: 8.7, y: 9.6, t0: at_(3, .3), t1: B(4)[0] - .05, step: .14, scale: .95, lines: [[['אישור', 'A']]] }),
   three: phrase({ x: 8.7, y: 9.2, t0: B(4)[0] + .25, t1: B(5)[0] + .2, step: .1, scale: 1.7, lines: [[['3', 'na']]] }),
@@ -171,8 +170,8 @@ const PH = {
 // ---------------- camera ----------------
 const K = (x, y, z, k) => ({ x, y, z, k });
 const CAMS = [
-  [0, K(4.4, 7.4, .8, 128)], [B(0)[1] - .2, K(4.5, 7.3, .8, 136)],   // hook: close on the owner and her floor word, slow push
-  [B(1)[0] + .6, K(4.2, 7.9, .8, 96)], [B(1)[1], K(4.3, 7.8, .8, 94)],  // reason to stay: pull back, the street through the cut wall
+  [0, K(4.8, 6.0, .8, 84)], [.7, K(4.9, 6.2, .9, 132)], [B(0)[1] - .2, K(4.9, 6.3, .9, 140)],   // hook: snap zoom into the crash
+  [B(1)[0] + .6, K(4.4, 7.5, .8, 104)], [B(1)[1], K(4.4, 7.4, .8, 100)],  // reason to stay: the owner, her pile and '3 צעדים' on the floor
   [B(2)[0] + .5, K(6.2, 6.3, .8, 132)], [B(2)[1], K(6.2, 6.2, .8, 138)], // step one: the pile and its one lit task
   [B(3)[0] + .5, K(6.0, 6.6, .8, 104)], [B(3)[1], K(6.0, 6.5, .8, 104)], // step two: approval at her desk
   [B(4)[0] + .4, K(7.3, 7.6, .6, 112)], [B(4)[1], K(7.3, 7.5, .6, 118)], // mid-hook: push on the big 3
@@ -185,7 +184,7 @@ export function camAt(t) {
   const [ta, a] = CAMS[i], [tb, b] = CAMS[i + 1], u = eio(seg(t, ta, tb));
   return { x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), z: lerp(a.z, b.z, u), k: Math.exp(lerp(Math.log(a.k), Math.log(b.k), u)) };
 }
-const VSHIFT = 40;
+const VSHIFT = -40;
 
 // ---------------- screen-space: bubbles, subtitles, end card ----------------
 function bubble(g, x, y, text, a, accent = false) {
@@ -222,6 +221,22 @@ function endCard(g, t) {
   g.restore();
 }
 
+// ---------------- headline at the top of the frame: on screen from frame one, one per beat, hard cut ----------------
+const HL = [['הפחד הזה', 'עולה לכם כסף'], ['3 צעדים', 'ב־30 שניות'], ['צעד 1', 'משימה אחת'], ['צעד 2', 'האישור אצלכם'],
+  ['והצעד השלישי', 'הכי חוסך כסף'], ['צעד 3', 'מה שכבר יש לכם'], ['ככה זה', 'עובד בשבילכם'], ['תגיבו', '"מתחילים"']];
+function headline(g, t) {
+  let i = 0; while (i < 7 && t >= B(i + 1)[0] - .05) i++;
+  if (t >= END) return;
+  const t0 = i === 0 ? -1 : B(i)[0] - .05, u = eo(seg(t, t0, t0 + .22)), sc = lerp(1.18, 1, u);
+  const grd = g.createLinearGradient(0, 0, 0, 470); grd.addColorStop(0, 'rgba(241,232,216,.97)'); grd.addColorStop(.75, 'rgba(241,232,216,.85)'); grd.addColorStop(1, 'rgba(241,232,216,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, W, 470);
+  g.save(); g.translate(W / 2, 250); g.scale(sc, sc); g.globalAlpha = u; g.textAlign = 'center'; g.textBaseline = 'middle'; g.direction = 'rtl';
+  g.fillStyle = C.ink; g.font = font(700, 66); g.fillText(HL[i][0], 0, -95);
+  let fs = 150; g.font = font(900, fs); while (g.measureText(HL[i][1]).width > W - 90) { fs -= 6; g.font = font(900, fs); }
+  g.fillStyle = C.accent; g.fillText(HL[i][1], 0, 40);
+  g.restore();
+}
+
 // ---------------- render ----------------
 const scr = (x, y, z) => iso.P(x, y, z);
 export function render(g, t, Q) {
@@ -236,13 +251,14 @@ export function render(g, t, Q) {
   iso.flush();
   const [ox, oy] = scr(op.x, op.y, OWNER.h + .25);
   // fears: three bubbles over her, one per word
-  bubble(g, ox, oy, '?', win(t, B(0)[0] + .2, at_(0, .7)), true);
-  bubble(g, ox - 150, oy - 10, 'קוד?', win(t, at_(1, .02), B(2)[0] + .1));
-  bubble(g, ox + 110, oy - 105, 'יחליף אותי?', win(t, at_(1, .25), B(2)[0] + .1));
+  bubble(g, ox - 150, oy - 10, 'קוד?', win(t, at_(0, .25), B(1)[0] + .4));
+  bubble(g, ox + 110, oy - 105, 'יחליף אותי?', win(t, at_(0, .45), B(1)[0] + .4));
+  bubble(g, ox - 60, oy - 200, 'יקר?', win(t, at_(0, .65), B(1)[0] + .4));
   // what the agent did, at each station as the task lands
   const st = { phone: [1.65, 1.3, 1.25, 'לקוח נענה'], shelf: [.5, 4.4, 2.0, 'חשבונית סודרה'], board: [6.6, 0, 2.6, 'תזכורת נשלחה'] };
   for (const k in st) { const [x, y, z, s] = st[k], [sx, sy] = scr(x, y, z); bubble(g, sx, sy, s, win(t, ARRIVE[k] - .05, B(6)[0] + .3)); }
   bubble(g, ox, oy, 'מאשרת', win(t, CARD.ok - .15, CARD.out0 + .5), true);
+  headline(g, t);
   if (!Q?.has('nosub')) subtitles(g, t);
   endCard(g, t);
 }
@@ -252,8 +268,9 @@ export function events() {
   const ev = [{ t: 0, type: 'timeline', DUR, VO, B: [0, 1, 2, 3, 4, 5, 6, 7].map(B), END }];
   LINES.forEach((s, i) => ev.push({ t: VO[i], type: 'vo', id: 't' + (i + 1) }));
   for (const k in PH) { const L = PH[k].L; [...L].sort((a, b) => a.tc - b.tc).forEach((c, j) => ev.push({ t: c.tc, type: 'land', accent: c.col === C.accent, j })); }
-  for (let i = 2; i < 7; i++) ev.push({ t: B(1)[0] + .2 + (i - 2) * .45 + .25, type: 'pile' });
-  [B(0)[0] + .2, at_(1, .02), at_(1, .25)].forEach(t => ev.push({ t, type: 'pop' }));
+  for (let i = 0; i < 7; i++) ev.push({ t: .3 + i * .1, type: 'pile' });
+  for (let i = 0; i < 8; i++) ev.push({ t: B(i)[0], type: 'title', i });
+  [at_(0, .25), at_(0, .45), at_(0, .65)].forEach(t => ev.push({ t, type: 'pop' }));
   STREET.forEach(s => ev.push({ t: s.t0 + 1.2, type: 'pass' }));
   ev.push({ t: B(5)[0] - .05, type: 'chime' }, { t: B(4)[0] + .25, type: 'hook' });
   for (const k in FLY) ev.push({ t: FLY[k][0], type: 'whoosh' }, { t: ARRIVE[k], type: 'arrive' });
@@ -264,6 +281,7 @@ export function events() {
 export function texts(t) {
   const out = []; const c = camAt(t); iso.cam = { ...c, z: c.z - VSHIFT / c.k };
   for (const k in PH) { const { P: Pp, L } = PH[k]; const first = Math.min(...L.map(x => x.tc)); if (t >= first && t < Pp.t1 + .3) out.push({ id: k, text: L.map(x => x.ch).join(''), ...phraseBox(Pp, L) }); }
+  { let i = 0; while (i < 7 && t >= B(i + 1)[0] - .05) i++; if (t < END) out.push({ id: 'hl' + i, text: HL[i].join(' '), x0: 60, y0: 120, x1: W - 60, y1: 340, pass: true }); }
   if (t >= END) out.push({ id: 'end', text: ENDTX.join(' '), x0: 90, y0: 1470, x1: W - 90, y1: 1800 });
   return out;
 }

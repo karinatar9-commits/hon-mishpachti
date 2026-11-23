@@ -42,6 +42,7 @@ for e in ev('pass'): n(e['t'], 'violins_pizz', 'F#5', .2, .2, .3)
 for e in ev('hook'): n(e['t'], 'glockenspiel', 'A6', 1.4, .26, 0); n(e['t'], 'vibraphone_hard', 'A4', 1.6, .26, 0)
 for e in ev('arrive'): n(e['t'], 'vibraphone', 'D6', .9, .22, .25)
 for e in ev('one'): n(e['t'], 'glockenspiel', 'F#6', 1.0, .2, .2)
+for e in ev('title'): n(e['t'], 'marimba', ['A5','F#5','D5','E5','A5','D5','F#5','D6'][e['i'] % 8], .4, .26, 0)
 for e in ev('pop'): n(e['t'], 'vibraphone', 'E5', .5, .16, -.2)
 for e in ev('land'):
     n(e['t'], 'vibraphone', ['A4', 'F#4', 'D5', 'E4', 'B4', 'D4'][e['j'] % 6], .9, .2, .2)
@@ -63,7 +64,7 @@ fx[:L, 0] += room[:L] * e_ * .035; fx[:L, 1] += np.roll(room, 777)[:L] * e_ * .0
 def ting(f, d=.9): tt = t_(d); return nz(np.sin(2 * np.pi * f * tt) * np.exp(-tt / .18) + .5 * np.sin(2 * np.pi * f * 2.76 * tt) * np.exp(-tt / .06))
 for e in ev('whoosh'): put(whoosh(.7, .7), e['t'], .03, 0)
 for e in ev('step'): put(thump(.12, 140), e['t'], .022, 0)
-for e in ev('pile'): put(thump(.25, 110), e['t'], .05, -.1)
+for e in ev('pile'): put(thump(.25, 110), e['t'], .09, -.1)
 for e in ev('paper'): s = nz(bp(noise(.45), 1500, 6500)) * np.sin(np.pi * t_(.45) / .45); put(s, e['t'], .03, .1)
 for e in ev('approve'): put(click(1.4, .7), e['t'], .05, .2)
 
