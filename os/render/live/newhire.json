@@ -1,0 +1,17 @@
+{"vo":["live/vo/newhire_1.wav","live/vo/newhire_2.wav","live/vo/newhire_3.wav","live/vo/newhire_4.wav","live/vo/newhire_5.wav","live/vo/newhire_6.wav","live/vo/newhire_7.wav"],
+ "gap":[0.25,0.3,0.45,0.3,0.6,0.3], "t0":0.15, "ov":"/tmp/lov", "endhold":3.8, "tmp":"/tmp/live_nh",
+ "segs":[
+  {"src":"media/raw/d20261123_nh1.mp4","ss":0,"dur":3.3},
+  {"src":"media/raw/d20261123_nh2.mp4","ss":0.8,"dur":3.2},
+  {"src":"/tmp/lins/j1.mp4","dur":2.4},
+  {"src":"media/raw/d20261123_nh3.mp4","ss":0.6,"dur":3.85},
+  {"src":"media/raw/d20261123_nh4b.mp4","ss":0.3,"dur":3.0},
+  {"src":"media/raw/d20261123_nh5.mp4","ss":0.5,"dur":2.8},
+  {"src":"/tmp/lins/j2.mp4","dur":2.3},
+  {"src":"media/raw/d20261123_nh2.mp4","ss":2.5,"dur":2.3},
+  {"src":"media/raw/d20261123_nh6.mp4","ss":1.6,"dur":1.2},
+  {"src":"/tmp/lins/j3.mp4","dur":2.4},
+  {"src":"media/raw/d20261123_nh7.mp4","ss":0,"dur":3.1},
+  {"src":"media/raw/d20261123_nh8b.mp4","ss":0.5,"dur":3.4},
+  {"src":"media/raw/d20261123_nh9.mp4","ss":0,"dur":"rest","speed":1.7}
+ ]}
