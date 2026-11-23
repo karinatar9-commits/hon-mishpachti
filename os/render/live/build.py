@@ -28,9 +28,12 @@ def add(png, a, b, fade=False):
     last = f'[x{n}]'; n += 1
 for i in range(len(D)):
     a = 0 if i == 0 else T[i] - .05; b = (T[i + 1] - .05) if i + 1 < len(D) else END
-    add(f'{ov}/hl{i}.png', a, b)
+    if i not in cfg.get('hl_skip', []): add(f'{ov}/hl{i}.png', a, b)
     add(f'{ov}/sub{i}.png', T[i] - .05, (T[i + 1] - .05) if i + 1 < len(D) else T[i] + D[i] + .3)
 add(f'{ov}/end.png', END, TOTAL + 1, fade=True)
+for an in cfg.get('anims', []):   # PNG-sequence overlays (rolling counters), placed at an absolute start
+    ins.extend(['-framerate', '30', '-i', f"{an['dir']}/%04d.png"])
+    fc += f";[{n}:v]format=rgba,setpts=PTS+{an['start']}/TB[an{n}];{last}[an{n}]overlay=0:0:eof_action=pass[x{n}]"; last = f'[x{n}]'; n += 1
 # narration: each line placed at its start
 for i, f in enumerate(cfg['vo']): ins += ['-i', f]
 na = len(cfg['vo']); first = n

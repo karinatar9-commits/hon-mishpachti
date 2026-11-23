@@ -1,0 +1,12 @@
+{"vo":["live/vo/notif_1.wav","live/vo/notif_2.wav","live/vo/notif_3.wav","live/vo/notif_4.wav","live/vo/notif_5.wav","live/vo/notif_6.wav"],
+ "gap":[0.2,0.35,0.25,0.25,0.3], "t0":0.1, "ov":"/tmp/nov", "endhold":3.8, "tmp":"/tmp/live_notif", "hl_skip":[0],
+ "anims":[{"dir":"/tmp/cnt_up","start":0},{"dir":"/tmp/cnt_dn","start":6.6}],
+ "segs":[
+  {"src":"media/raw/flow_notif_a.mp4","ss":0,"dur":3.6},
+  {"src":"/tmp/nins/u1.mp4","dur":2.8},
+  {"src":"media/raw/flow_notif_b.mp4","ss":0.3,"dur":3.5},
+  {"src":"/tmp/nins/a1.mp4","dur":2.4},
+  {"src":"/tmp/nins/c1.mp4","dur":1.8},
+  {"src":"/tmp/nins/q1.mp4","dur":2.4},
+  {"src":"media/raw/flow_notif_c.mp4","ss":0,"dur":"rest","speed":1.15}
+ ]}
