@@ -1,0 +1,11 @@
+{"vo":["live/vo/trailer_1.wav","live/vo/trailer_2.wav","live/vo/trailer_3.wav","live/vo/trailer_4.wav","live/vo/trailer_5.wav","live/vo/trailer_6.wav","live/vo/trailer_7.wav","live/vo/trailer_8.wav"],
+ "gap":[0.25,0.25,0.3,0.3,0.9,0.3,0.3], "t0":0.35, "cards":"/tmp/tcard", "silence_before":5, "endhold":2.2, "tmp":"/tmp/trailer_nh",
+ "beats":[
+  [["card","c1",0,1.2],["shot","media/raw/d20261123_tr1.mp4",0,1.5]],
+  [["ins","/tmp/lins/j1.mp4",0,1],["shot","media/raw/d20261123_nh3.mp4",0.9,1],["ins","/tmp/lins/j3.mp4",0.4,1]],
+  [["shot","media/raw/d20261123_nh1.mp4",0.4,1.6],["card","c2",0,0.8]],
+  [["shot","media/raw/d20261123_tr2.mp4",0.4,1],["shot","media/raw/d20261123_nh4c.mp4",0.3,1],["shot","media/raw/d20261123_nh5.mp4",0.9,1]],
+  [["card","c3",0,0.9],["card","c4",0,0.9],["shot","media/raw/d20261123_nh6.mp4",1.2,1.6]],
+  [["card","c5",0,1.4],["shot","media/raw/d20261123_nh7.mp4",0,1]],
+  [["card","c6",0,0.9],["shot","media/raw/d20261123_nh8b.mp4",0.4,1.1],["shot","media/raw/d20261123_tr3.mp4",0.4,1.2],["card","c7",0,0.8]]
+ ]}
