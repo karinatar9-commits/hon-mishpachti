@@ -31,7 +31,7 @@ ins = ["-f", "lavfi", "-i", f"color=c=0x0d0b18:s=1080x1920:r=30:d={T}", "-i", f"
 labs = cfg.get("labels", {}); n0 = 9
 for k, name in labs.items(): ins += ["-loop", "1", "-i", f"{ov}/{name}.png"]
 fc = (f"[1:v]format=rgba[bx];[3:v]format=gray,scale={BS}:{BS}[mb];[bx][mb]alphamerge[bxa];"
-      f"[2:v]fps=30,scale={AW}:-2,crop={AW}:{AH}:0:{avy},tpad=stop_mode=clone:stop_duration=10,format=rgba[a];[4:v]format=gray,scale={AW}:{AH}[ma];[a][ma]alphamerge[aa];"
+      f"[2:v]fps=30,scale={AW}:-2,crop={AW}:{AH}:0:{avy},tpad=start_mode=clone:start_duration=0.3:stop_mode=clone:stop_duration=10,format=rgba[a];[4:v]format=gray,scale={AW}:{AH}[ma];[a][ma]alphamerge[aa];"
       f"[0:v][bxa]overlay={BX}:{BY}:shortest=0[v1];[v1][aa]overlay={AX}:{AY}[v2];[v2][6:v]overlay=0:0[v3];"
       f"[5:v]format=rgba,fade=t=out:st={cfg.get('hookOut', 2.95)}:d=0.3:alpha=1[h];[v3][h]overlay=0:0:enable='lt(t,{cfg.get('hookOut', 2.95) + 0.35})'[v4]")
 last = "[v4]"
