@@ -1,0 +1,56 @@
+{
+ "segs": [
+  {
+   "src": "media/raw/d20261123_cafe1.mp4",
+   "ss": 1.4,
+   "dur": 3.3
+  },
+  {
+   "src": "media/raw/d20261123_cafe2.mp4",
+   "ss": 0.2,
+   "dur": 3.6
+  },
+  {
+   "src": "/tmp/dins/j1.mp4",
+   "dur": 2.4,
+   "ins": true
+  },
+  {
+   "src": "media/raw/d20261123_cafe3.mp4",
+   "ss": 0.6,
+   "dur": 3.6
+  },
+  {
+   "src": "/tmp/dins/j2.mp4",
+   "dur": 2.4,
+   "ins": true
+  },
+  {
+   "src": "media/raw/d20261123_cafe4.mp4",
+   "ss": 1.2,
+   "dur": 2.5
+  },
+  {
+   "src": "/tmp/dins/j3.mp4",
+   "dur": 2.2,
+   "ins": true
+  },
+  {
+   "src": "media/raw/d20261123_cafe5.mp4",
+   "ss": 0.0,
+   "dur": 4.5
+  }
+ ],
+ "vo": "media/raw/vo-supplier-A.mp4",
+ "ov": "/tmp/aov",
+ "hook": "hookA",
+ "labels": {
+  "1": "l2",
+  "3": "l3"
+ },
+ "end": {
+  "at": 20.88
+ },
+ "tmp": "/tmp/av_buildA",
+ "avy": 120
+}
