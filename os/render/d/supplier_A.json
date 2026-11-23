@@ -1,0 +1,51 @@
+{
+ "vo": "media/raw/vo-supplier-A.mp4",
+ "tmp": "/tmp/d_buildA",
+ "segs": [
+  {
+   "src": "media/raw/d20261123_cafe1.mp4",
+   "ss": 1.4,
+   "dur": 3.3,
+   "ov": "/tmp/dov/hookA.png",
+   "ovOut": 2.95
+  },
+  {
+   "src": "media/raw/d20261123_cafe2.mp4",
+   "ss": 0.2,
+   "dur": 3.6,
+   "ov": "/tmp/dov/l2.png"
+  },
+  {
+   "src": "/tmp/dins/j1.mp4",
+   "dur": 2.4
+  },
+  {
+   "src": "media/raw/d20261123_cafe3.mp4",
+   "ss": 0.6,
+   "dur": 3.6,
+   "ov": "/tmp/dov/l3.png"
+  },
+  {
+   "src": "/tmp/dins/j2.mp4",
+   "dur": 2.4
+  },
+  {
+   "src": "media/raw/d20261123_cafe4.mp4",
+   "ss": 1.2,
+   "dur": 2.5
+  },
+  {
+   "src": "/tmp/dins/j3.mp4",
+   "dur": 2.2
+  },
+  {
+   "src": "media/raw/d20261123_cafe5.mp4",
+   "ss": 0.0,
+   "dur": 4.5
+  }
+ ],
+ "end": {
+  "png": "/tmp/dov/end.png",
+  "at": 20.88
+ }
+}
