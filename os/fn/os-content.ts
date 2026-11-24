@@ -319,7 +319,7 @@ async function ttsText(body: any) { const s = await settings(); if (!EL_KEY || !
       const vid = String(body.voice_id || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 40) || s.main.voiceId; // optional: another cloned voice from the same account // narration for a hand-edited video, in Karin's cloned voice
       const text = String(body.text || "").slice(0, 2500).trim(); if (!text) return json({ error: "empty" }, 400);
       const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(vid)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL_KEY, "content-type": "application/json" },
-        body: JSON.stringify({ text, model_id: body.model || s.main.voiceModel || "eleven_v3", language_code: "he", voice_settings: { stability: body.stability ?? s.main.voiceStability ?? 0.5, similarity_boost: body.similarity ?? 0.85, style: body.style ?? 0.35, use_speaker_boost: true } }) });
+        body: JSON.stringify({ text, model_id: body.model || s.main.voiceModel || "eleven_v3", language_code: "he", voice_settings: { stability: body.stability ?? s.main.voiceStability ?? 0.5, similarity_boost: body.similarity ?? 0.85, style: body.style ?? 0.35, use_speaker_boost: true, ...(body.speed ? { speed: Math.min(1.2, Math.max(0.7, Number(body.speed))) } : {}) } }) });
       if (!r.ok) return json({ error: (await r.text()).slice(0, 300) }, 502);
       const path = `vo/${Date.now()}.mp3`; const up = await db.storage.from(BUCKET).upload(path, new Uint8Array(await r.arrayBuffer()), { contentType: "audio/mpeg", upsert: true });
       if (up.error) return json({ error: up.error.message }, 500);
