@@ -315,9 +315,10 @@ async function publishJob(id: string) {
 }
 
 // narration in Karin's cloned voice (her own app, or the system cron key)
-async function ttsText(body: any) { const s = await settings(); if (!EL_KEY || !s.main.voiceId) return json({ error: "no_voice" }, 400); // narration for a hand-edited video, in Karin's cloned voice
+async function ttsText(body: any) { const s = await settings(); if (!EL_KEY || !s.main.voiceId) return json({ error: "no_voice" }, 400);
+      const vid = String(body.voice_id || "").replace(/[^A-Za-z0-9]/g, "").slice(0, 40) || s.main.voiceId; // optional: another cloned voice from the same account // narration for a hand-edited video, in Karin's cloned voice
       const text = String(body.text || "").slice(0, 2500).trim(); if (!text) return json({ error: "empty" }, 400);
-      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(s.main.voiceId)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL_KEY, "content-type": "application/json" },
+      const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(vid)}?output_format=mp3_44100_128`, { method: "POST", headers: { "xi-api-key": EL_KEY, "content-type": "application/json" },
         body: JSON.stringify({ text, model_id: s.main.voiceModel || "eleven_v3", language_code: "he", voice_settings: { stability: body.stability ?? s.main.voiceStability ?? 0.5, similarity_boost: 0.85, style: 0.35, use_speaker_boost: true } }) });
       if (!r.ok) return json({ error: (await r.text()).slice(0, 300) }, 502);
       const path = `vo/${Date.now()}.mp3`; const up = await db.storage.from(BUCKET).upload(path, new Uint8Array(await r.arrayBuffer()), { contentType: "audio/mpeg", upsert: true });
@@ -500,6 +501,7 @@ Deno.serve(async (req) => {
       if (body.mode === "status") return json({ claude: !!AKEY, meta: !!META, metaGlow: !!META_GLOW, higgsfield: !!HF_KEY });
       if (body.mode === "glow_daily") { const r = await glowDaily(); return json(r); }
       if (body.mode === "tts_text") return await ttsText(body);
+      if (body.mode === "el_voices") { if (!EL_KEY) return json({ error: "no_eleven_key" }, 400); const r = await fetch("https://api.elevenlabs.io/v1/voices", { headers: { "xi-api-key": EL_KEY } }); const j = await r.json().catch(() => ({})); return json({ status: r.status, voices: (j.voices || []).filter((v: any) => v.category !== "premade").map((v: any) => ({ id: v.voice_id, name: v.name, category: v.category })) }); }
       if (body.mode === "lia") { if (!AKEY) return json({ error: "no_key" }, 400); bg(liaDaily(!!body.force).then((r) => console.log("lia", JSON.stringify(r)))); return json({ ok: true }); }
       if (body.mode === "ideas") { if (!AKEY) return json({ error: "no_key" }, 400); bg(ideasScout().then((r) => console.log("ideas", JSON.stringify(r)))); return json({ ok: true }); }
       // read-only: results of chosen campaigns split by age and gender (lifetime)
