@@ -640,6 +640,22 @@ Deno.serve(async (req) => {
         await db.from("os_settings").upsert({ key: "glow_adset_tune", value: out, updated_at: now() });
         return json(out);
       }
+      if (body.mode === "ads_budget") {
+        // תקציב יומי לסדרות הפעילות של קמפיין Glow OS בלבד (בשקלים, 20–150)
+        const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
+        const name = String(body.campaign || ""); const ils = Math.round(Number(body.daily_ils));
+        if (!name.startsWith("Glow OS")) return json({ error: "only Glow OS campaigns" }, 400);
+        if (!(ils >= 20 && ils <= 150)) return json({ error: "daily_ils must be 20-150" }, 400);
+        const sets = ((await graph(`${GLOW.act}/adsets?fields=name,campaign{name},effective_status,daily_budget&limit=50`, tok)).data || []).filter((a: any) => a.campaign?.name === name && a.effective_status === "ACTIVE");
+        const out: any = { at: now(), campaign: name, daily_ils: ils, sets: [] };
+        for (const a of sets) {
+          const r: any = { id: a.id, name: a.name, before: Math.round((+a.daily_budget || 0) / 100) };
+          if (!body.dry) { try { const f = new URLSearchParams({ daily_budget: String(ils * 100), access_token: tok }); const j = await (await fetch(`${G}/${a.id}`, { method: "POST", body: f })).json(); if (j.error) throw new Error(j.error.error_user_msg || j.error.message); r.updated = true; } catch (e) { r.error = String((e as Error).message).slice(0, 400); } }
+          out.sets.push(r);
+        }
+        await db.from("os_settings").upsert({ key: "glow_budget", value: out, updated_at: now() });
+        return json(out);
+      }
       if (body.mode === "ads_quality") {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
         const out: any = { at: now() }; const rng = body.since ? `time_range={"since":"${String(body.since).slice(0, 10)}","until":"${now().slice(0, 10)}"}` : "date_preset=last_7d";
