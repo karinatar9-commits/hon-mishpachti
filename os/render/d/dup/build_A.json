@@ -1,0 +1,39 @@
+{
+ "vo": "media/raw/vo-dup-A.mp4",
+ "tmp": "/tmp/dupbA",
+ "segs": [
+  {
+   "src": "media/raw/d20261123_cafe2.mp4",
+   "ss": 0.2,
+   "dur": 2.8,
+   "ov": "/tmp/dupov/hookA.png",
+   "ovOut": 2.5
+  },
+  {
+   "src": "media/raw/d20261123_cafe1.mp4",
+   "ss": 1.0,
+   "dur": 1.6,
+   "ov": "/tmp/dupov/lab_deliv.png"
+  },
+  {
+   "src": "/tmp/dup_motion.mp4",
+   "ss": 0,
+   "dur": 13.7
+  },
+  {
+   "src": "media/raw/d20261123_cafe4.mp4",
+   "ss": 0.3,
+   "dur": 2.9,
+   "ov": "/tmp/dupov/lab_share.png"
+  },
+  {
+   "src": "media/raw/d20261123_cafe3.mp4",
+   "ss": 0.8,
+   "dur": 3.5
+  }
+ ],
+ "end": {
+  "png": "/tmp/dupov/end.png",
+  "at": 21.0
+ }
+}
