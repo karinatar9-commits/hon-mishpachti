@@ -2,7 +2,7 @@
 """Composite an animated screen (screens.mjs) into a green-screen laptop plate, with mirror reflection, slow push-in,
 series header and end CTA. usage: python3 compose.py plate.png screen.mp4 ovdir vo.mp3 out.mp4 [cta_len=3.2]
 Plate: 9:16 still with a pure-green laptop screen and its reflection on a glossy surface (any size, scaled to 1080x1920)."""
-import sys, subprocess, json, numpy as np
+import os, sys, subprocess, json, numpy as np
 from PIL import Image
 plate, screen, ov, vo, out = sys.argv[1:6]; CTA = float(sys.argv[6]) if len(sys.argv) > 6 else 3.2
 tmp = "/tmp/compose"; subprocess.run(["mkdir", "-p", tmp])
@@ -33,7 +33,7 @@ if has_ref:
            f"[3:v]format=gray,scale=1080:1920,lut=y=val*0.38[mb];[r][mb]alphamerge[ra];[l1][ra]overlay=0:0[l2];"); last = "l2"
 z = f"1+0.06*min(on/{T*30},1)"
 fc += (f"[{last}]scale=2160:3840,zoompan=z='{z}':x='iw/2-(iw/zoom/2)':y='ih*0.55-(ih/zoom*0.55)':d=1:s=1080x1920:fps=30[zv];"
-       f"[4:v]format=rgba,fade=t=in:st=0.3:d=0.4:alpha=1,fade=t=out:st={dur-0.3}:d=0.3:alpha=1[hd];[zv][hd]overlay=0:0[h];"
+       f"[4:v]format=rgba,{'' if os.environ.get('HEAD_FROM0') else 'fade=t=in:st=0.3:d=0.4:alpha=1,'}fade=t=out:st={dur-0.3}:d=0.3:alpha=1[hd];[zv][hd]overlay=0:0[h];"
        f"[5:v]format=rgba,fade=t=in:st={dur}:d=0.35:alpha=1[ct];[h][ct]overlay=0:0,format=yuv420p[v];"
        f"[6:a]adelay=300|300,apad[a]")
 cmd = ["ffmpeg", "-v", "error", "-y", "-loop", "1", "-framerate", "30", "-t", str(T), "-i", f"{tmp}/plate.png", "-i", screen,
