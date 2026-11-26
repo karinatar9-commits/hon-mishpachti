@@ -645,6 +645,25 @@ Deno.serve(async (req) => {
         await db.from("os_settings").upsert({ key: "glow_campaign_status", value: out, updated_at: now() });
         return json(out);
       }
+      // Turn chosen Glow OS campaigns / ad sets / ads on or off by id (only objects inside a "Glow OS" campaign). Karin approves each activation in chat.
+      if (body.mode === "ads_set_status") {
+        const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
+        const out: any = { at: now(), done: [] };
+        for (const it of (body.items || []).slice(0, 20)) {
+          const r: any = { id: it.id, status: it.status };
+          try {
+            const o = await graph(`${it.id}?fields=name,campaign{name}`, tok);
+            const cname = o.campaign?.name || o.name || "";
+            if (!String(cname).startsWith("Glow OS")) throw new Error("not a Glow OS object");
+            const st = it.status === "ACTIVE" ? "ACTIVE" : "PAUSED";
+            const j = await (await fetch(`${G}/${it.id}`, { method: "POST", body: new URLSearchParams({ status: st, access_token: tok }) })).json();
+            if (j.error) throw new Error(j.error.error_user_msg || j.error.message); r.ok = true; r.name = o.name;
+          } catch (e) { r.error = String((e as Error).message).slice(0, 300); }
+          out.done.push(r);
+        }
+        await db.from("os_settings").upsert({ key: "glow_set_status", value: out, updated_at: now() });
+        return json(out);
+      }
       if (body.mode === "ads_adset_tune") {
         const tok = META_GLOW; if (!tok) return json({ error: "no_meta_glow" }, 400);
         const sets = ((await graph(`${GLOW.act}/adsets?fields=name,campaign{name},effective_status,targeting&limit=50`, tok)).data || []).filter((a: any) => a.campaign?.name === String(body.campaign || "") && a.effective_status === "ACTIVE");
