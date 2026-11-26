@@ -527,8 +527,24 @@ Deno.serve(async (req) => {
           if (j.error) throw new Error(`${path}: ${j.error.error_user_msg || j.error.message}`); return j;
         };
         const step = async (name: string, fn: () => Promise<any>) => { try { const r = await fn(); log.push({ step: name, ok: true }); return r; } catch (e) { log.push({ step: name, ok: false, error: String((e as Error).message).slice(0, 400) }); throw e; } };
+        // several primary texts / headlines on one ad, so Meta picks the best mix (Avinoam's rule, 26.11.2026)
+        const feed = (Array.isArray(b.texts) && b.texts.length > 1) || (Array.isArray(b.headlines) && b.headlines.length > 1)
+          ? { bodies: (b.texts || [b.text]).slice(0, 5).map((t: string) => ({ text: String(t) })), titles: (b.headlines || [b.headline]).slice(0, 5).map((t: string) => ({ text: String(t) })),
+              call_to_actions: [{ type: "WHATSAPP_MESSAGE", value: { app_destination: "WHATSAPP" } }], additional_data: { is_click_to_message: true }, optimization_type: "DEGREES_OF_FREEDOM" } : undefined;
+        const welcome = b.greeting ? { type: "VISUAL_EDITOR", version: 2, landing_screen_type: "welcome_message", media_type: "text",
+          text_format: { customer_action_type: "autofill_message", message: { text: String(b.greeting).slice(0, 600), autofill_message: { content: String(b.prefill || "").slice(0, 300) } } } } : undefined;
+        const makeCreative = async (act: string) => {
+          const vid = b.video_id ? { id: String(b.video_id) } : await step("video_upload", () => post(`${act}/advideos`, { file_url: b.video_url, name: b.name }));
+          out.video_id = vid.id;
+          let thumb = "";
+          for (let i = 0; i < 20 && !thumb; i++) { if (i || !b.video_id) await new Promise((r) => setTimeout(r, 4000)); try { const th = await graph(`${vid.id}/thumbnails?fields=uri,is_preferred`, tok); thumb = (th.data || []).find((x: any) => x.is_preferred)?.uri || th.data?.[0]?.uri || ""; } catch { /* still processing */ } }
+          if (!thumb) throw new Error("הסרטון עדיין בעיבוד אצל מטא — להריץ שוב בעוד כמה דקות");
+          const texts = (b.texts || [b.text]); const heads = (b.headlines || [b.headline]);
+          return await step("creative", () => post(`${act}/adcreatives`, { name: b.name, object_story_spec: { page_id: b.page_id, instagram_user_id: b.ig_id, video_data: { video_id: vid.id, image_url: thumb, message: texts[0], title: heads[0], call_to_action: { type: "WHATSAPP_MESSAGE", value: { app_destination: "WHATSAPP" } } } }, asset_feed_spec: feed, page_welcome_message: welcome }));
+        };
         try {
           const act = `act_${b.account}`;
+          if (b.test_creative) { const cr = await makeCreative(act); out.creative_id = cr.id; out.ok = true; out.test = true; await db.from("os_settings").upsert({ key: "glow_campaign_build", value: out, updated_at: now() }); return json(out); }
           const camp = b.campaign_id ? { id: b.campaign_id } : await step("campaign", () => post(`${act}/campaigns`, { name: b.name, objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
           out.campaign_id = camp.id;
           // settings of the best ad set ever (read only), reused for the new one
@@ -546,12 +562,7 @@ Deno.serve(async (req) => {
             optimization_goal: old.optimization_goal || "CONVERSATIONS", billing_event: old.billing_event || "IMPRESSIONS", destination_type: old.destination_type || "WHATSAPP",
             promoted_object: { page_id: b.page_id }, bid_strategy: old.bid_strategy || "LOWEST_COST_WITHOUT_CAP", attribution_spec: [{ event_type: "CLICK_THROUGH", window_days: 1 }] }));
           const adset = as.id; out.adset_id = adset;
-          const vid = await step("video_upload", () => post(`${act}/advideos`, { file_url: b.video_url, name: b.name }));
-          out.video_id = vid.id;
-          let thumb = "";
-          for (let i = 0; i < 20 && !thumb; i++) { await new Promise((r) => setTimeout(r, 4000)); try { const th = await graph(`${vid.id}/thumbnails?fields=uri,is_preferred`, tok); thumb = (th.data || []).find((x: any) => x.is_preferred)?.uri || th.data?.[0]?.uri || ""; } catch { /* still processing */ } }
-          if (!thumb) throw new Error("הסרטון עדיין בעיבוד אצל מטא — להריץ שוב בעוד כמה דקות");
-          const cr = await step("creative", () => post(`${act}/adcreatives`, { name: b.name, object_story_spec: { page_id: b.page_id, instagram_user_id: b.ig_id, video_data: { video_id: vid.id, image_url: thumb, message: b.text, title: b.headline, call_to_action: { type: "WHATSAPP_MESSAGE", value: { app_destination: "WHATSAPP" } } } } }));
+          const cr = await makeCreative(act);
           out.creative_id = cr.id;
           const ad = await step("ad", () => post(`${act}/ads`, { name: b.ad_name, adset_id: adset, creative: { creative_id: cr.id }, status: "PAUSED" }));
           out.ad_id = ad.id; out.ok = true;
