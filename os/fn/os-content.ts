@@ -717,6 +717,12 @@ Deno.serve(async (req) => {
           await tryG("adsets", `${A}/adsets?fields=name,campaign_id,status,effective_status,optimization_goal,billing_event,bid_strategy,destination_type,promoted_object,daily_budget,lifetime_budget,targeting,attribution_spec,created_time&limit=40`);
           await tryG("ads", `${A}/ads?fields=name,adset_id,status,effective_status,creative{id,name,object_type,object_story_id,effective_object_story_id,instagram_user_id,call_to_action_type,object_story_spec,asset_feed_spec,body,title,video_id,image_hash}&limit=40`);
         }
+        if (body.wa) { // read-only: which WhatsApp number the page sends ad conversations to
+          for (const pg of (out.pages?.data || [])) {
+            await tryG(`wa_${pg.id}`, `${pg.id}?fields=name,whatsapp_number,phone`);
+            await tryG(`wa2_${pg.id}`, `${pg.id}?fields=whatsapp_business_account{id,name,phone_numbers{display_phone_number,verified_name,platform_type,status,quality_rating}}`);
+          }
+        }
         await db.from("os_settings").upsert({ key: "meta_probe", value: out, updated_at: now() });
         return json({ ok: true, keys: Object.keys(out) });
       }
