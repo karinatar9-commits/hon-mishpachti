@@ -719,6 +719,7 @@ Deno.serve(async (req) => {
         const tok = META_GLOW || META; if (!tok) return json({ error: "no_meta" }, 400);
         const out: any = { at: now() }; const tryG = async (k: string, path: string) => { try { out[k] = await graph(path, tok); } catch (e) { out[k] = { error: String((e as Error).message).slice(0, 300) }; } };
         await tryG("perms", "me/permissions");
+        await tryG("app", "app?fields=id,name,link"); await tryG("me", "me?fields=id,name");
         await tryG("pages", "me/accounts?fields=name,id,instagram_business_account{id,username},connected_instagram_account{id,username}&limit=20");
         await tryG("accounts", "me/adaccounts?fields=name,account_id,currency,account_status,timezone_name,min_daily_budget,spend_cap,amount_spent,funding_source_details,business{id,name}&limit=20");
         const acc = (out.accounts?.data || []).find((a: any) => +a.amount_spent > 0) || (out.accounts?.data || [])[0];
