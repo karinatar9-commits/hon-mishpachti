@@ -548,7 +548,7 @@ Deno.serve(async (req) => {
           const camp = b.campaign_id ? { id: b.campaign_id } : await step("campaign", () => post(`${act}/campaigns`, { name: b.name, objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
           out.campaign_id = camp.id;
           // settings of the best ad set ever (read only), reused for the new one
-          const old = await graph(`${b.from_adset}?fields=targeting,optimization_goal,billing_event,destination_type,promoted_object,bid_strategy`, tok);
+          const old = b.adset_id ? {} as any : await graph(`${b.from_adset}?fields=targeting,optimization_goal,billing_event,destination_type,promoted_object,bid_strategy`, tok);
           let geo = old.targeting?.geo_locations;
           if (b.lat && b.lng) { geo = { custom_locations: [{ latitude: b.lat, longitude: b.lng, radius: b.radius || 15, distance_unit: "kilometer" }], location_types: ["home", "recent"] }; out.city = `${b.lat},${b.lng} +${b.radius || 15}km`; }
           else if (b.city) {
@@ -558,7 +558,7 @@ Deno.serve(async (req) => {
           // placements left automatic (Advantage+): the old list includes positions Meta no longer accepts
           const t: any = { ...old.targeting, age_min: b.age_min, age_max: b.age_max, genders: [2], geo_locations: geo };
           for (const k of ["publisher_platforms", "facebook_positions", "instagram_positions", "messenger_positions", "audience_network_positions", "whatsapp_positions", "threads_positions", "device_platforms"]) delete t[k];
-          const as = await step("adset", () => post(`${act}/adsets`, { name: b.adset_name, campaign_id: camp.id, status: "PAUSED", daily_budget: b.daily_budget, targeting: t,
+          const as = b.adset_id ? { id: String(b.adset_id) } : await step("adset", () => post(`${act}/adsets`, { name: b.adset_name, campaign_id: camp.id, status: "PAUSED", daily_budget: b.daily_budget, targeting: t,
             optimization_goal: old.optimization_goal || "CONVERSATIONS", billing_event: old.billing_event || "IMPRESSIONS", destination_type: old.destination_type || "WHATSAPP",
             promoted_object: { page_id: b.page_id }, bid_strategy: old.bid_strategy || "LOWEST_COST_WITHOUT_CAP", attribution_spec: [{ event_type: "CLICK_THROUGH", window_days: 1 }] }));
           const adset = as.id; out.adset_id = adset;
