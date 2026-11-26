@@ -672,6 +672,7 @@ Deno.serve(async (req) => {
           const r: any = { id: a.id, name: a.name, before: a.targeting };
           const t = JSON.parse(JSON.stringify(a.targeting || {}));
           if (body.age_min) t.age_min = Number(body.age_min); if (body.age_max) t.age_max = Number(body.age_max);
+          if (body.advantage === 0 || body.advantage === 1) { t.targeting_automation = { ...(t.targeting_automation || {}), advantage_audience: body.advantage }; if (body.advantage === 0) delete t.age_range; }
           if (body.placements) { t.publisher_platforms = ["facebook", "instagram"]; t.facebook_positions = ["feed", "facebook_reels"]; t.instagram_positions = Array.isArray(body.ig_positions) ? body.ig_positions : ["stream", "reels"]; delete t.messenger_positions; delete t.audience_network_positions; }
           r.after = t;
           if (!body.dry) { try { const f = new URLSearchParams(); f.set("targeting", JSON.stringify(t)); f.set("access_token", tok); const j = await (await fetch(`${G}/${a.id}`, { method: "POST", body: f })).json(); if (j.error) throw new Error(j.error.error_user_msg || j.error.message); r.updated = true; } catch (e) { r.error = String((e as Error).message).slice(0, 400); } }
