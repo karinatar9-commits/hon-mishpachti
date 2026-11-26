@@ -534,6 +534,13 @@ Deno.serve(async (req) => {
         const welcome = b.greeting ? { type: "VISUAL_EDITOR", version: 2, landing_screen_type: "welcome_message", media_type: "text",
           text_format: { customer_action_type: "autofill_message", message: { text: String(b.greeting).slice(0, 600), autofill_message: { content: String(b.prefill || "").slice(0, 300) } } } } : undefined;
         const makeCreative = async (act: string) => {
+          if (b.image_url) { // image ad: upload the picture, then a click-to-WhatsApp link ad
+            const raw = new Uint8Array(await (await fetch(String(b.image_url))).arrayBuffer()); let bin = ""; for (let i = 0; i < raw.length; i += 32768) bin += String.fromCharCode(...raw.subarray(i, i + 32768));
+            const img = await step("image_upload", () => post(`${act}/adimages`, { bytes: btoa(bin), name: b.name }));
+            const hash = (Object.values(img.images || {})[0] as any)?.hash; if (!hash) throw new Error("image upload returned no hash"); out.image_hash = hash;
+            const texts = (b.texts || [b.text]); const heads = (b.headlines || [b.headline]);
+            return await step("creative", () => post(`${act}/adcreatives`, { name: b.name, object_story_spec: { page_id: b.page_id, instagram_user_id: b.ig_id, link_data: { image_hash: hash, link: "https://api.whatsapp.com/send", message: texts[0], name: heads[0], call_to_action: { type: "WHATSAPP_MESSAGE", value: { app_destination: "WHATSAPP" } } } }, asset_feed_spec: feed, page_welcome_message: welcome }));
+          }
           const vid = b.video_id ? { id: String(b.video_id) } : await step("video_upload", () => post(`${act}/advideos`, { file_url: b.video_url, name: b.name }));
           out.video_id = vid.id;
           let thumb = "";
@@ -544,6 +551,7 @@ Deno.serve(async (req) => {
         };
         try {
           const act = `act_${b.account}`;
+          if (b.replace_ad_id) { const cr = await makeCreative(act); out.creative_id = cr.id; await step("swap", () => post(String(b.replace_ad_id), { creative: { creative_id: cr.id } })); out.ad_id = String(b.replace_ad_id); out.ok = true; await db.from("os_settings").upsert({ key: "glow_campaign_build", value: out, updated_at: now() }); return json(out); }
           if (b.test_creative) { const cr = await makeCreative(act); out.creative_id = cr.id; out.ok = true; out.test = true; await db.from("os_settings").upsert({ key: "glow_campaign_build", value: out, updated_at: now() }); return json(out); }
           const camp = b.campaign_id ? { id: b.campaign_id } : await step("campaign", () => post(`${act}/campaigns`, { name: b.name, objective: "OUTCOME_ENGAGEMENT", status: "PAUSED", special_ad_categories: [], buying_type: "AUCTION", is_adset_budget_sharing_enabled: false }));
           out.campaign_id = camp.id;
