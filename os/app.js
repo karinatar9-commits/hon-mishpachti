@@ -805,7 +805,7 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   const base=kt.map(g=>({g:g.g,items:[...g.items]})), all={}; base.forEach(g=>g.items.forEach(i=>all[i[0]]=i));
   const it=(id,ic,label)=>[id,ic||(all[id]||[])[1]||"•",label||(all[id]||[])[2]||id];
   const MENU={
-    me:{g:"העסק שלי · Goldchain AI",items:[it("ideas","💡","רעיונות ומחקר"),it("guides","🎁","מדריכים לפוסטים"),it("leads"),it("mkt-factory"),it("quotes","📄","הצעות מחיר"),it("agent-biz")]},
+    me:{g:"העסק שלי · Goldchain AI",items:[it("ideas","💡","רעיונות ומחקר"),it("guides","🎁","מדריכים לפוסטים"),it("wa","💬","וואטסאפ"),it("leads"),it("mkt-factory"),it("quotes","📄","הצעות מחיר"),it("agent-biz")]},
     glow:{g:"Glow House",items:[it("glow-hub","✨","מרכז השיווק"),it("glow-tor","📅","זימון תורים"),it("mkt-factory","🎬","תוכן וסרטונים"),it("mkt-meta","📢","קמפיינים ומודעות"),it("leads"),it("mkt-ig","📸","אינסטגרם"),it("biz-glow","📊","תמונת מצב"),it("leads-dash","🎯","לוח בקרה"),it("glow-annual","🗓️","טבלה שנתית"),it("glow-cash","📈","תזרים מזומנים"),it("glow-invoices","🧾","סגירת חשבוניות"),it("glow-map","🕸️","מפת חשבונות")]},
     x4:{g:"4X",items:[it("biz-x4","🏢","תמונת מצב"),it("w-hold","📊","אחזקות"),it("fin-map","🕸️","מפת חשבונות")]},
     benhur:{g:"בן-חור",items:[it("biz-benhur","🏭","תמונת מצב"),it("leads"),it("quotes","📄","הצעות מחיר"),it("agent-benhur"),it("fin-invoices","🧾","סגירת חשבוניות"),it("fin-cash","📈","תזרים מזומנים")]}
@@ -1247,5 +1247,78 @@ ${i.result}`:"",o?`הוראות של קרין: ${o}`:""].filter(Boolean).join(`
   z["glow-tor"]=()=>{ if(!asked){ asked=!0; load(); }
     const re=d("#gtRe"); re&&(re.onclick=e=>{ e.preventDefault(); if(!busy) load(); });
     document.querySelectorAll("[data-gtc]").forEach(b=>b.onclick=async()=>{ try{ await navigator.clipboard.writeText(b.dataset.gtc); f("הקישור הועתק"); }catch(_){ prompt("הקישור:",b.dataset.gtc); } });
+  };
+})();
+
+// ---------- Goldchain WhatsApp: scheduled messages to chats and groups + a small CRM per chat (os-wa function, Green API) ----------
+(()=>{
+  let S=null, C=[], Q=[], tab="sched", busy=!1, flt={q:"",kind:"",tag:""}, sel=new Set(), open=null, asked=!1;
+  const STAGES=[["","—"],["lead","ליד חדש"],["talk","בשיחה"],["quote","הצעת מחיר"],["client","לקוח"],["later","לחזור בהמשך"],["no","לא רלוונטי"]];
+  const SL=Object.fromEntries(STAGES), ST={scheduled:["⏰","מתוזמנת"],sending:["📤","נשלחת"],sent:["✅","נשלחה"],failed:["⚠️","נכשלה"],cancelled:["✖️","בוטלה"]};
+  const W=async b=>{ const{data,error}=await y.functions.invoke("os-wa",{body:b}); if(error){ let s=error.message; try{ s=(await error.context.json()).error||s; }catch(_){ } throw{message:s}; } return data; };
+  const load=async()=>{ try{ const[a,b]=await Promise.all([y.from("wa_chats").select("*").order("last_at",{ascending:!1,nullsFirst:!1}).limit(2000),y.from("wa_sched").select("*").order("send_at",{ascending:!1}).limit(60)]); C=a.data||[]; Q=b.data||[]; }catch(_){ } O==="wa"&&q(!1); };
+  const stat=async()=>{ try{ S=await W({mode:"status"}); }catch(e){ S={connected:!1,reason:"err",error:X(e)}; } O==="wa"&&q(!1); };
+  const tags=()=>[...new Set(C.flatMap(c=>c.tags||[]))].sort();
+  const dt=s=>s?new Date(s).toLocaleString("he-IL",{day:"numeric",month:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+  const today=new Date().toISOString().slice(0,10);
+  const list=()=>C.filter(c=>(!flt.kind||(flt.kind==="g"?c.is_group:!c.is_group))&&(!flt.tag||(flt.tag==="__due"?c.follow_up&&c.follow_up<=today:flt.tag==="__unread"?c.unread>0:(c.tags||[]).includes(flt.tag)))&&(!flt.q||((c.name||"")+" "+c.chat_id+" "+(c.notes||"")).toLowerCase().includes(flt.q.toLowerCase())));
+  const filters=()=>`<div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px"><input id="waQ" placeholder="חיפוש שם, מספר או פתק" value="${l(flt.q)}" style="flex:1;min-width:160px">
+    <select id="waKind"><option value="">הכל</option><option value="g" ${flt.kind==="g"?"selected":""}>קבוצות</option><option value="u" ${flt.kind==="u"?"selected":""}>אנשים</option></select>
+    <select id="waTag"><option value="">כל התגיות</option><option value="__unread" ${flt.tag==="__unread"?"selected":""}>לא נקראו</option><option value="__due" ${flt.tag==="__due"?"selected":""}>צריך לחזור היום</option>${tags().map(t=>`<option ${flt.tag===t?"selected":""}>${l(t)}</option>`).join("")}</select></div>`;
+  const setup=()=>`<div class="card" style="margin-bottom:14px;border-right:4px solid #fbbf24"><b>🔌 לחבר את הוואטסאפ של Goldchain</b><div class="small" style="line-height:1.9;margin-top:6px">
+    1. ב-green-api.com: ליצור מכשיר (Instance) בתוכנית <b>Business</b>. בתוכנית החינמית אפשר רק 3 צ'אטים בחודש.<br>
+    2. לסרוק את ה-QR מהוואטסאפ של Goldchain (הגדרות ← מכשירים מקושרים).<br>
+    3. ב-Supabase ← Edge Functions ← Secrets להוסיף: <b>GREEN_GC_URL</b> (ה-apiUrl), <b>GREEN_GC_ID</b> (idInstance), <b>GREEN_GC_TOKEN</b> (apiTokenInstance).<br>
+    4. ללחוץ כאן "בדיקת חיבור" ואז "חיבור התראות".</div>
+    <div class="acts" style="margin-top:8px"><button class="btn sm" id="waChk">בדיקת חיבור</button></div>${S&&S.error?`<div class="small" style="color:var(--red);margin-top:6px">${l(S.error)}</div>`:""}</div>`;
+  const sched=()=>{ const L=list();
+    const pick=`<div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:4px 8px">${L.length?L.slice(0,400).map(c=>`<label class="row" style="gap:8px;padding:6px 0;border-top:1px solid var(--line);cursor:pointer"><input type="checkbox" data-wsel="${l(c.chat_id)}" ${sel.has(c.chat_id)?"checked":""}><span>${c.is_group?"👥":"👤"} ${l(c.name||c.chat_id.split("@")[0])}</span>${(c.tags||[]).map(t=>`<span class="pill small">${l(t)}</span>`).join("")}</label>`).join(""):'<div class="muted small" style="padding:8px">אין צ\'אטים. אחרי החיבור לוחצים "סנכרון צ\'אטים".</div>'}</div>`;
+    const rows=Q.map(r=>{ const[a,b]=ST[r.status]||["•",r.status], n=(r.targets||[]).length, bad=(r.results||[]).filter(x=>!x.ok).length;
+      return `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="row" style="justify-content:space-between;gap:8px"><b>${a} ${b} · ${dt(r.send_at)}</b><span class="small muted">${r.status==="sending"||r.status==="sent"?`${r.done}/${n}`:n} נמענים${bad?` · <span style="color:var(--red)">${bad} נכשלו</span>`:""}</span></div>
+      <div class="small" style="white-space:pre-wrap;margin:4px 0">${l(r.text.slice(0,220))}${r.text.length>220?"…":""}</div><div class="small muted">${l((r.targets||[]).slice(0,6).map(t=>t.name||t.id.split("@")[0]).join(", "))}${n>6?` ועוד ${n-6}`:""}</div>
+      ${r.status==="scheduled"?`<div class="acts"><button class="btn ghost sm" data-wnow="${r.id}">שליחה עכשיו</button><button class="btn ghost sm" data-wcan="${r.id}">ביטול</button></div>`:""}</div>`; }).join("");
+    const d0=new Date(Date.now()+36e5); d0.setMinutes(0,0,0); const loc=new Date(d0-d0.getTimezoneOffset()*6e4).toISOString().slice(0,16);
+    return `<div class="grid g2"><div class="card"><h3>✍️ הודעה חדשה</h3><textarea id="waTxt" rows="6" placeholder="ההודעה. {שם} יוחלף בשם הפרטי של כל איש קשר.">${l(window.__waTxt||"")}</textarea>
+      <div class="row" style="gap:8px;margin-top:8px;align-items:center"><span class="small">מתי:</span><input type="datetime-local" id="waAt" value="${l(window.__waAt||loc)}"></div>
+      <div class="small muted" style="margin-top:6px;line-height:1.7">ההודעות יוצאות אחת־אחת עם הפסקה של 4–9 שניות, עד 150 ביום, כדי שוואטסאפ לא יחסום את המספר.</div>
+      <div class="acts" style="margin-top:8px"><button class="btn" id="waGo" ${busy?"disabled":""}>⏰ תזמון ל-${sel.size} נמענים</button>${sel.size?`<button class="btn ghost sm" id="waClr">ניקוי בחירה</button>`:""}</div></div>
+      <div class="card"><h3>👥 למי</h3>${filters()}<div class="acts" style="margin-bottom:6px"><button class="btn ghost sm" id="waAll">לבחור את כל ${L.length} שברשימה</button></div>${pick}</div></div>
+      <div class="card" style="margin-top:14px"><h3>📋 הודעות מתוזמנות</h3>${rows||'<div class="muted small">עוד אין.</div>'}</div>`; };
+  const crm=()=>{ const L=list();
+    return `<div class="card">${filters()}${L.length?L.slice(0,300).map(c=>{ const nm=c.name||c.chat_id.split("@")[0], num=c.is_group?"":c.chat_id.split("@")[0];
+      const ed=open===c.chat_id?`<div style="margin-top:8px;display:grid;gap:6px"><div class="row" style="gap:6px;flex-wrap:wrap"><select id="wcSt">${STAGES.map(([k,v])=>`<option value="${k}" ${c.stage===k?"selected":""}>${v}</option>`).join("")}</select><input type="date" id="wcFu" value="${l(c.follow_up||"")}"><input id="wcTg" placeholder="תגיות, מופרדות בפסיק" value="${l((c.tags||[]).join(", "))}" style="flex:1;min-width:140px"></div>
+        <textarea id="wcNt" rows="3" placeholder="פתקים: מה דיברנו, מה היא צריכה, מה הצעתי">${l(c.notes||"")}</textarea><div class="acts"><button class="btn sm" data-wcsave="${l(c.chat_id)}">שמירה</button>${num?`<a class="btn ghost sm" href="https://wa.me/${l(num)}" target="_blank" rel="noopener">לפתוח בוואטסאפ ↗</a>`:""}</div></div>`:"";
+      return `<div style="padding:10px 0;border-top:1px solid var(--line)"><div class="row" style="justify-content:space-between;gap:8px;cursor:pointer" data-wcopen="${l(c.chat_id)}"><div style="flex:1;min-width:0"><b>${c.is_group?"👥":"👤"} ${l(nm)}</b>${c.unread?` <span class="pill" style="background:#3ddc84;color:#000">${c.unread}</span>`:""} ${c.stage?`<span class="pill small">${l(SL[c.stage]||c.stage)}</span>`:""}${(c.tags||[]).map(t=>`<span class="pill small">${l(t)}</span>`).join("")}${c.follow_up?` <span class="small" style="color:${c.follow_up<=today?"#fbbf24":"inherit"}">⏰ ${l(c.follow_up.split("-").reverse().slice(0,2).join("."))}</span>`:""}
+        <div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.last_dir==="out"?"את: ":""}${l(c.last_msg||c.notes||"")}</div></div><span class="small muted">${dt(c.last_at)}</span></div>${ed}</div>`; }).join(""):'<div class="muted small">אין צ\'אטים ברשימה.</div>'}</div>`; };
+  const view=()=>{ if(!S) return `<div class="card">טוען…</div>`;
+    const head=`<div class="card" style="margin-bottom:14px;border-right:4px solid #3ddc84"><div class="row" style="justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>💬 וואטסאפ · Goldchain AI</b> <span class="small" style="color:${S.connected?"#3ddc84":"#fbbf24"}">· ${S.connected?"מחובר":"לא מחובר"}</span></div>
+      <div class="row" style="gap:6px"><button class="btn ${tab==="sched"?"":"ghost"} sm" data-wtab="sched">⏰ תזמון הודעות</button><button class="btn ${tab==="crm"?"":"ghost"} sm" data-wtab="crm">🗂️ צ'אטים ולידים${C.some(c=>c.unread)?` (${C.filter(c=>c.unread).length})`:""}</button>${S.connected?`<button class="btn ghost sm" id="waSync" ${busy?"disabled":""}>🔄 סנכרון צ'אטים</button><button class="btn ghost sm" id="waHook">🔔 חיבור התראות</button>`:""}</div></div></div>`;
+    return head+(S.connected?"":setup())+(tab==="sched"?sched():crm()); };
+  k["wa"]=view; Ga["wa"]=["העסק שלי","וואטסאפ"];
+  z["wa"]=()=>{ if(!asked){ asked=!0; stat(); load(); }
+    const on=(s,ev,fn)=>{ const e=d(s); e&&(e[ev]=fn); };
+    document.querySelectorAll("[data-wtab]").forEach(b=>b.onclick=()=>{ tab=b.dataset.wtab; q(!1); });
+    on("#waChk","onclick",async()=>{ S=null; q(!1); await stat(); });
+    on("#waSync","onclick",async()=>{ busy=!0; q(!1); try{ const r=await W({mode:"sync"}); f(`סונכרנו ${r.total||0} צ'אטים`); }catch(e){ f(X(e)); } busy=!1; await load(); });
+    on("#waHook","onclick",async()=>{ try{ const r=await W({mode:"setup"}); f(r.saved?"ההתראות מחוברות: הודעות נכנסות יופיעו כאן":"Green API לא אישר את ההגדרה"); }catch(e){ f(X(e)); } });
+    on("#waQ","oninput",e=>{ flt.q=e.target.value; clearTimeout(window.__waT); window.__waT=setTimeout(()=>{ q(!1); const i=d("#waQ"); i&&(i.focus(),i.setSelectionRange(i.value.length,i.value.length)); },350); });
+    on("#waKind","onchange",e=>{ flt.kind=e.target.value; q(!1); });
+    on("#waTag","onchange",e=>{ flt.tag=e.target.value; q(!1); });
+    on("#waTxt","oninput",e=>{ window.__waTxt=e.target.value; });
+    on("#waAt","onchange",e=>{ window.__waAt=e.target.value; });
+    document.querySelectorAll("[data-wsel]").forEach(b=>b.onchange=()=>{ b.checked?sel.add(b.dataset.wsel):sel.delete(b.dataset.wsel); const g=d("#waGo"); g&&(g.textContent=`⏰ תזמון ל-${sel.size} נמענים`); });
+    on("#waAll","onclick",()=>{ list().slice(0,400).forEach(c=>sel.add(c.chat_id)); q(!1); });
+    on("#waClr","onclick",()=>{ sel.clear(); q(!1); });
+    on("#waGo","onclick",async()=>{ const t=(window.__waTxt||"").trim(), at=window.__waAt||d("#waAt").value; if(!t){ f("כתבי הודעה"); return; } if(!sel.size){ f("בחרי למי לשלוח"); return; }
+      const when=new Date(at); if(isNaN(when)){ f("בחרי זמן"); return; }
+      const tg=C.filter(c=>sel.has(c.chat_id)).map(c=>({id:c.chat_id,name:c.name||""}));
+      if(!confirm(`לתזמן את ההודעה ל-${tg.length} נמענים ב-${dt(when)}?`)) return;
+      busy=!0; const{error}=await y.from("wa_sched").insert({targets:tg,text:t,send_at:when.toISOString()}); busy=!1;
+      if(error){ f(error.message); return; } f("ההודעה תוזמנה"); window.__waTxt=""; sel.clear(); await load(); });
+    document.querySelectorAll("[data-wcan]").forEach(b=>b.onclick=async()=>{ await y.from("wa_sched").update({status:"cancelled",updated_at:new Date().toISOString()}).eq("id",b.dataset.wcan).eq("status","scheduled"); f("בוטלה"); await load(); });
+    document.querySelectorAll("[data-wnow]").forEach(b=>b.onclick=async()=>{ if(!confirm("לשלוח עכשיו?")) return; try{ await W({mode:"send_now",id:b.dataset.wnow}); f("יוצאת בדקה הקרובה"); }catch(e){ f(X(e)); } await load(); });
+    document.querySelectorAll("[data-wcopen]").forEach(b=>b.onclick=async()=>{ const id=b.dataset.wcopen; open=open===id?null:id; const c=C.find(x=>x.chat_id===id); if(open&&c&&c.unread){ c.unread=0; await y.from("wa_chats").update({unread:0}).eq("chat_id",id); } q(!1); });
+    document.querySelectorAll("[data-wcsave]").forEach(b=>b.onclick=async()=>{ const id=b.dataset.wcsave, row={stage:d("#wcSt").value||null,follow_up:d("#wcFu").value||null,tags:d("#wcTg").value.split(",").map(s=>s.trim()).filter(Boolean),notes:d("#wcNt").value.trim()||null,updated_at:new Date().toISOString()};
+      const{error}=await y.from("wa_chats").update(row).eq("chat_id",id); if(error){ f(error.message); return; } Object.assign(C.find(x=>x.chat_id===id)||{},row); open=null; f("נשמר"); q(!1); });
   };
 })();
