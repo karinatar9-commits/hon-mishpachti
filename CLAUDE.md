@@ -31,5 +31,5 @@ Delete them and clone fresh. Never push from an old clone, never `git push --for
 Commit as `Karin Atar <296146375+karinatar9-commits@users.noreply.github.com>` or the session's own no-reply identity — never a personal email address.
 
 ## Edge functions
-Six functions are loaders that import `os/fn/<name>.ts` at a pinned commit: os-content, os-google, guide-lead, os-tts, os-morning, glow-booking.
+Seven functions are loaders that import `os/fn/<name>.ts` at a pinned commit: os-content, os-google, guide-lead, os-tts, os-morning, glow-booking, os-wa.
 After changing os/fn/<name>.ts: push, then redeploy the loader with the new commit SHA, then check that the function answers.
